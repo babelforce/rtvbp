@@ -7,8 +7,15 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
+
+# ✅ Install system dependencies for alsa-sys
+RUN apt-get update && \
+    apt-get install -y libasound2-dev pkg-config && \
+    rm -rf /var/lib/apt/lists/*
+
 # Build dependencies - this is the caching Docker layer!
 RUN cargo chef cook --release --recipe-path recipe.json
+
 # Build application
 COPY . .
 RUN cargo build --release --bin rtvbp-demo
