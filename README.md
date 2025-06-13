@@ -186,11 +186,6 @@ asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
 ```
 
-**Start server**
-
-You can start your own websocket endpoint or
-use the demo here:
-
 
 
 
