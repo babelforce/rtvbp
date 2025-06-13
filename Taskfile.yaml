@@ -1,0 +1,48 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  fix:
+    cmds:
+      - cargo fix --allow-dirty
+      - cargo fmt
+
+  verify:
+    cmds:
+      - cargo build
+      - cargo test
+
+  build_schema:
+    cmds:
+      - cargo run --bin rtvbp-spec-generate
+
+  build_docker:
+    cmds:
+      - docker build --file src/rtvbp-demo/Dockerfile -t rtvbp-demo .
+
+  build:
+    cmds:
+      - task: build_schema
+      - task: fix
+      - task: verify
+      - cargo build
+
+  publish:
+    cmds:
+      - task: build
+      - task: commit
+      - git push origin main
+
+  commit:
+    deps:
+      - build
+    cmds:
+      - | 
+        git add -A . && git commit -m "feat: update"
+
+  default:
+    cmds:
+      - task: build
+
+    silent: true

@@ -1,0 +1,1036 @@
+asyncapi: 3.0.0
+id: urn:com.babelforce:rtvbp
+info:
+  title: Realtime Voice Bridge Protocol
+  version: 1.0.0
+defaultContentType: application/json
+channels:
+  stream:
+    address: /stream
+    messages:
+      SessionCreateRequestMessage:
+        $ref: '#/components/messages/SessionCreateRequestMessage'
+      SessionCreateResponseMessage:
+        $ref: '#/components/messages/SessionCreateResponseMessage'
+      PingRequestMessage:
+        $ref: '#/components/messages/PingRequestMessage'
+      PingResponseMessage:
+        $ref: '#/components/messages/PingResponseMessage'
+      AudioStreamStartRequestMessage:
+        $ref: '#/components/messages/AudioStreamStartRequestMessage'
+      AudioStreamStartResponseMessage:
+        $ref: '#/components/messages/AudioStreamStartResponseMessage'
+      AudioStreamStopRequestMessage:
+        $ref: '#/components/messages/AudioStreamStopRequestMessage'
+      AudioStreamStopResponseMessage:
+        $ref: '#/components/messages/AudioStreamStopResponseMessage'
+      RecordingStartRequestMessage:
+        $ref: '#/components/messages/RecordingStartRequestMessage'
+      RecordingStartResponseMessage:
+        $ref: '#/components/messages/RecordingStartResponseMessage'
+      RecordingStopRequestMessage:
+        $ref: '#/components/messages/RecordingStopRequestMessage'
+      RecordingStopResponseMessage:
+        $ref: '#/components/messages/RecordingStopResponseMessage'
+      PlaybackStartRequestMessage:
+        $ref: '#/components/messages/PlaybackStartRequestMessage'
+      PlaybackStartResponseMessage:
+        $ref: '#/components/messages/PlaybackStartResponseMessage'
+      ApplicationMoveRequestMessage:
+        $ref: '#/components/messages/ApplicationMoveRequestMessage'
+      ApplicationMoveResponseMessage:
+        $ref: '#/components/messages/ApplicationMoveResponseMessage'
+      RecordingFinishedEventMessage:
+        $ref: '#/components/messages/RecordingFinishedEventMessage'
+      SessionUpdatedEventMessage:
+        $ref: '#/components/messages/SessionUpdatedEventMessage'
+      SessionTerminatedEventMessage:
+        $ref: '#/components/messages/SessionTerminatedEventMessage'
+      AudioStreamBufferAppendEventMessage:
+        $ref: '#/components/messages/AudioStreamBufferAppendEventMessage'
+components:
+  schemas:
+    SessionCreateRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: SessionCreateRequest
+        properties:
+          request:
+            type: string
+            const: session_create
+          data:
+            $ref: '#/components/schemas/SessionCreateRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: session_create
+        data:
+          session_id: VPk_6IQStguK0vJrdJ4mT
+          capabilities:
+            events:
+            - session_updated
+            - session_terminated
+            requests:
+            - call_hangup
+            - recording_start
+            - recording_stop
+            audio:
+              direction: both
+              codecs:
+              - alaw
+    Header:
+      type: object
+      properties:
+        id:
+          description: Message ID
+          type: string
+        ts:
+          description: Timestamp
+          type: integer
+          format: int64
+      additionalProperties: false
+      required:
+      - id
+      - ts
+    SessionCreateRequest:
+      type: object
+      properties:
+        session_id:
+          type: string
+        capabilities:
+          description: Session capabilities of the session creator
+          $ref: '#/components/schemas/SessionCapabilities'
+        metadata:
+          description: Additional Metadata provided by the session owner
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+      required:
+      - session_id
+      - capabilities
+    SessionCapabilities:
+      type: object
+      properties:
+        events:
+          description: List of events which will be dispatched the lifetime of the session
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        requests:
+          description: List of requests which are allowed to be sent to the session
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+        audio:
+          description: Audio capabilities - set when audio is enabled on the session
+          anyOf:
+          - $ref: '#/components/schemas/AudioCapabilities'
+          - type: 'null'
+      required:
+      - events
+      - requests
+      - audio
+    AudioCapabilities:
+      type: object
+      properties:
+        direction:
+          $ref: '#/components/schemas/AudioDirection'
+        codecs:
+          description: Set of supported codecs
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/AudioCodec'
+      required:
+      - direction
+      - codecs
+    AudioDirection:
+      oneOf:
+      - description: Audio flows into both directions
+        type: string
+        const: both
+      - description: Audio can flow into the session owning side
+        type: string
+        const: in
+      - description: Audio can flow out of the session owning side
+        type: string
+        const: out
+    AudioCodec:
+      type: string
+      enum:
+      - slin
+      - alaw
+    SessionCreateResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: SessionCreateResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/SessionCreateResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data:
+          capabilities:
+            events:
+            - session_updated
+            - session_terminated
+            requests:
+            - call_hangup
+            - recording_start
+            - recording_stop
+            audio:
+              direction: both
+              codecs:
+              - alaw
+    SessionCreateResponse:
+      type: object
+      properties:
+        capabilities:
+          description: Session capabilities of the other end
+          $ref: '#/components/schemas/SessionCapabilities'
+      required:
+      - capabilities
+    PingRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: PingRequest
+        properties:
+          request:
+            type: string
+            const: ping
+          data:
+            $ref: '#/components/schemas/PingRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: ping
+        data: null
+    PingRequest:
+      type: 'null'
+    PingResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: PingResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/PingResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data: null
+    PingResponse:
+      type: 'null'
+    AudioStreamStartRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: AudioStreamStartRequest
+        properties:
+          request:
+            type: string
+            const: audio_stream_start
+          data:
+            $ref: '#/components/schemas/AudioStreamStartRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: audio_stream_start
+        data:
+          codec: alaw
+    AudioStreamStartRequest:
+      type: object
+      properties:
+        codec:
+          anyOf:
+          - $ref: '#/components/schemas/AudioCodec'
+          - type: 'null'
+      required:
+      - codec
+    AudioStreamStartResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: AudioStreamStartResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/AudioStreamStartResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data: null
+    AudioStreamStartResponse:
+      type: 'null'
+    AudioStreamStopRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: AudioStreamStopRequest
+        properties:
+          request:
+            type: string
+            const: audio_stream_stop
+          data:
+            $ref: '#/components/schemas/AudioStreamStopRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: audio_stream_stop
+        data: null
+    AudioStreamStopRequest:
+      type: 'null'
+    AudioStreamStopResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: AudioStreamStopResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/AudioStreamStopResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data: null
+    AudioStreamStopResponse:
+      type: 'null'
+    RecordingStartRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: RecordingStartRequest
+        properties:
+          request:
+            type: string
+            const: recording_start
+          data:
+            $ref: '#/components/schemas/RecordingStartRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: recording_start
+        data:
+          tags:
+          - tag1
+          - tag2
+    RecordingStartRequest:
+      type: object
+      properties:
+        tags:
+          description: Tags to store alongside the Recording
+          type:
+          - array
+          - 'null'
+          uniqueItems: true
+          items:
+            type: string
+      additionalProperties: false
+      required:
+      - tags
+    RecordingStartResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: RecordingStartResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/RecordingStartResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data:
+          recording_id: VPk_6IQStguK0vJrdJ4mT
+    RecordingStartResponse:
+      type: object
+      properties:
+        recording_id:
+          type: string
+      additionalProperties: false
+      required:
+      - recording_id
+    RecordingStopRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: RecordingStopRequest
+        properties:
+          request:
+            type: string
+            const: recording_stop
+          data:
+            $ref: '#/components/schemas/RecordingStopRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: recording_stop
+        data: null
+    RecordingStopRequest:
+      type: 'null'
+    RecordingStopResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: RecordingStopResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/RecordingStopResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data: null
+    RecordingStopResponse:
+      type: 'null'
+    PlaybackStartRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: PlaybackStartRequest
+        properties:
+          request:
+            type: string
+            const: playback_start
+          data:
+            $ref: '#/components/schemas/PlaybackStartRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: playback_start
+        data:
+          interrupt: true
+          play_async: true
+          content:
+            language: en-US
+            voice: my-cool-voice
+            text: hello world
+            provider: some-provider
+    PlaybackStartRequest:
+      type: object
+      properties:
+        interrupt:
+          type:
+          - boolean
+          - 'null'
+        play_async:
+          type:
+          - boolean
+          - 'null'
+        content:
+          $ref: '#/components/schemas/PlaybackContent'
+      required:
+      - content
+    PlaybackContent:
+      anyOf:
+      - type: object
+        properties:
+          url:
+            type: string
+        required:
+        - url
+      - type: object
+        properties:
+          language:
+            type: string
+          voice:
+            type:
+            - string
+            - 'null'
+          text:
+            type: string
+          provider:
+            type:
+            - string
+            - 'null'
+        required:
+        - language
+        - voice
+        - text
+        - provider
+      - type: object
+        properties:
+          id:
+            type: string
+        required:
+        - id
+      - type: array
+        items:
+          $ref: '#/components/schemas/PlaybackContent'
+    PlaybackStartResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: PlaybackStartResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/PlaybackStartResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data:
+          id: VPk_6IQStguK0vJrdJ4mT
+    PlaybackStartResponse:
+      type: object
+      properties:
+        id:
+          description: ID of the started playback
+          type: string
+      required:
+      - id
+    ApplicationMoveRequestPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: ApplicationMoveRequest
+        properties:
+          request:
+            type: string
+            const: application_move
+          data:
+            $ref: '#/components/schemas/ApplicationMoveRequest'
+        additionalProperties: false
+        required:
+        - kind
+        - method
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        request: application_move
+        data:
+          application:
+            id: VPk_6IQStguK0vJrdJ4mT
+    ApplicationMoveRequest:
+      oneOf:
+      - type: string
+        enum:
+        - next
+      - type: object
+        properties:
+          application:
+            type: object
+            properties:
+              id:
+                type: string
+            required:
+            - id
+        required:
+        - application
+        additionalProperties: false
+    ApplicationMoveResponsePayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: ApplicationMoveResponse
+        properties:
+          response:
+            type: string
+          status:
+            type: integer
+            format: uint16
+            minimum: 0
+            maximum: 65535
+          data:
+            $ref: '#/components/schemas/ApplicationMoveResponse'
+        additionalProperties: false
+        required:
+        - response
+        - status
+        - data
+      examples:
+      - id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        response: VPk_6IQStguK0vJrdJ4mT
+        status: 200
+        data: null
+    ApplicationMoveResponse:
+      type: 'null'
+    RecordingFinishedEventPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: RecordingFinishedEvent
+        properties:
+          event:
+            type: string
+            const: recording_finished
+          data:
+            $ref: '#/components/schemas/RecordingFinishedEvent'
+        additionalProperties: false
+        required:
+        - event
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        event: recording_finished
+        data:
+          recording_id: VPk_6IQStguK0vJrdJ4mT
+    RecordingFinishedEvent:
+      type: object
+      properties:
+        recording_id:
+          type: string
+      required:
+      - recording_id
+    SessionUpdatedEventPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: SessionUpdatedEvent
+        properties:
+          event:
+            type: string
+            const: session_updated
+          data:
+            $ref: '#/components/schemas/SessionUpdatedEvent'
+        additionalProperties: false
+        required:
+        - event
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        event: session_updated
+        data:
+          session_id: VPk_6IQStguK0vJrdJ4mT
+          capabilities:
+            events:
+            - session_updated
+            - session_terminated
+            requests:
+            - call_hangup
+            - recording_start
+            - recording_stop
+            audio:
+              direction: both
+              codecs:
+              - alaw
+          metadata:
+            call.id: '1234'
+            call.from: '+493010001000'
+    SessionUpdatedEvent:
+      type: object
+      properties:
+        session_id:
+          description: Unique ID of the session
+          type: string
+        capabilities:
+          anyOf:
+          - $ref: '#/components/schemas/SessionCapabilities'
+          - type: 'null'
+        metadata:
+          description: Additional Metadata provided by the session owner
+          type:
+          - object
+          - 'null'
+          additionalProperties: true
+      required:
+      - session_id
+      - capabilities
+    SessionTerminatedEventPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: SessionTerminatedEvent
+        properties:
+          event:
+            type: string
+            const: session_terminated
+          data:
+            $ref: '#/components/schemas/SessionTerminatedEvent'
+        additionalProperties: false
+        required:
+        - event
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        event: session_terminated
+        data:
+          session_id: VPk_6IQStguK0vJrdJ4mT
+          reason: normal
+    SessionTerminatedEvent:
+      type: object
+      properties:
+        session_id:
+          type: string
+        reason:
+          $ref: '#/components/schemas/SessionCloseReason'
+      required:
+      - session_id
+      - reason
+    SessionCloseReason:
+      type: string
+      enum:
+      - normal
+      - error
+      - timeout
+    AudioStreamBufferAppendEventPayload:
+      type: object
+      additionalProperties: false
+      allOf:
+      - $ref: '#/components/schemas/Header'
+      - title: AudioStreamBufferAppendEvent
+        properties:
+          event:
+            type: string
+            const: audio_stream_buffer_append
+          data:
+            $ref: '#/components/schemas/AudioStreamBufferAppendEvent'
+        additionalProperties: false
+        required:
+        - event
+        - data
+      example:
+        id: VPk_6IQStguK0vJrdJ4mT
+        ts: 1431648000000
+        event: audio_stream_buffer_append
+        data:
+          buffer:
+          - 0
+          - 1
+          - 2
+          - 3
+    AudioStreamBufferAppendEvent:
+      type: object
+      properties:
+        buffer:
+          type: array
+          items:
+            type: integer
+            format: uint8
+            minimum: 0
+            maximum: 255
+      required:
+      - buffer
+  messages:
+    SessionCreateRequestMessage:
+      payload:
+        $ref: '#/components/schemas/SessionCreateRequestPayload'
+    SessionCreateResponseMessage:
+      payload:
+        $ref: '#/components/schemas/SessionCreateResponsePayload'
+    PingRequestMessage:
+      payload:
+        $ref: '#/components/schemas/PingRequestPayload'
+    PingResponseMessage:
+      payload:
+        $ref: '#/components/schemas/PingResponsePayload'
+    AudioStreamStartRequestMessage:
+      payload:
+        $ref: '#/components/schemas/AudioStreamStartRequestPayload'
+    AudioStreamStartResponseMessage:
+      payload:
+        $ref: '#/components/schemas/AudioStreamStartResponsePayload'
+    AudioStreamStopRequestMessage:
+      payload:
+        $ref: '#/components/schemas/AudioStreamStopRequestPayload'
+    AudioStreamStopResponseMessage:
+      payload:
+        $ref: '#/components/schemas/AudioStreamStopResponsePayload'
+    RecordingStartRequestMessage:
+      payload:
+        $ref: '#/components/schemas/RecordingStartRequestPayload'
+    RecordingStartResponseMessage:
+      payload:
+        $ref: '#/components/schemas/RecordingStartResponsePayload'
+    RecordingStopRequestMessage:
+      payload:
+        $ref: '#/components/schemas/RecordingStopRequestPayload'
+    RecordingStopResponseMessage:
+      payload:
+        $ref: '#/components/schemas/RecordingStopResponsePayload'
+    PlaybackStartRequestMessage:
+      payload:
+        $ref: '#/components/schemas/PlaybackStartRequestPayload'
+    PlaybackStartResponseMessage:
+      payload:
+        $ref: '#/components/schemas/PlaybackStartResponsePayload'
+    ApplicationMoveRequestMessage:
+      payload:
+        $ref: '#/components/schemas/ApplicationMoveRequestPayload'
+    ApplicationMoveResponseMessage:
+      payload:
+        $ref: '#/components/schemas/ApplicationMoveResponsePayload'
+    RecordingFinishedEventMessage:
+      payload:
+        $ref: '#/components/schemas/RecordingFinishedEventPayload'
+    SessionUpdatedEventMessage:
+      payload:
+        $ref: '#/components/schemas/SessionUpdatedEventPayload'
+    SessionTerminatedEventMessage:
+      payload:
+        $ref: '#/components/schemas/SessionTerminatedEventPayload'
+    AudioStreamBufferAppendEventMessage:
+      payload:
+        $ref: '#/components/schemas/AudioStreamBufferAppendEventPayload'
+operations:
+  SessionCreate:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/SessionCreateRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/SessionCreateResponseMessage'
+  Ping:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/PingRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/PingResponseMessage'
+  AudioStreamStart:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/AudioStreamStartRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/AudioStreamStartResponseMessage'
+  AudioStreamStop:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/AudioStreamStopRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/AudioStreamStopResponseMessage'
+  RecordingStart:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/RecordingStartRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/RecordingStartResponseMessage'
+  RecordingStop:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/RecordingStopRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/RecordingStopResponseMessage'
+  PlaybackStart:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/PlaybackStartRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/PlaybackStartResponseMessage'
+  ApplicationMove:
+    channel:
+      $ref: '#/channels/stream'
+    action: send
+    messages:
+    - $ref: '#/channels/stream/messages/ApplicationMoveRequestMessage'
+    reply:
+      channel:
+        $ref: '#/channels/stream'
+      messages:
+      - $ref: '#/channels/stream/messages/ApplicationMoveResponseMessage'
+  RecordingFinishedEvent:
+    channel:
+      $ref: '#/channels/stream'
+    action: receive
+    messages:
+    - $ref: '#/channels/stream/messages/RecordingFinishedEventMessage'
+  SessionUpdatedEvent:
+    channel:
+      $ref: '#/channels/stream'
+    action: receive
+    messages:
+    - $ref: '#/channels/stream/messages/SessionUpdatedEventMessage'
+  SessionTerminatedEvent:
+    channel:
+      $ref: '#/channels/stream'
+    action: receive
+    messages:
+    - $ref: '#/channels/stream/messages/SessionTerminatedEventMessage'
+  AudioStreamBufferAppendEvent:
+    channel:
+      $ref: '#/channels/stream'
+    action: receive
+    messages:
+    - $ref: '#/channels/stream/messages/AudioStreamBufferAppendEventMessage'
