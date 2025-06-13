@@ -22,6 +22,9 @@ RUN cargo build --release --bin rtvbp-demo
 
 # We do not need the Rust toolchain to run the binary!
 FROM debian:bookworm-slim AS runtime
+RUN apt-get update && \
+    apt-get install -y libasound2-dev pkg-config libssl3 && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=builder /app/target/release/rtvbp-demo /usr/local/bin
 ENTRYPOINT ["/usr/local/bin/rtvbp-demo"]
