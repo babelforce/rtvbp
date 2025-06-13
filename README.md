@@ -119,10 +119,11 @@ docker run \
     client
 ```
 
-**Start server**
+### Server
 
-You can start your own websocket endpoint or
-use the demo here:
+The server is to what our client connects to.
+To get started with a dummy server you can run our
+own test server:
 
 ```bash
 docker run \
@@ -132,6 +133,65 @@ docker run \
     ghcr.io/babelforce/rtvbp:main \
     server
 ```
+
+Please note that this server is also using OpenAI realtime
+capabilities and therefore needs a valid `OPENAI_KEY`
+
+You can also use other technologies to start a simple
+server and run the test-client against it:
+
+**websocat**
+
+```bash
+# On macOS
+brew install websocat
+
+# On Linux (via cargo)
+cargo install websocat
+
+websocat -E ws-l:127.0.0.1:8181
+```
+
+**NodeJS**
+
+```js
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8181 });
+
+wss.on('connection', ws => {
+  console.log('Client connected');
+
+  ws.on('message', message => {
+    console.log(`Received: ${message}`);
+  });
+
+  ws.on('close', () => {
+    console.log('Client disconnected');
+  });
+});
+```
+
+**Python**
+
+```python
+import asyncio
+import websockets
+
+async def echo(websocket, path):
+    async for message in websocket:
+        print(f"Received: {message}")
+
+start_server = websockets.serve(echo, "localhost", 8080)
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
+```
+
+**Start server**
+
+You can start your own websocket endpoint or
+use the demo here:
+
+
 
 
 
