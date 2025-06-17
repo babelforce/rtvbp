@@ -1,4 +1,3 @@
-use crate::v1::event::EventExt;
 use crate::v1::request::RequestExt;
 use crate::v1::response::ResponseExt;
 use indexmap::IndexSet;
@@ -72,8 +71,8 @@ impl ResponseExt for AudioStreamStopResponse {}
 mod docs {
     use crate::v1::docs::Example;
     use crate::v1::op::audio::{
-        AudioCodec, AudioStreamStartRequest,
-        AudioStreamStartResponse, AudioStreamStopRequest, AudioStreamStopResponse,
+        AudioCodec, AudioStreamStartRequest, AudioStreamStartResponse, AudioStreamStopRequest,
+        AudioStreamStopResponse,
     };
 
     impl Example for AudioStreamStartRequest {
