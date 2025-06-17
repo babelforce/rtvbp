@@ -1,15 +1,18 @@
-use std::collections::VecDeque;
 use crate::agent::AgentCliArgs;
-use codewandler_audio::{audio_capture, convert_f32_to_pcm16_bytes, convert_pcm16_bytes_to_f32, AudioPlayback, Buffer, BufferWriter};
-use openai_realtime::{connect_realtime_agent, RealtimeSession};
+use codewandler_audio::{
+    AudioPlayback, Buffer, BufferWriter, audio_capture, convert_f32_to_pcm16_bytes,
+    convert_pcm16_bytes_to_f32,
+};
+use crossbeam_channel::{Receiver, Sender};
+use fluxrpc_core::codec::json::JsonCodec;
+use fluxrpc_core::{SessionState, TypedRpcHandler, WebsocketClientConfig, websocket_connect};
+use openai_realtime::{RealtimeSession, connect_realtime_agent};
+use std::collections::VecDeque;
 use std::process::exit;
 use std::sync::Arc;
 use std::thread;
-use crossbeam_channel::{Receiver, Sender};
-use fluxrpc_core::{websocket_connect, SessionState, TypedRpcHandler, WebsocketClientConfig};
-use fluxrpc_core::codec::json::JsonCodec;
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tracing::error;
 use url::Url;
 
@@ -45,18 +48,15 @@ struct ClientState {
     rx: Mutex<Option<Receiver<f32>>>,
     rx_data: Mutex<Option<Receiver<Vec<f32>>>>,
     tx_data: Sender<Vec<f32>>,
-
 }
 
-impl SessionState for ClientState {
-
-}
+impl SessionState for ClientState {}
 
 pub async fn client_run(cmd: ClientCommand) -> anyhow::Result<()> {
     match cmd {
         ClientCommand::Audio { url } => {
             client_audio_run(url).await?;
-        },
+        }
         ClientCommand::Agent(cmd) => {
             client_agent_run(cmd).await?;
         }
@@ -64,10 +64,6 @@ pub async fn client_run(cmd: ClientCommand) -> anyhow::Result<()> {
 
     exit(0);
 }
-
-
-
-
 
 async fn client_audio_run(url: Url) -> anyhow::Result<()> {
     // audio setup
@@ -79,8 +75,6 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
 
     let cap = audio_capture(sample_rate)?;
     let mic_rx = cap.subscribe();
-
-
 
     let mut handler = TypedRpcHandler::<ClientState>::new();
 
@@ -99,7 +93,6 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
                 }
             });
 
-
             thread::spawn(move || {
                 let pb = pb1.clone();
                 let mut buf = VecDeque::new();
@@ -114,37 +107,31 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
                         // to websocket
                         tx_a.send(convert_f32_to_pcm16_bytes(all)).unwrap();
                     }
-
                 }
             });
-
 
             // TODO: start another thread for playback here!
         }
 
         let pb2 = state.pb2.clone();
-        if let Some(mut rx_ws) = state.rx_data.lock().await.take() {
+        if let Some(rx_ws) = state.rx_data.lock().await.take() {
             thread::spawn(move || {
                 while let Ok(s) = rx_ws.recv() {
                     pb2.audio_write_buffer(&Buffer::new(s)).unwrap();
                 }
             });
-
         }
 
         Ok(())
     });
 
-    handler.register_data_handler(|s, data| {
-        async move {
-            let pcm16_bytes = convert_pcm16_bytes_to_f32(data);
-            s.state().tx_data.clone().send(pcm16_bytes)?;
-            Ok(())
-        }
+    handler.register_data_handler(|s, data| async move {
+        let pcm16_bytes = convert_pcm16_bytes_to_f32(data);
+        s.state().tx_data.clone().send(pcm16_bytes)?;
+        Ok(())
     });
 
     let (tx_data, rx_data) = crossbeam_channel::unbounded();
-
 
     // rtvbp client session
     let _ = websocket_connect(
@@ -158,7 +145,8 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
             tx_data,
             rx_data: Mutex::new(Some(rx_data)),
         },
-    ).await?;
+    )
+    .await?;
 
     tokio::signal::ctrl_c().await?;
 
@@ -166,16 +154,13 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
 }
 
 struct AgentState {
-
     pb_server: Sender<f32>,
     pb_client: Sender<f32>,
     agent: Arc<RealtimeSession>,
     rx: Mutex<Option<UnboundedReceiver<Vec<u8>>>>,
 }
 
-impl SessionState for AgentState {
-
-}
+impl SessionState for AgentState {}
 
 async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
     // audio setup
@@ -192,32 +177,32 @@ async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
 
     let mut handler = TypedRpcHandler::<AgentState>::new();
 
-    handler.with_open_handler(|ctx, _| {
-        async move {
-            let state = ctx.state();
-            let pb = state.pb_client.clone();
+    handler.with_open_handler(|ctx, _| async move {
+        let state = ctx.state();
+        let pb = state.pb_client.clone();
 
-            if let Some(mut rx) = state.rx.lock().await.take() {
-                let ctx_rcv = ctx.clone();
+        if let Some(mut rx) = state.rx.lock().await.take() {
+            let ctx_rcv = ctx.clone();
 
-                tokio::spawn(async move {
-                    while let Some(data) = rx.recv().await {
-                        pb.audio_write_buffer(&Buffer::new(convert_pcm16_bytes_to_f32(data.clone()))).unwrap();
-                        ctx_rcv.send_binary(data).await.unwrap();
-                    }
-                });
-            }
-
-            Ok(())
+            tokio::spawn(async move {
+                while let Some(data) = rx.recv().await {
+                    pb.audio_write_buffer(&Buffer::new(convert_pcm16_bytes_to_f32(data.clone())))
+                        .unwrap();
+                    ctx_rcv.send_binary(data).await.unwrap();
+                }
+            });
         }
+
+        Ok(())
     });
 
-    handler.register_data_handler(|s, data|  {
+    handler.register_data_handler(|s, data| {
         let audio_out = s.state().pb_server.clone();
         let agent = s.state().agent.clone();
         async move {
-            if let Err(err) = audio_out
-                .audio_write_buffer(&Buffer::new(convert_pcm16_bytes_to_f32(data.clone()))) {
+            if let Err(err) =
+                audio_out.audio_write_buffer(&Buffer::new(convert_pcm16_bytes_to_f32(data.clone())))
+            {
                 error!("audio playback write error: {}", err);
             }
 
@@ -228,8 +213,6 @@ async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
             Ok(())
         }
     });
-
-
 
     // rtvbp client session
     let _ = websocket_connect(
@@ -242,7 +225,8 @@ async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
             agent: openai_agent_session.clone(),
             rx: Mutex::new(Some(rx_agent)),
         },
-    ).await?;
+    )
+    .await?;
 
     tokio::signal::ctrl_c().await?;
 

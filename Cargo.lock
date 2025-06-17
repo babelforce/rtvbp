@@ -2186,26 +2186,14 @@ dependencies = [
  "codewandler-audio",
  "crossbeam-channel",
  "fluxrpc-core",
+ "indexmap",
  "openai-realtime",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
-]
-
-[[package]]
-name = "rtvbp-sdk"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "ezsockets",
- "nanoid",
  "rtvbp-spec",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]

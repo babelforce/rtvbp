@@ -1,14 +1,17 @@
 use crate::agent::AgentCliArgs;
 use fluxrpc_core::codec::json::JsonCodec;
-use fluxrpc_core::{websocket_listen, SessionState, TypedRpcHandler};
+use fluxrpc_core::{Event, SessionState, TypedRpcHandler, websocket_listen};
 use openai_realtime::{
-    connect_realtime_agent, AgentConfig, RealtimeSession, ResponseCreateEvent, Voice,
+    AgentConfig, RealtimeSession, ResponseCreateEvent, Voice, connect_realtime_agent,
 };
+use rtvbp_spec::v1::Metadata;
+use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
+use serde_json::{Value, json};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tracing::error;
 
 #[derive(Debug, Clone, clap::Parser)]
@@ -62,6 +65,27 @@ pub async fn server_run(cmd: ServerCommand) -> anyhow::Result<()> {
             });
         }
 
+        ctx.notify(&Event::new(
+            "session.updated",
+            SessionUpdatedEvent {
+                metadata: Metadata::from([
+                    (
+                        "call".to_string(),
+                        json!({
+                            "id": "call-12341234",
+                            "from": "493010001000",
+                            "to": "493050005000",
+                            "type": "inbound"
+                        }),
+                    ),
+                    ("recording_consent".to_string(), Value::from(true)),
+                ])
+                .into(),
+            }
+            .into(),
+        ))
+        .await?;
+
         state
             .agent
             .response_create(ResponseCreateEvent::default())?;
@@ -74,7 +98,7 @@ pub async fn server_run(cmd: ServerCommand) -> anyhow::Result<()> {
         config.voice = Voice::Ballad.into();
         async move { Ok(ServerState::create(config).await?) }
     })
-        .await?;
+    .await?;
 
     tokio::signal::ctrl_c().await?;
     exit(0);
