@@ -12,7 +12,7 @@ It allows an integrator to take control over an ongoing telephony session in the
 - Receive the callers audio data in `PCM16` format
 - Send audio data to the caller in `PCM16` format
 - Get notified about various events (like `session.updated`, `call.hangup`, `dtmf.received`, etc )
-- Execute commands (`session.terminate`, `call.hangup`, `dtmf.send`, `ivr.move`, etc)
+- Execute commands (`session.terminate`, `call.hangup`, `dtmf.send`, `application.move`, etc)
 
 ---
 
