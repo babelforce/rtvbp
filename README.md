@@ -151,9 +151,7 @@ Examples:
 {
   "id": "req-1234",
   "method": "application.move",
-  "params": {
-    "continue": true,
-  }
+  "params": "continue"
 }
 ```
 
@@ -167,7 +165,7 @@ Examples:
   "id": "req-1234",
   "method": "application.move",
   "params": {
-    "application_id": "1234",
+    "application": {"id": "1234"},
   }
 }
 ```
