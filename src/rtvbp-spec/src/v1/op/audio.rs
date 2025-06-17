@@ -69,21 +69,10 @@ pub struct AudioStreamStopResponse;
 
 impl ResponseExt for AudioStreamStopResponse {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct AudioStreamBufferAppendEvent {
-    pub buffer: Vec<u8>,
-}
-
-impl EventExt for AudioStreamBufferAppendEvent {
-    fn event_name() -> &'static str {
-        "audio_stream_buffer_append"
-    }
-}
-
 mod docs {
     use crate::v1::docs::Example;
     use crate::v1::op::audio::{
-        AudioCodec, AudioStreamBufferAppendEvent, AudioStreamStartRequest,
+        AudioCodec, AudioStreamStartRequest,
         AudioStreamStartResponse, AudioStreamStopRequest, AudioStreamStopResponse,
     };
 
@@ -110,14 +99,6 @@ mod docs {
     impl Example for AudioStreamStopResponse {
         fn example() -> Self {
             Self {}
-        }
-    }
-
-    impl Example for AudioStreamBufferAppendEvent {
-        fn example() -> Self {
-            Self {
-                buffer: vec![0x00, 0x01, 0x02, 0x03],
-            }
         }
     }
 }

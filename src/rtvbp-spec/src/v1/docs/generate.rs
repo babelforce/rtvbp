@@ -3,7 +3,7 @@ use crate::v1::docs::provider::{EventSpecExt, RequestSpecExt};
 use crate::v1::message;
 use crate::v1::op::application::ApplicationMoveRequest;
 use crate::v1::op::audio::{
-    AudioStreamBufferAppendEvent, AudioStreamStartRequest, AudioStreamStopRequest,
+    AudioStreamStartRequest, AudioStreamStopRequest,
 };
 use crate::v1::op::ping::PingRequest;
 use crate::v1::op::playback::PlaybackStartRequest;
@@ -67,7 +67,6 @@ pub fn async_api_schema() -> Schema {
         RecordingFinishedEvent::schema(&mut g),
         SessionUpdatedEvent::schema(&mut g),
         SessionTerminatedEvent::schema(&mut g),
-        AudioStreamBufferAppendEvent::schema(&mut g),
     ]
     .iter()
     .for_each(|other| schema.merge(other));
