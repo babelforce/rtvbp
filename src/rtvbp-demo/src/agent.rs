@@ -1,7 +1,7 @@
 use openai_realtime::{AgentConfig, Voice};
 
-#[derive(Debug, Clone, clap::Parser)]
-pub struct AgentCliArgs {
+#[derive(Debug, Clone, clap::Args)]
+pub struct AgentArgs {
     #[clap(long = "agent-speed", default_value = "1.2")]
     pub speed: f32,
 
@@ -18,7 +18,7 @@ pub struct AgentCliArgs {
     pub lang: String,
 }
 
-impl Default for AgentCliArgs {
+impl Default for AgentArgs {
     fn default() -> Self {
         Self {
             speed: 1.2,
@@ -29,7 +29,7 @@ impl Default for AgentCliArgs {
     }
 }
 
-impl Into<AgentConfig> for AgentCliArgs {
+impl Into<AgentConfig> for AgentArgs {
     fn into(self) -> AgentConfig {
         AgentConfig {
             speed: self.speed.into(),

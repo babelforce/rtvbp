@@ -1,4 +1,4 @@
-use crate::agent::AgentCliArgs;
+use crate::agent::AgentArgs;
 use fluxrpc_core::codec::json::JsonCodec;
 use fluxrpc_core::{Event, SessionState, TypedRpcHandler, websocket_listen};
 use openai_realtime::{
@@ -12,15 +12,15 @@ use std::process::exit;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Debug, Clone, clap::Parser)]
-pub struct ServerCommand {
+pub struct ServerAgs {
     #[clap(short, long, default_value = "0.0.0.0:8181")]
     listen: SocketAddr,
 
     #[clap(flatten)]
-    agent: Option<AgentCliArgs>,
+    agent: Option<AgentArgs>,
 }
 
 struct ServerState {
@@ -41,12 +41,17 @@ impl ServerState {
     }
 }
 
-pub async fn server_run(cmd: ServerCommand) -> anyhow::Result<()> {
+pub async fn server_run(cmd: ServerAgs) -> anyhow::Result<()> {
     let mut handler = TypedRpcHandler::<ServerState>::new();
 
     // when audio data is being received, send to agent
     handler.register_data_handler(|s, data| async move {
         s.state().agent.audio_append(data)?;
+        Ok(())
+    });
+
+    handler.register_event_handler("session.updated", |ctx, evt: SessionUpdatedEvent| async move {
+        info!("session.updated: {:?}", evt);
         Ok(())
     });
 
@@ -65,26 +70,7 @@ pub async fn server_run(cmd: ServerCommand) -> anyhow::Result<()> {
             });
         }
 
-        ctx.notify(&Event::new(
-            "session.updated",
-            SessionUpdatedEvent {
-                metadata: Metadata::from([
-                    (
-                        "call".to_string(),
-                        json!({
-                            "id": "call-12341234",
-                            "from": "493010001000",
-                            "to": "493050005000",
-                            "type": "inbound"
-                        }),
-                    ),
-                    ("recording_consent".to_string(), Value::from(true)),
-                ])
-                .into(),
-            }
-            .into(),
-        ))
-        .await?;
+        
 
         state
             .agent

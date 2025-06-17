@@ -2,17 +2,17 @@ mod agent;
 mod client;
 mod server;
 
-use crate::client::{ClientCommand, client_run};
-use crate::server::{ServerCommand, server_run};
+use crate::client::{client_run, ClientArgs};
+use crate::server::{ServerAgs, server_run};
 use clap::Parser;
 
+/// RTVBP demo
 #[derive(Debug, clap::Parser)]
 pub enum DemoArgs {
+    /// Run a RTVBP client
+    Client(ClientArgs),
     /// Run a RTVBP server
-    #[clap(subcommand)]
-    Client(ClientCommand),
-    /// Run a RTVBP server
-    Server(ServerCommand),
+    Server(ServerAgs),
 }
 
 #[tokio::main]

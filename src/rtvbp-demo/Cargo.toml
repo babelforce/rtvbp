@@ -7,7 +7,7 @@ resolver = "3"
 [dependencies]
 openai-realtime = "0.1.0"
 codewandler-audio = "0.1.0"
-fluxrpc-core = "0.30.0"
+fluxrpc-core = "0.31.0"
 rtvbp-spec = {path = "../rtvbp-spec"}
 tokio = { version = "1.45.1", features = ["full"] }
 tracing-subscriber = "0.3.19"

@@ -249,10 +249,31 @@ git clone https://github.com/babelforce/rtvbp.git
 cd rtvpb
 ```
 
+**Usage**
+
+```text
+Usage: rtvbp-demo client [OPTIONS] <COMMAND>
+
+Commands:
+  audio  Uses local audio for capture and playback
+  agent  Use openAI to emulate a real person
+  help   Print this message or the help of the given subcommand(s)
+
+Options:
+  -u, --url <URL>      Websocket URL to connect to [default: ws://127.0.0.1:8181]
+  -t, --token <TOKEN>  Authorization Bearer Token which is set for websocket upgrade: `Authorization: Bearer {token}`
+  -h, --help           Print help
+
+```
+
 ### Use real audio
 
 ```bash
-cargo run --bin rtvbp-demo -- client audio --url ws://127.0.0.1:8181
+# run against a certain websocket endpoint
+cargo run --bin rtvbp-demo -- client --url ws://127.0.0.1:8181 audio
+
+# run against a certain websocket endpoint
+cargo run --bin rtvbp-demo -- client --token="my_bearer_token" --url ws://127.0.0.1:8181 audio 
 ```
 
 ### Use OpenAI

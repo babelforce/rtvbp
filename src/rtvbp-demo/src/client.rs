@@ -1,50 +1,44 @@
-use crate::agent::AgentCliArgs;
+use crate::agent::AgentArgs;
 use codewandler_audio::{
     AudioPlayback, Buffer, BufferWriter, audio_capture, convert_f32_to_pcm16_bytes,
     convert_pcm16_bytes_to_f32,
 };
 use crossbeam_channel::{Receiver, Sender};
 use fluxrpc_core::codec::json::JsonCodec;
-use fluxrpc_core::{SessionState, TypedRpcHandler, WebsocketClientConfig, websocket_connect};
+use fluxrpc_core::{SessionState, TypedRpcHandler, WebsocketClientConfig, websocket_connect, Event, SessionContext};
 use openai_realtime::{RealtimeSession, connect_realtime_agent};
 use std::collections::VecDeque;
 use std::process::exit;
 use std::sync::Arc;
 use std::thread;
+use serde_json::{json, Value};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tracing::error;
 use url::Url;
+use rtvbp_spec::v1::Metadata;
+use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
 
-#[derive(Debug, clap::Subcommand)]
-pub enum ClientCommand {
-    /// Uses local audio for capture and playback
-    Audio {
-        /// Websocket URL to connect to
-        #[clap(short, long, default_value = "ws://127.0.0.1:8181")]
-        url: Url,
-
-        /// Authorization Bearer Token
-        /// Is set as HTTP header on handshake: `Authorization: Bearer {token}`
-        #[clap(short, long)]
-        token: Option<String>,
-    },
-    /// Use openAI to emulate a real person
-    Agent(AgentCommand),
-}
-
-#[derive(Debug, clap::Args)]
-pub struct AgentCommand {
+#[derive(Debug, Clone, clap::Args)]
+pub struct ClientArgs {
+    /// Websocket URL to connect to
     #[clap(short, long, default_value = "ws://127.0.0.1:8181")]
     url: Url,
 
-    /// Authorization Bearer Token
-    /// Is set as HTTP header on handshake: `Authorization: Bearer {token}`
+    /// Authorization Bearer Token which is set for websocket upgrade: `Authorization: Bearer {token}`
     #[clap(short, long)]
     token: Option<String>,
 
-    #[clap(flatten)]
-    agent: Option<AgentCliArgs>,
+    #[clap(subcommand)]
+    pub command: ClientCommand
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum ClientCommand {
+    /// Uses local audio for capture and playback
+    Audio,
+    /// Use openAI to emulate a real person
+    Agent(AgentArgs),
 }
 
 struct ClientState {
@@ -57,17 +51,45 @@ struct ClientState {
 
 impl SessionState for ClientState {}
 
-pub async fn client_run(cmd: ClientCommand) -> anyhow::Result<()> {
-    match cmd {
-        ClientCommand::Audio { url, token } => {
-            client_audio_run(url, token).await?;
+pub async fn client_run(client_args: ClientArgs) -> anyhow::Result<()> {
+    match client_args.command.clone() {
+        ClientCommand::Audio {  } => {
+            client_audio_run(client_args.url, client_args.token).await?;
         }
         ClientCommand::Agent(cmd) => {
-            client_agent_run(cmd).await?;
+            client_agent_run(client_args, cmd).await?;
         }
     }
 
     exit(0);
+}
+
+async fn on_open<S>(ctx: Arc<dyn SessionContext<State=S>>) -> anyhow::Result<()>
+where
+    S: SessionState
+{
+    ctx.notify(&Event::new(
+        "session.updated",
+        SessionUpdatedEvent {
+            metadata: Metadata::from([
+                (
+                    "call".to_string(),
+                    json!({
+                            "id": "call-12341234",
+                            "from": "493010001000",
+                            "to": "493050005000",
+                            "type": "inbound"
+                        }),
+                ),
+                ("recording_consent".to_string(), Value::from(true)),
+            ])
+                .into(),
+        }
+            .into(),
+    ))
+        .await?;
+
+    Ok(())
 }
 
 async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Result<()> {
@@ -123,6 +145,8 @@ async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Res
                 }
             });
         }
+        
+        on_open(ctx.clone()).await?;
 
         Ok(())
     });
@@ -164,7 +188,10 @@ struct AgentState {
 
 impl SessionState for AgentState {}
 
-async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
+async fn client_agent_run(
+    client_args: ClientArgs,
+    agent_args: AgentArgs
+) -> anyhow::Result<()> {
     // audio setup
     let sample_rate = 24_000;
     let pb = AudioPlayback::new(sample_rate)?;
@@ -172,8 +199,7 @@ async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
     let pb_server = pb.new_output(sample_rate);
 
     // create agent
-    let agent_settings = cmd.agent.unwrap_or_default();
-    let (openai_agent_session, rx_agent) = connect_realtime_agent(agent_settings.clone().into())
+    let (openai_agent_session, rx_agent) = connect_realtime_agent(agent_args.clone().into())
         .await
         .expect("failed to connect agent");
 
@@ -194,6 +220,8 @@ async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
                 }
             });
         }
+
+        on_open(ctx.clone()).await?;
 
         Ok(())
     });
@@ -218,7 +246,7 @@ async fn client_agent_run(cmd: AgentCommand) -> anyhow::Result<()> {
 
     // rtvbp client session
     let _ = websocket_connect(
-        WebsocketClientConfig::new(cmd.url),
+        WebsocketClientConfig::new(client_args.url).bearer(client_args.token.unwrap_or_default()),
         JsonCodec::new(),
         Arc::new(handler),
         AgentState {
