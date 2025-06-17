@@ -8,7 +8,7 @@ resolver = "3"
 openai-realtime = "0.1.0"
 codewandler-audio = "0.1.0"
 fluxrpc-core = "0.30.0"
-
+rtvbp-spec = {path = "../rtvbp-spec"}
 tokio = { version = "1.45.1", features = ["full"] }
 tracing-subscriber = "0.3.19"
 anyhow = "1.0.98"
@@ -16,6 +16,8 @@ clap = { version = "4.5.39", features = ["derive"] }
 tracing = "0.1.41"
 crossbeam-channel = "0.5.15"
 url = "2.5.4"
+indexmap = { version = "2.9.0", features = ["serde"] }
+serde_json = { version = "1.0.140", features = ["indexmap"] }
 
 [[bin]]
 name = "rtvbp-demo"
