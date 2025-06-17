@@ -36,7 +36,10 @@ pub struct ClientArgs {
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum ClientCommand {
     /// Uses local audio for capture and playback
-    Audio,
+    Audio {
+        #[clap(long, default_value = "false")]
+        monitor: bool
+    },
     /// Use openAI to emulate a real person
     Agent(AgentArgs),
 }
@@ -53,8 +56,8 @@ impl SessionState for ClientState {}
 
 pub async fn client_run(client_args: ClientArgs) -> anyhow::Result<()> {
     match client_args.command.clone() {
-        ClientCommand::Audio {  } => {
-            client_audio_run(client_args.url, client_args.token).await?;
+        ClientCommand::Audio { monitor  } => {
+            client_audio_run(client_args.url, client_args.token, monitor).await?;
         }
         ClientCommand::Agent(cmd) => {
             client_agent_run(client_args, cmd).await?;
@@ -92,7 +95,7 @@ where
     Ok(())
 }
 
-async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Result<()> {
+async fn client_audio_run(url: Url, bearer_token: Option<String>, playback_monitor: bool) -> anyhow::Result<()> {
     // audio setup
     let sample_rate = 24_000;
     let pb = AudioPlayback::new(sample_rate)?;
@@ -105,13 +108,15 @@ async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Res
     let mut handler = TypedRpcHandler::<ClientState>::new();
 
     // from source to destination
-    handler.with_open_handler(|ctx, s| async move {
+    handler.with_open_handler(move |ctx, s| async move {
         let state = ctx.state();
         let pb1 = state.pb1.clone();
 
+        // read from mic
         if let Some(rx_mic) = state.rx.lock().await.take() {
             let ctx_rcv = ctx.clone();
 
+            // send data via websocket
             let (tx_a, mut rx_a) = unbounded_channel::<Vec<u8>>();
             tokio::spawn(async move {
                 while let Some(data) = rx_a.recv().await {
@@ -119,16 +124,21 @@ async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Res
                 }
             });
 
+            // consume microphone
             thread::spawn(move || {
                 let pb = pb1.clone();
                 let mut buf = VecDeque::new();
+                let monitor = playback_monitor.clone();
                 while let Ok(data) = rx_mic.recv() {
                     buf.push_back(data);
                     if buf.len() > 1024 {
                         let all = buf.drain(..).collect::<Vec<_>>();
 
                         // to playback
-                        pb.audio_write_buffer(&Buffer::new(all.clone())).unwrap();
+                        if monitor {
+                            pb.audio_write_buffer(&Buffer::new(all.clone())).unwrap();
+                        }
+
 
                         // to websocket
                         tx_a.send(convert_f32_to_pcm16_bytes(all)).unwrap();
@@ -145,7 +155,7 @@ async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Res
                 }
             });
         }
-        
+
         on_open(ctx.clone()).await?;
 
         Ok(())
