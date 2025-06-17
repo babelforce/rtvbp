@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationMoveRequest {
-    Next,
+    /// Continue the call flow at the next module
+    Continue,
+
+    /// Move the call to the specified application
     Application { id: String },
 }
 

@@ -10,6 +10,7 @@ use fluxrpc_core::{
 };
 use openai_realtime::{RealtimeSession, connect_realtime_agent};
 use rtvbp_spec::v1::Metadata;
+use rtvbp_spec::v1::op::application::{ApplicationMoveRequest, ApplicationMoveResponse};
 use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
 use serde_json::{Value, json};
 use std::collections::VecDeque;
@@ -18,7 +19,7 @@ use std::sync::Arc;
 use std::thread;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
-use tracing::error;
+use tracing::{error, info};
 use url::Url;
 
 #[derive(Debug, Clone, clap::Args)]
@@ -112,6 +113,16 @@ async fn client_audio_run(
     let mic_rx = cap.subscribe();
 
     let mut handler = TypedRpcHandler::<ClientState>::new();
+
+    handler.register_request_handler(
+        "application.move",
+        |ctx, req: ApplicationMoveRequest| async move {
+            info!("req: application.move: {:?}", req);
+
+
+            Result::<_, fluxrpc_core::ErrorBody>::Ok(ApplicationMoveResponse {})
+        },
+    );
 
     // from source to destination
     handler.with_open_handler(move |ctx, s| async move {
