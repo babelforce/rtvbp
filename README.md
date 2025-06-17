@@ -55,10 +55,7 @@ taken care of from the transport layer.
 As websocket offers two message variants we chose the binary variant to transmit
 audio data to reduce the frequent messages in their size by omitting the envelope.
 
-
-
-
-## Example
+## Example Flows
 
 Here you find an example flow where `babelforce` acts as a client (`peer_1`) and connects to some external
 party via websocket (`peer_2`). After a connection has been established - we speak more about a peer-to-peer
@@ -66,7 +63,7 @@ connection instead of a client-server relationship.
 
 **Initialization**
 
-After we connected to your peer (`peer_2`) the following event is expected to be received on your end:
+After we (`peer_1`) connected to the external peer (`peer_2`) the following event is expected to be received at `peer_2`:
 
 ```json
 {
@@ -90,7 +87,9 @@ After you have received this event you can expect to receive audio.
 
 **Caller hangup**
 
-If a caller hangs up the call on babelforce side, you can expect the following events:
+If a caller hangs up the call on babelforce side (`peer_1`) - `peer_2` can expect the following events:
+
+`event(call.hungup): peer_1 -> peer_2`
 
 ```json
 {
@@ -107,6 +106,9 @@ If a caller hangs up the call on babelforce side, you can expect the following e
 
 When babelforce detects the hangup we send a message to request the graceful termination of the session:
 
+`request(session.terminate): peer_1 -> peer_2`
+
+
 ```json
 {
     "id": "req-1234",
@@ -119,6 +121,8 @@ When babelforce detects the hangup we send a message to request the graceful ter
 
 `peer_2` acknowledges the request to terminate the session:
 
+`response(session.terminate): peer_2 -> peer_1`
+
 ```json
 {
   "response": "req-1234",
@@ -126,16 +130,22 @@ When babelforce detects the hangup we send a message to request the graceful ter
 }
 ```
 
-When we receive the response to a session termination request we will:
+When we (`peer_1`) receive the response to a session termination request we will:
 
 - websocket: send a final close frame
 - close any underlying transport
 
 **Call control: moving a call**
 
-You can request to move the current call to another application location.
+A call can be moved in two ways:
+1. Continue in the next IVR application module
+2. Continue in an application specified by its ID
+
+Examples:
 
 1. Continue in the after-flow of an IVR application:
+
+`request(application.move): peer_2 -> peer_1`
 
 ```json
 {
@@ -148,6 +158,8 @@ You can request to move the current call to another application location.
 ```
 
 2. Move to a specific application by ID 
+
+`request(application.move): peer_2 -> peer_1`
 
 ```json
 
@@ -162,6 +174,8 @@ You can request to move the current call to another application location.
 
 When we see a request to `application.move` we reply like this:
 
+`response(application.move): peer_1 -> peer_2`
+
 ```json
 {
   "response": "req-1234",
@@ -170,6 +184,39 @@ When we see a request to `application.move` we reply like this:
 ```
 
 After that we initiate the `session.terminate` flow described earlier.
+
+---
+
+```mermaid
+sequenceDiagram
+    participant Peer_1 as peer_1 (babelforce)
+    participant Peer_2 as peer_2 (external service)
+
+    %% Step 1: Connection established
+    Peer_1->>Peer_2: WebSocket connection established (wss://)
+
+    %% Step 2: Initialization
+    Peer_1->>Peer_2: event: session.updated
+
+    %% Step 3: Audio exchange
+    Peer_1-->>Peer_2: Binary audio stream (PCM16)
+    Peer_2-->>Peer_1: Optional audio back (PCM16)
+
+    %% Step 4: Call move request
+    Peer_2->>Peer_1: request: application.move
+
+    %% Step 5: Acknowledge call move
+    Peer_1->>Peer_2: response: application.move
+
+    %% Step 6: Session termination
+    Peer_1->>Peer_2: request: session.terminate
+    Peer_2->>Peer_1: response: session.terminate
+
+    %% Step 7: Close connection
+    Peer_1->>Peer_2: WebSocket close frame
+    Note right of Peer_1: Connection closed
+
+```
 
 ---
 
