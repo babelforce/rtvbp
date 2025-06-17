@@ -1,8 +1,25 @@
 use crate::v1::event::EventExt;
 use crate::v1::metadata::Metadata;
+use crate::v1::request::RequestExt;
 use crate::v1::response::ResponseExt;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SessionTerminateRequest {}
+
+impl RequestExt for SessionTerminateRequest {
+    type Response = SessionTerminateResponse;
+
+    fn request_method_name() -> &'static str {
+        "session.terminate"
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SessionTerminateResponse {}
+
+impl ResponseExt for SessionTerminateResponse {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionUpdatedEvent {
