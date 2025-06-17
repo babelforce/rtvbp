@@ -23,6 +23,11 @@ pub enum ClientCommand {
         /// Websocket URL to connect to
         #[clap(short, long, default_value = "ws://127.0.0.1:8181")]
         url: Url,
+
+        /// Authorization Bearer Token
+        /// Is set as HTTP header on handshake: `Authorization: Bearer {token}`
+        #[clap(short, long)]
+        token: Option<String>,
     },
     /// Use openAI to emulate a real person
     Agent(AgentCommand),
@@ -54,8 +59,8 @@ impl SessionState for ClientState {}
 
 pub async fn client_run(cmd: ClientCommand) -> anyhow::Result<()> {
     match cmd {
-        ClientCommand::Audio { url } => {
-            client_audio_run(url).await?;
+        ClientCommand::Audio { url, token } => {
+            client_audio_run(url, token).await?;
         }
         ClientCommand::Agent(cmd) => {
             client_agent_run(cmd).await?;
@@ -65,13 +70,12 @@ pub async fn client_run(cmd: ClientCommand) -> anyhow::Result<()> {
     exit(0);
 }
 
-async fn client_audio_run(url: Url) -> anyhow::Result<()> {
+async fn client_audio_run(url: Url, bearer_token: Option<String>) -> anyhow::Result<()> {
     // audio setup
     let sample_rate = 24_000;
     let pb = AudioPlayback::new(sample_rate)?;
     let pb1 = pb.new_output(sample_rate);
     let pb2 = pb.new_output(sample_rate);
-    //let pb_server = pb.new_output(sample_rate);
 
     let cap = audio_capture(sample_rate)?;
     let mic_rx = cap.subscribe();
@@ -109,8 +113,6 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
                     }
                 }
             });
-
-            // TODO: start another thread for playback here!
         }
 
         let pb2 = state.pb2.clone();
@@ -135,7 +137,7 @@ async fn client_audio_run(url: Url) -> anyhow::Result<()> {
 
     // rtvbp client session
     let _ = websocket_connect(
-        WebsocketClientConfig::new(url),
+        WebsocketClientConfig::new(url).bearer(bearer_token.unwrap_or_default()),
         JsonCodec::new(),
         Arc::new(handler),
         ClientState {
