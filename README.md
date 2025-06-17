@@ -185,6 +185,23 @@ When we see a request to `application.move` we reply like this:
 
 After that we initiate the `session.terminate` flow described earlier.
 
+**Errors**
+
+When sending a request and an error occurs you can expect a payload of the following shape:
+
+```json
+{
+    "response": "req-1234",
+    "error": {
+        "code": 404,
+        "message": "Application does not exist",
+        "data": {
+            "application_id": "1234"
+        }
+    }
+}
+```
+
 ---
 
 ```mermaid
