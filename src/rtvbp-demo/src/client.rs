@@ -6,17 +6,19 @@ use codewandler_audio::{
 use crossbeam_channel::{Receiver, Sender};
 use fluxrpc_core::codec::json::JsonCodec;
 use fluxrpc_core::{
-    Event, SessionContext, SessionState, TypedRpcHandler, WebsocketClientConfig, websocket_connect,
+    Event, Request, SessionContext, SessionState, TypedRpcHandler, WebsocketClientConfig,
+    websocket_connect,
 };
 use openai_realtime::{RealtimeSession, connect_realtime_agent};
 use rtvbp_spec::v1::Metadata;
 use rtvbp_spec::v1::op::application::{ApplicationMoveRequest, ApplicationMoveResponse};
-use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
+use rtvbp_spec::v1::op::session::{SessionTerminateRequest, SessionUpdatedEvent};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::process::exit;
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tracing::{error, info};
@@ -119,6 +121,25 @@ async fn client_audio_run(
         |ctx, req: ApplicationMoveRequest| async move {
             info!("req: application.move: {:?}", req);
 
+            // emulate session.terminate as reaction to application.move
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                if let Err(err) = ctx
+                    .request(
+                        &Request::new(
+                            "session.terminate",
+                            serde_json::to_value(SessionTerminateRequest {})
+                                .unwrap()
+                                .into(),
+                        ),
+                        Duration::from_millis(5000).into(),
+                    )
+                    .await
+                {
+                    error!("failed to terminate session: {}", err);
+                }
+                // TODO: close websocket connection
+            });
 
             Result::<_, fluxrpc_core::ErrorBody>::Ok(ApplicationMoveResponse {})
         },
