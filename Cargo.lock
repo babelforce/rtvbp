@@ -823,9 +823,9 @@ checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "fluxrpc-core"
-version = "0.30.0"
+version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d74eab67717503e5c49e223be6a3f3a5b7b6f6fbf8e54bbc36a57863daac1e7b"
+checksum = "6e24c55bfbe54d8c04f1e4484b8d30789f9c12c6c3b54beab8a70dd6f5129f75"
 dependencies = [
  "anyhow",
  "async-trait",
