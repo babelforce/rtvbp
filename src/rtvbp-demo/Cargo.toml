@@ -5,16 +5,17 @@ edition = "2024"
 resolver = "3"
 
 [dependencies]
-rtvbp-sdk = { version = "0.1.0", workspace = true }
 openai-realtime = "0.1.0"
 codewandler-audio = "0.1.0"
+fluxrpc-core = "0.30.0"
 
 tokio = { version = "1.45.1", features = ["full"] }
 tracing-subscriber = "0.3.19"
 anyhow = "1.0.98"
 clap = { version = "4.5.39", features = ["derive"] }
-url = "2.5.4"
 tracing = "0.1.41"
+crossbeam-channel = "0.5.15"
+url = "2.5.4"
 
 [[bin]]
 name = "rtvbp-demo"
