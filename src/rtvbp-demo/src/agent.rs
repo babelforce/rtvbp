@@ -16,9 +16,6 @@ pub struct AgentCliArgs {
 
     #[clap(long = "agent-lang", default_value = "en-US")]
     pub lang: String,
-
-    #[clap(long = "agent-create-response", default_value = "false")]
-    pub create_response: bool,
 }
 
 impl Default for AgentCliArgs {
@@ -28,7 +25,6 @@ impl Default for AgentCliArgs {
             voice: Voice::Alloy,
             prompt: "You are a nice and friendly person wanting to have a nice conversation".into(),
             lang: "en-US".into(),
-            create_response: false,
         }
     }
 }

@@ -1,11 +1,15 @@
 use crate::agent::AgentCliArgs;
-use openai_realtime::{AgentConfig, ResponseCreateEvent, Voice, connect_realtime_agent};
-use rtvbp_sdk::spec::v1::Message;
-use rtvbp_sdk::{MessageContext, websocket_listen};
+use fluxrpc_core::codec::json::JsonCodec;
+use fluxrpc_core::{websocket_listen, SessionState, TypedRpcHandler};
+use openai_realtime::{
+    connect_realtime_agent, AgentConfig, RealtimeSession, ResponseCreateEvent, Voice,
+};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::sync::Arc;
-use tracing::info;
+use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::Mutex;
+use tracing::error;
 
 #[derive(Debug, Clone, clap::Parser)]
 pub struct ServerCommand {
@@ -16,53 +20,60 @@ pub struct ServerCommand {
     agent: Option<AgentCliArgs>,
 }
 
+struct ServerState {
+    agent: Arc<RealtimeSession>,
+    rx: Mutex<Option<UnboundedReceiver<Vec<u8>>>>,
+}
+
+impl SessionState for ServerState {}
+
+impl ServerState {
+    async fn create(config: AgentConfig) -> anyhow::Result<Self> {
+        let (agent, rx) = connect_realtime_agent(config.clone()).await?;
+
+        Ok(Self {
+            agent,
+            rx: Mutex::new(Some(rx)),
+        })
+    }
+}
+
 pub async fn server_run(cmd: ServerCommand) -> anyhow::Result<()> {
-    let server = websocket_listen(cmd.listen).await?;
-    let mut config: AgentConfig = cmd.agent.clone().unwrap_or_default().into();
-    config.voice = Voice::Ballad.into();
-    info!("agent config: {:?}", config);
-    server
-        .run(move |session| {
-            let config = config.clone();
+    let mut handler = TypedRpcHandler::<ServerState>::new();
 
-            async move {
-                // create open ai agent
-                let (agent, mut rx) = connect_realtime_agent(config)
-                    .await
-                    .expect("failed to connect agent");
+    // when audio data is being received, send to agent
+    handler.register_data_handler(|s, data| async move {
+        s.state().agent.audio_append(data)?;
+        Ok(())
+    });
 
-                agent
-                    .response_create(ResponseCreateEvent::default())
-                    .expect("failed to create initial response");
+    handler.with_open_handler(|ctx, ()| async move {
+        let state = ctx.state();
 
-                // SEND: open-ai agent -> client websocket
-                let session_audio = session.clone();
-                tokio::spawn(async move {
-                    while let Some(data) = rx.recv().await {
-                        session_audio.send_binary(data).unwrap()
-                    }
-                });
+        if let Some(mut rx) = state.rx.lock().await.take() {
+            let ctx_rcv = ctx.clone();
 
-                // message handler
-                move |ctx: Arc<MessageContext>| {
-                    let agent_handler = agent.clone();
-
-                    async move {
-                        //handle_ping(ctx.clone()).await;
-
-                        // send audio from client to agent
-                        let msg = ctx.msg();
-
-                        match msg {
-                            Message::Binary(data) => {
-                                agent_handler.audio_append(data.clone()).unwrap();
-                            }
-                            _ => {}
-                        }
+            tokio::spawn(async move {
+                while let Some(data) = rx.recv().await {
+                    if let Err(err) = ctx_rcv.send_binary(data).await {
+                        error!("failed to send binary data: {}", err)
                     }
                 }
-            }
-        })
+            });
+        }
+
+        state
+            .agent
+            .response_create(ResponseCreateEvent::default())?;
+
+        Ok(())
+    });
+
+    let _ = websocket_listen(cmd.listen, JsonCodec::new(), Arc::new(handler), move || {
+        let mut config: AgentConfig = cmd.agent.clone().unwrap_or_default().into();
+        config.voice = Voice::Ballad.into();
+        async move { Ok(ServerState::create(config).await?) }
+    })
         .await?;
 
     tokio::signal::ctrl_c().await?;

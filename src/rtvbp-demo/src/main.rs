@@ -5,24 +5,25 @@ mod server;
 use crate::client::{ClientCommand, client_run};
 use crate::server::{ServerCommand, server_run};
 use clap::Parser;
-// TODO: make server a feature
 
 #[derive(Debug, clap::Parser)]
-enum Demo {
+pub enum DemoArgs {
+    /// Run a RTVBP server
+    #[clap(subcommand)]
     Client(ClientCommand),
+    /// Run a RTVBP server
     Server(ServerCommand),
-    AudioTest,
 }
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let demo = Demo::parse();
+    let demo = DemoArgs::parse();
     match demo {
-        Demo::Client(cmd) => client_run(cmd).await?,
-        Demo::Server(cmd) => server_run(cmd).await?,
-        Demo::AudioTest => {} //_ => unimplemented!()
+        DemoArgs::Client(cmd) => client_run(cmd).await?,
+        DemoArgs::Server(cmd) => server_run(cmd).await?,
     }
 
     Ok(())
