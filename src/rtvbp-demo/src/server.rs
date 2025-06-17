@@ -1,12 +1,10 @@
 use crate::agent::AgentArgs;
 use fluxrpc_core::codec::json::JsonCodec;
-use fluxrpc_core::{Event, SessionState, TypedRpcHandler, websocket_listen};
+use fluxrpc_core::{SessionState, TypedRpcHandler, websocket_listen};
 use openai_realtime::{
     AgentConfig, RealtimeSession, ResponseCreateEvent, Voice, connect_realtime_agent,
 };
-use rtvbp_spec::v1::Metadata;
 use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
-use serde_json::{Value, json};
 use std::net::SocketAddr;
 use std::process::exit;
 use std::sync::Arc;
@@ -50,10 +48,13 @@ pub async fn server_run(cmd: ServerAgs) -> anyhow::Result<()> {
         Ok(())
     });
 
-    handler.register_event_handler("session.updated", |ctx, evt: SessionUpdatedEvent| async move {
-        info!("session.updated: {:?}", evt);
-        Ok(())
-    });
+    handler.register_event_handler(
+        "session.updated",
+        |ctx, evt: SessionUpdatedEvent| async move {
+            info!("session.updated: {:?}", evt);
+            Ok(())
+        },
+    );
 
     handler.with_open_handler(|ctx, ()| async move {
         let state = ctx.state();
@@ -69,8 +70,6 @@ pub async fn server_run(cmd: ServerAgs) -> anyhow::Result<()> {
                 }
             });
         }
-
-        
 
         state
             .agent
