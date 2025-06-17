@@ -14,35 +14,162 @@ It allows an integrator to take control over an ongoing telephony session in the
 - Get notified about various events (like `session.terminated`, `call.hangup`, `dtmf.recevied`, etc )
 - Execute commands (`session.terminate`, `call.hangup`, `dtmf.send`, `ivr.move`, etc)
 
-**Server**
-
-`Server` is a websocket endpoint provided by an integrator who wants to 
-control an ongoing telephony session.
-
-**Client**
-
-`Client` is the session owning instance, which contacts the `Server`
-to handover control.
-
-**Event**
-
-`TODO`
-
-**Request/Command**
-
-`TODO`
-
 ---
 
-**Flow**
+## Audio Format
 
-1. A customer calls the `babelforce` platform
-2. IVR configuration initiates an `RTVBP` session
-3. `babelforce` acts as a client, and will open a websocket connection to a `RTVBP` server
-4. Audio data is being exchanged between both peers
-5. The `server` will receive important events about the session
-6. The `server` is able to send commands to the initiating party to control the call
-7. When either side decides the session shall be ended, the session will be closed with `session.terminate`
+- Currently only `PCM16` is support
+- We will sent a continuous stream of audio
+- Peers can sent partial audio as well (You do not have to transmit silence)
+
+## Protocol
+
+`RTVBP` is a transport agnostic protocol which describes a bi-directional flow
+of messages between two peers exchanging messages. `RTVBP` uses a `jsonrpc` like
+envelope protocol which you can find [here](https://github.com/codewandler/fluxrpc/blob/main/src/fluxrpc-core/README.md)
+
+### Websocket
+
+One easy way to use `RTVBP` is by using websocket as transport protocol.
+
+**Security**
+
+A `RTVBP` websocket endpoint will be contacted only on `wss://` via `SSL` in production. `ws://` is not supported.
+In order to secure your endpoint we allow to send any headers or reference a secret from the `babelforce` platform.
+In addition we recommend some form of network layer IP whitelisting of our platform if you want to restrict access further.
+
+The most common but secure use-case would be to use `Authorization: Bearer <secret()>`. This secret is managed by `babelforce`
+and you only have to verify its correctness on your end. 
+
+Individual messages during the conversation are not signed and do not have any security measure beside using `wss://`.
+In the future message signing can be implemented.
+
+**Keep-Alive**
+
+When using websocket as transport protocol (which itself is based on HTTP - which is based on TCP)
+typically no keep-alive (`ping` + `pong`) messages are needed on `RTVBP` level as this is already
+taken care of from the transport layer. 
+
+**Audio**
+
+As websocket offers two message variants we chose the binary variant to transmit
+audio data to reduce the frequent messages in their size by omitting the envelope.
+
+
+
+
+## Example
+
+Here you find an example flow where `babelforce` acts as a client (`peer_1`) and connects to some external
+party via websocket (`peer_2`). After a connection has been established - we speak more about a peer-to-peer
+connection instead of a client-server relationship.
+
+**Initialization**
+
+After we connected to your peer (`peer_2`) the following event is expected to be received on your end:
+
+```json
+{
+  "event": "session.updated",
+  "data": {
+    "audio": {
+        "format": "pcm16",
+    },
+    "metadata": {
+        "call_id": "call-12345678",
+        "recording_consent": true,        
+    }    
+  }
+}
+```
+
+The `metadata` is a free form object which can be controlled via configuration
+and populated with the help of `babelforce` session variables and expressions. 
+
+After you have received this event you can expect to receive audio.
+
+**Caller hangup**
+
+If a caller hangs up the call on babelforce side, you can expect the following events:
+
+```json
+{
+  "event": "call.hungup",
+  "data": {
+    "call": {
+        "id": "1234",
+    },    
+  }
+}
+```
+
+`call` holds the standard babelforce call object as its known from the API.
+
+When babelforce detects the hangup we send a message to request the graceful termination of the session:
+
+```json
+{
+    "id": "req-1234",
+    "method": "session.terminate",
+    "data": {
+      "reason": "call.hungup"
+    }
+}
+```
+
+`peer_2` acknowledges the request to terminate the session:
+
+```json
+{
+  "response": "req-1234",
+  "result": null
+}
+```
+
+When we receive the response to a session termination request we will:
+
+- websocket: send a final close frame
+- close any underlying transport
+
+**Call control: moving a call**
+
+You can request to move the current call to another application location.
+
+1. Continue in the after-flow of an IVR application:
+
+```json
+{
+  "id": "req-1234",
+  "method": "application.move",
+  "params": {
+    "continue": true,
+  }
+}
+```
+
+2. Move to a specific application by ID 
+
+```json
+
+{
+  "id": "req-1234",
+  "method": "application.move",
+  "params": {
+    "application_id": "1234",
+  }
+}
+```
+
+When we see a request to `application.move` we reply like this:
+
+```json
+{
+  "response": "req-1234",
+  "result": {}
+}
+```
+
+After that we initiate the `session.terminate` flow described earlier.
 
 ---
 
