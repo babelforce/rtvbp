@@ -48,10 +48,23 @@ to handover control.
 
 ## Getting started
 
-In order to implement such clients we provide a simple testing
+In order to implement clients we provide a simple testing
 client which is able to connect to your server implementation.
 
-### Client
+**Get the code**
+
+```bash
+git clone https://github.com/babelforce/rtvbp.git
+cd rtvpb
+```
+
+### Use real audio
+
+```bash
+cargo run --bin rtvbp-demo -- client audio --url ws://127.0.0.1:8181
+```
+
+### Use OpenAI
 
 Our test client is able to mimic a live call with a customer
 by utilizing OpenAIs realtime voice model.
@@ -60,29 +73,22 @@ The best way currently to run the client is by using `cargo`
 from within this project:
 
 ```bash
-# check out the project
-git clone https://github.com/babelforce/rtvbp.git
-cd rtvpb
-
-# start the client
 export OPENAI_KEY=s3cr3t
-cargo run --bin rtvbp-demo -- client
+cargo run --bin rtvbp-demo -- client agent
 ```
-
-By default the client will connect to `ws://127.0.0.1:8181`
-You can provide various arguments to configure its behaviour
 
 **Example use-case**
 
 ```bash
-cargo run --bin rtvbp-demo -- client \
-  --agent-prompt "you are an angry customer calling for a discount"
+cargo run --bin rtvbp-demo -- \
+    client \
+    --agent-prompt "you are an angry customer calling for a discount"
 ```
 
 **Usage**
 
 ```bash
-Usage: rtvbp-demo client [OPTIONS]
+Usage: rtvbp-demo client agent [OPTIONS]
 
 Options:
   -u, --url <URL>              [default: ws://127.0.0.1:8181]
@@ -91,14 +97,7 @@ Options:
       --agent-voice <VOICE>    [default: alloy]
       --agent-prompt <PROMPT>  [default: "You are a nice and friendly person wanting to have a nice conversation"]
       --agent-lang <LANG>      [default: en-US]
-      --agent-create-response  
   -h, --help                   Print help
-
-```
-
-```bash
-# via cargo
-cargo run --bin rtvbp-demo -- client
 ```
 
 **Docker**
@@ -116,14 +115,13 @@ docker run \
     --device /dev/snd -e AUDIODEV=default \
     --cap-add=sys_nice --ulimit memlock=-1 \
     ghcr.io/babelforce/rtvbp:main \
-    client
+    client agent
 ```
 
 ### Server
 
-The server is to what our client connects to.
-To get started with a dummy server you can run our
-own test server:
+An `rtvbp` client connects to a server.
+To get started with a dummy server you can run our own test server:
 
 ```bash
 docker run \
@@ -149,7 +147,8 @@ brew install websocat
 # On Linux (via cargo)
 cargo install websocat
 
-websocat -E ws-l:127.0.0.1:8181
+# start a websocket server
+websocat -s 8181
 ```
 
 **NodeJS**
