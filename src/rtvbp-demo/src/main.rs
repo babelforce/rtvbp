@@ -2,7 +2,7 @@ mod agent;
 mod client;
 mod server;
 
-use crate::client::{client_run, ClientArgs};
+use crate::client::{ClientArgs, client_run};
 use crate::server::{ServerAgs, server_run};
 use clap::Parser;
 

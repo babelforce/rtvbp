@@ -5,19 +5,21 @@ use codewandler_audio::{
 };
 use crossbeam_channel::{Receiver, Sender};
 use fluxrpc_core::codec::json::JsonCodec;
-use fluxrpc_core::{SessionState, TypedRpcHandler, WebsocketClientConfig, websocket_connect, Event, SessionContext};
+use fluxrpc_core::{
+    Event, SessionContext, SessionState, TypedRpcHandler, WebsocketClientConfig, websocket_connect,
+};
 use openai_realtime::{RealtimeSession, connect_realtime_agent};
+use rtvbp_spec::v1::Metadata;
+use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
+use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::process::exit;
 use std::sync::Arc;
 use std::thread;
-use serde_json::{json, Value};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use tracing::error;
 use url::Url;
-use rtvbp_spec::v1::Metadata;
-use rtvbp_spec::v1::op::session::SessionUpdatedEvent;
 
 #[derive(Debug, Clone, clap::Args)]
 pub struct ClientArgs {
@@ -30,7 +32,7 @@ pub struct ClientArgs {
     token: Option<String>,
 
     #[clap(subcommand)]
-    pub command: ClientCommand
+    pub command: ClientCommand,
 }
 
 #[derive(Debug, Clone, clap::Subcommand)]
@@ -38,7 +40,7 @@ pub enum ClientCommand {
     /// Uses local audio for capture and playback
     Audio {
         #[clap(long, default_value = "false")]
-        monitor: bool
+        monitor: bool,
     },
     /// Use openAI to emulate a real person
     Agent(AgentArgs),
@@ -56,7 +58,7 @@ impl SessionState for ClientState {}
 
 pub async fn client_run(client_args: ClientArgs) -> anyhow::Result<()> {
     match client_args.command.clone() {
-        ClientCommand::Audio { monitor  } => {
+        ClientCommand::Audio { monitor } => {
             client_audio_run(client_args.url, client_args.token, monitor).await?;
         }
         ClientCommand::Agent(cmd) => {
@@ -67,9 +69,9 @@ pub async fn client_run(client_args: ClientArgs) -> anyhow::Result<()> {
     exit(0);
 }
 
-async fn on_open<S>(ctx: Arc<dyn SessionContext<State=S>>) -> anyhow::Result<()>
+async fn on_open<S>(ctx: Arc<dyn SessionContext<State = S>>) -> anyhow::Result<()>
 where
-    S: SessionState
+    S: SessionState,
 {
     ctx.notify(&Event::new(
         "session.updated",
@@ -78,24 +80,28 @@ where
                 (
                     "call".to_string(),
                     json!({
-                            "id": "call-12341234",
-                            "from": "493010001000",
-                            "to": "493050005000",
-                            "type": "inbound"
-                        }),
+                        "id": "call-12341234",
+                        "from": "493010001000",
+                        "to": "493050005000",
+                        "type": "inbound"
+                    }),
                 ),
                 ("recording_consent".to_string(), Value::from(true)),
             ])
-                .into(),
-        }
             .into(),
+        }
+        .into(),
     ))
-        .await?;
+    .await?;
 
     Ok(())
 }
 
-async fn client_audio_run(url: Url, bearer_token: Option<String>, playback_monitor: bool) -> anyhow::Result<()> {
+async fn client_audio_run(
+    url: Url,
+    bearer_token: Option<String>,
+    playback_monitor: bool,
+) -> anyhow::Result<()> {
     // audio setup
     let sample_rate = 24_000;
     let pb = AudioPlayback::new(sample_rate)?;
@@ -138,7 +144,6 @@ async fn client_audio_run(url: Url, bearer_token: Option<String>, playback_monit
                         if monitor {
                             pb.audio_write_buffer(&Buffer::new(all.clone())).unwrap();
                         }
-
 
                         // to websocket
                         tx_a.send(convert_f32_to_pcm16_bytes(all)).unwrap();
@@ -198,10 +203,7 @@ struct AgentState {
 
 impl SessionState for AgentState {}
 
-async fn client_agent_run(
-    client_args: ClientArgs,
-    agent_args: AgentArgs
-) -> anyhow::Result<()> {
+async fn client_agent_run(client_args: ClientArgs, agent_args: AgentArgs) -> anyhow::Result<()> {
     // audio setup
     let sample_rate = 24_000;
     let pb = AudioPlayback::new(sample_rate)?;
