@@ -2,15 +2,13 @@ use crate::v1::docs::asyncapischema::{Channel, Components, Info, MessageMap, Ref
 use crate::v1::docs::provider::{EventSpecExt, RequestSpecExt};
 use crate::v1::message;
 use crate::v1::op::application::ApplicationMoveRequest;
-use crate::v1::op::audio::{
-    AudioStreamStartRequest, AudioStreamStopRequest,
-};
+use crate::v1::op::audio::{AudioStreamStartRequest, AudioStreamStopRequest};
 use crate::v1::op::ping::PingRequest;
 use crate::v1::op::playback::PlaybackStartRequest;
 use crate::v1::op::recording::{
     RecordingFinishedEvent, RecordingStartRequest, RecordingStopRequest,
 };
-use crate::v1::op::session::{SessionCreateRequest, SessionTerminatedEvent, SessionUpdatedEvent};
+use crate::v1::op::session::{SessionTerminatedEvent, SessionUpdatedEvent};
 use indexmap::IndexMap;
 use schemars::SchemaGenerator;
 use schemars::generate::SchemaSettings;
@@ -55,7 +53,6 @@ pub fn async_api_schema() -> Schema {
 
     vec![
         // Requests (... and their responses)
-        SessionCreateRequest::schema(&mut g),
         PingRequest::schema(&mut g),
         AudioStreamStartRequest::schema(&mut g),
         AudioStreamStopRequest::schema(&mut g),
