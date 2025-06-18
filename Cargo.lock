@@ -421,9 +421,9 @@ dependencies = [
 
 [[package]]
 name = "codewandler-audio"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a58f10d419cebc89f1489ba0ed63d13c2508dbd8364d972f2a3b444c68021354"
+checksum = "b169f100e918e761dd4c47e73d821ee1bb8a61ead47f2f61fa3633c1fbd537d1"
 dependencies = [
  "anyhow",
  "crossbeam-channel",

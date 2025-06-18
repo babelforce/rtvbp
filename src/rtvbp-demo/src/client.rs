@@ -12,7 +12,7 @@ use fluxrpc_core::{
 use openai_realtime::{RealtimeSession, connect_realtime_agent};
 use rtvbp_spec::v1::Metadata;
 use rtvbp_spec::v1::op::application::{ApplicationMoveRequest, ApplicationMoveResponse};
-use rtvbp_spec::v1::op::session::{SessionTerminateRequest, SessionUpdatedEvent};
+use rtvbp_spec::v1::op::session::{AudioConfig, AudioStreamConfig, SessionTerminateRequest, SessionUpdatedEvent};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::process::exit;
@@ -38,13 +38,22 @@ pub struct ClientArgs {
     pub command: ClientCommand,
 }
 
+#[derive(Debug, Clone, clap::Args)]
+struct ClientAudioConfig {
+    #[clap(long, default_value = "false")]
+    monitor: bool,
+
+    #[clap(long, default_value = "24000")]
+    input_sample_rate: u32,
+
+    #[clap(long, default_value = "48000")]
+    playback_sample_rate: u32,
+}
+
 #[derive(Debug, Clone, clap::Subcommand)]
 pub enum ClientCommand {
     /// Uses local audio for capture and playback
-    Audio {
-        #[clap(long, default_value = "false")]
-        monitor: bool,
-    },
+    Audio(ClientAudioConfig),
     /// Use openAI to emulate a real person
     Agent(AgentArgs),
 }
@@ -52,7 +61,7 @@ pub enum ClientCommand {
 struct ClientState {
     pb1: Sender<f32>,
     pb2: Sender<f32>,
-    rx: Mutex<Option<Receiver<f32>>>,
+    rx_audio_in: Mutex<Option<Receiver<f32>>>,
     rx_data: Mutex<Option<Receiver<Vec<f32>>>>,
     tx_data: Sender<Vec<f32>>,
 }
@@ -61,8 +70,8 @@ impl SessionState for ClientState {}
 
 pub async fn client_run(client_args: ClientArgs) -> anyhow::Result<()> {
     match client_args.command.clone() {
-        ClientCommand::Audio { monitor } => {
-            client_audio_run(client_args.url, client_args.token, monitor).await?;
+        ClientCommand::Audio(audio_config) => {
+            client_audio_run(client_args.url, client_args.token, audio_config).await?;
         }
         ClientCommand::Agent(cmd) => {
             client_agent_run(client_args, cmd).await?;
@@ -72,13 +81,18 @@ pub async fn client_run(client_args: ClientArgs) -> anyhow::Result<()> {
     exit(0);
 }
 
-async fn on_open<S>(ctx: Arc<dyn SessionContext<State = S>>) -> anyhow::Result<()>
+async fn on_open_session_update<S>(
+    ctx: Arc<dyn SessionContext<State = S>>,
+    audio_config: Option<AudioConfig>,
+) -> anyhow::Result<()>
 where
     S: SessionState,
 {
+    info!("publish session.update: {:?}", audio_config);
     ctx.notify(&Event::new(
         "session.updated",
         SessionUpdatedEvent {
+            audio: audio_config,
             metadata: Metadata::from([
                 (
                     "call".to_string(),
@@ -103,19 +117,21 @@ where
 async fn client_audio_run(
     url: Url,
     bearer_token: Option<String>,
-    playback_monitor: bool,
+    audio_config: ClientAudioConfig,
 ) -> anyhow::Result<()> {
     // audio setup
-    let sample_rate = 24_000;
-    let pb = AudioPlayback::new(sample_rate)?;
-    let pb1 = pb.new_output(sample_rate);
-    let pb2 = pb.new_output(sample_rate);
+    let pb = AudioPlayback::new(audio_config.playback_sample_rate)?;
+    let pb_mic = pb.new_output(audio_config.input_sample_rate);
+    let pb_remote = pb.new_output(24_000);
+    // TODO: pb_remote should be set to 8000 actually for testing, then our server would have to downsample
+    // TODO: assuming the remote will send this to us might be bad!
 
-    let cap = audio_capture(sample_rate)?;
+    let cap = audio_capture(audio_config.input_sample_rate)?;
     let mic_rx = cap.subscribe();
 
     let mut handler = TypedRpcHandler::<ClientState>::new();
 
+    // req: application.move
     handler.register_request_handler(
         "application.move",
         |ctx, req: ApplicationMoveRequest| async move {
@@ -146,15 +162,16 @@ async fn client_audio_run(
     );
 
     // from source to destination
+    let audio_monitor = audio_config.monitor;
     handler.with_open_handler(move |ctx, s| async move {
         let state = ctx.state();
         let pb1 = state.pb1.clone();
 
         // read from mic
-        if let Some(rx_mic) = state.rx.lock().await.take() {
+        if let Some(rx_mic) = state.rx_audio_in.lock().await.take() {
             let ctx_rcv = ctx.clone();
 
-            // send data via websocket
+            // stream audio data to websocket
             let (tx_a, mut rx_a) = unbounded_channel::<Vec<u8>>();
             tokio::spawn(async move {
                 while let Some(data) = rx_a.recv().await {
@@ -162,11 +179,12 @@ async fn client_audio_run(
                 }
             });
 
+            let monitor = audio_monitor.clone();
+
             // consume microphone
             thread::spawn(move || {
                 let pb = pb1.clone();
                 let mut buf = VecDeque::new();
-                let monitor = playback_monitor.clone();
                 while let Ok(data) = rx_mic.recv() {
                     buf.push_back(data);
                     if buf.len() > 1024 {
@@ -192,8 +210,19 @@ async fn client_audio_run(
                 }
             });
         }
-
-        on_open(ctx.clone()).await?;
+        
+        on_open_session_update(ctx.clone(), AudioConfig {
+            output: Some(AudioStreamConfig{
+                channels: 1,
+                sample_rate: audio_config.input_sample_rate,
+                codec: "pcm16".into()
+            }),
+            input: Some(AudioStreamConfig{
+                channels: 1,
+                sample_rate: 24_000,
+                codec: "pcm16".into()
+            }),
+        }.into()).await?;
 
         Ok(())
     });
@@ -212,9 +241,9 @@ async fn client_audio_run(
         JsonCodec::new(),
         Arc::new(handler),
         ClientState {
-            pb1,
-            pb2,
-            rx: Mutex::new(Some(mic_rx)),
+            pb1: pb_mic,
+            pb2: pb_remote,
+            rx_audio_in: Mutex::new(Some(mic_rx)),
             tx_data,
             rx_data: Mutex::new(Some(rx_data)),
         },
@@ -265,7 +294,7 @@ async fn client_agent_run(client_args: ClientArgs, agent_args: AgentArgs) -> any
             });
         }
 
-        on_open(ctx.clone()).await?;
+        on_open_session_update(ctx.clone(), None).await?;
 
         Ok(())
     });
