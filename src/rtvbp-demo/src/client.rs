@@ -12,7 +12,9 @@ use fluxrpc_core::{
 use openai_realtime::{RealtimeSession, connect_realtime_agent};
 use rtvbp_spec::v1::Metadata;
 use rtvbp_spec::v1::op::application::{ApplicationMoveRequest, ApplicationMoveResponse};
-use rtvbp_spec::v1::op::session::{AudioConfig, AudioStreamConfig, SessionTerminateRequest, SessionUpdatedEvent};
+use rtvbp_spec::v1::op::session::{
+    AudioConfig, AudioStreamConfig, SessionTerminateRequest, SessionUpdatedEvent,
+};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 use std::process::exit;
@@ -210,19 +212,24 @@ async fn client_audio_run(
                 }
             });
         }
-        
-        on_open_session_update(ctx.clone(), AudioConfig {
-            output: Some(AudioStreamConfig{
-                channels: 1,
-                sample_rate: audio_config.input_sample_rate,
-                codec: "pcm16".into()
-            }),
-            input: Some(AudioStreamConfig{
-                channels: 1,
-                sample_rate: 24_000,
-                codec: "pcm16".into()
-            }),
-        }.into()).await?;
+
+        on_open_session_update(
+            ctx.clone(),
+            AudioConfig {
+                output: Some(AudioStreamConfig {
+                    channels: 1,
+                    sample_rate: audio_config.input_sample_rate,
+                    codec: "pcm16".into(),
+                }),
+                input: Some(AudioStreamConfig {
+                    channels: 1,
+                    sample_rate: 24_000,
+                    codec: "pcm16".into(),
+                }),
+            }
+            .into(),
+        )
+        .await?;
 
         Ok(())
     });
