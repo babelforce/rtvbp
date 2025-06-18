@@ -22,7 +22,23 @@ pub struct SessionTerminateResponse {}
 impl ResponseExt for SessionTerminateResponse {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AudioStreamConfig {
+    pub codec: String,
+    pub sample_rate: u32,
+    pub channels: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AudioConfig {
+    pub output: Option<AudioStreamConfig>,
+    pub input: Option<AudioStreamConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionUpdatedEvent {
+
+    pub audio: Option<AudioConfig>,
+
     /// Additional Metadata provided by the session owner
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Metadata>,
@@ -62,6 +78,7 @@ mod docs {
     impl Example for SessionUpdatedEvent {
         fn example() -> Self {
             Self {
+                audio: None,
                 metadata: IndexMap::from([
                     ("call.id".into(), "1234".into()),
                     ("call.from".into(), "+493010001000".into()),
