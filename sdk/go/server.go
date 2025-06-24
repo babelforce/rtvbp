@@ -60,7 +60,10 @@ func (s *Server) runSession(ctx context.Context, sess *Session) {
 
 	defer s.removeSession(sess.id)
 
-	sess.Run(ctx)
+	err := sess.Run(ctx)
+	if err != nil {
+		s.logger.Error("session failed", slog.Any("err", err))
+	}
 }
 
 func (s *Server) shutdownAllSessions(ctx context.Context) {
@@ -103,8 +106,9 @@ func (s *Server) Run(ctx context.Context) error {
 			return nil
 		case t := <-accept:
 			go s.runSession(ctx, NewSession(
-				t,
-				SessionConfig{},
+				func(ctx context.Context) (Transport, error) {
+					return t, nil
+				},
 				s.handler,
 			))
 

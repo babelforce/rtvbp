@@ -75,7 +75,9 @@ func (d *defaultSessionHandler) OnEvent(ctx context.Context, hc HandlerCtx, evt 
 type HandlerConfig struct {
 	BeginHandler func(ctx context.Context, h HandlerCtx) error
 	EndHandler   func(ctx context.Context, h HandlerCtx) error
-	Audio        func() (io.ReadWriter, error)
+
+	// Audio creates audio stream for the session
+	Audio func() (io.ReadWriter, error)
 }
 
 // NewHandler creates a new handler
@@ -88,7 +90,7 @@ func NewHandler(config HandlerConfig, args ...any) SessionHandler {
 		audioFactory:    config.Audio,
 	}
 
-	// TODO: handlers from args
+	// add handlers from args
 	for _, arg := range args {
 		switch arg := arg.(type) {
 		case EventHandler:

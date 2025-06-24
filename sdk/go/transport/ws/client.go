@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"fmt"
+	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
 	"log/slog"
 	"net/http"
@@ -36,17 +37,17 @@ func (d *DialConfig) Defaults() {
 	}
 }
 
-func Dial(ctx context.Context, dial DialConfig) (*websocket.Conn, *http.Response, error) {
-	dial.Defaults()
+func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Response, error) {
+	d.Defaults()
 
-	u, err := url.Parse(dial.URL)
+	u, err := url.Parse(d.URL)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	var header = http.Header{}
-	if dial.AuthHeaderFunc != nil {
-		authToken, err := dial.AuthHeaderFunc(ctx)
+	if d.AuthHeaderFunc != nil {
+		authToken, err := d.AuthHeaderFunc(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -54,35 +55,35 @@ func Dial(ctx context.Context, dial DialConfig) (*websocket.Conn, *http.Response
 			header.Add("Authorization", fmt.Sprintf("Bearer %s", authToken))
 		}
 	}
-	for k, v := range dial.Headers {
+	for k, v := range d.Headers {
 		for _, vv := range v {
 			header.Add(k, vv)
 		}
 	}
 
-	if dial.ConnectTimeout == 0 {
-		dial.ConnectTimeout = 10 * time.Second
+	if d.ConnectTimeout == 0 {
+		d.ConnectTimeout = 10 * time.Second
 	}
 
-	dialCtx, cancel := context.WithTimeout(ctx, dial.ConnectTimeout)
+	dialCtx, cancel := context.WithTimeout(ctx, d.ConnectTimeout)
 	defer cancel()
 	return websocket.DefaultDialer.DialContext(dialCtx, u.String(), header)
 }
 
 // Connect connects to the websocket endpoint
-func Connect(ctx context.Context, config ClientConfig) (*WebsocketTransport, error) {
-	config.Defaults()
+func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, error) {
+	c.Defaults()
 
 	logger := slog.Default().With(
 		slog.String("transport", "websocket"),
 		slog.String("component", "client"),
-		slog.String("endpoint", config.Dial.URL),
+		slog.String("endpoint", c.Dial.URL),
 	)
 
-	logger.Debug("Connecting to websocket endpoint", slog.Any("config", config))
+	logger.Debug("Connecting to websocket endpoint", slog.Any("config", c))
 
 	// Websocket upgrade
-	conn, resp, err := Dial(ctx, config.Dial)
+	conn, resp, err := c.Dial.doDial(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -109,4 +110,10 @@ func Connect(ctx context.Context, config ClientConfig) (*WebsocketTransport, err
 	<-ok
 
 	return t, nil
+}
+
+func Client(config ClientConfig) func(ctx context.Context) (rtvbp.Transport, error) {
+	return func(ctx context.Context) (rtvbp.Transport, error) {
+		return config.doConnect(ctx)
+	}
 }

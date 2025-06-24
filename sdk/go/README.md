@@ -1,13 +1,17 @@
 # rtvbp-go
 
-Golang implementation of rtvbp
+> Golang implementation of rtvbp
+
+---
 
 ## TODO
 
 **General**
 
-- allow to provide external logger
-- implement request/response behaviour
+**Transport**
+
+- [ ] websocket reconnect
+- [ ] test quic protocol -> benchmark
 
 **Client**
 

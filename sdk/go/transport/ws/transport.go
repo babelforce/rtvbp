@@ -215,17 +215,3 @@ func newTransport(
 		done:         done,
 	}
 }
-
-func ProcessChunks(data []byte, chunkSize int, fn func(chunk []byte)) {
-	if chunkSize <= 0 {
-		return
-	}
-
-	for i := 0; i < len(data); i += chunkSize {
-		end := i + chunkSize
-		if end > len(data) {
-			end = len(data)
-		}
-		fn(data[i:end])
-	}
-}

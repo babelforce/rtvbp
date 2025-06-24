@@ -27,9 +27,6 @@ type sessionMessage struct {
 	Error    any    `json:"error,omitempty"`
 }
 
-type SessionConfig struct {
-}
-
 type pendingRequest struct {
 	id string
 	ch chan *proto.Response
@@ -38,8 +35,8 @@ type pendingRequest struct {
 type Session struct {
 	id              string
 	shCtx           *sessionHandlerCtx
-	config          SessionConfig
 	transport       Transport
+	transportFunc   func(ctx context.Context) (Transport, error)
 	closeOnce       sync.Once
 	close           chan struct{} // close is a channel when closed will trigger shutdown of the session
 	done            chan struct{} // done is a channel which will be closed whenever the connection fails on reading
@@ -149,6 +146,8 @@ func (s *Session) Close(timeout time.Duration) error {
 
 func (s *Session) CloseContext(ctx context.Context) error {
 
+	s.logger.Info("closing session")
+
 	s.closeOnce.Do(func() {
 		close(s.close)
 	})
@@ -156,8 +155,10 @@ func (s *Session) CloseContext(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-s.done:
+		s.logger.Info("closed session")
 		return nil
 	}
+
 }
 
 func (s *Session) endSession() {
@@ -242,7 +243,12 @@ func (s *Session) handleIncoming(ctx context.Context, msg sessionMessage) {
 	}
 }
 
-func (s *Session) Run(ctx context.Context) error {
+func (s *Session) Run(ctx context.Context) (err error) {
+	s.transport, err = s.transportFunc(ctx)
+	if err != nil {
+		return err
+	}
+
 	var (
 		logger = s.logger
 	)
@@ -300,8 +306,7 @@ func (s *Session) Run(ctx context.Context) error {
 
 // NewSession creates a new peer for a transport and config
 func NewSession(
-	transport Transport,
-	config SessionConfig,
+	transportFunc func(ctx context.Context) (Transport, error),
 	handler SessionHandler,
 ) *Session {
 	sessionID := proto.ID()
@@ -311,12 +316,9 @@ func NewSession(
 		slog.String("id", sessionID),
 	)
 
-	logger.Debug("creating new session", slog.Any("transport", transport), slog.Any("config", config))
-
 	session := &Session{
 		id:              sessionID,
-		transport:       transport,
-		config:          config,
+		transportFunc:   transportFunc,
 		close:           make(chan struct{}),
 		done:            make(chan struct{}),
 		pendingRequests: map[string]*pendingRequest{},
