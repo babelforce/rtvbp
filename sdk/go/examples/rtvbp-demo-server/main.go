@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -22,9 +24,22 @@ func main() {
 		}),
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{
-				AudioIO: audio.NewLoopBack(),
+				Audio: func() (io.ReadWriter, error) {
+					return audio.NewLoopback(), nil
+				},
 			},
 			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.HandlerCtx, evt *protov1.DummyEvent) error {
+				return nil
+			}),
+			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.HandlerCtx, evt *protov1.SessionUpdatedEvent) error {
+				hc.Log().Info("session updated", slog.Any("event", evt))
+
+				if evt.Audio != nil {
+					fmt.Printf("[session]\nformat: %s\nsample_rate: %d\n", evt.Audio.Format, evt.Audio.SampleRate)
+				}
+
+				// TODO: init resampler ...
+
 				return nil
 			}),
 		),

@@ -1,62 +1,32 @@
 package audio
 
 import (
-	"errors"
-	"github.com/smallnest/ringbuffer"
 	"io"
-	"log/slog"
+	"sync"
 )
 
-type nonBlockingRW struct {
-	aio  AudioIO
-	read *ringbuffer.RingBuffer
+type peekableReader interface {
+	io.Reader
+	Len() int
 }
 
-func (n2 *nonBlockingRW) Read(p []byte) (n int, err error) {
-	n, err = n2.read.Read(p)
-	if err != nil {
-		if errors.Is(err, ringbuffer.ErrIsEmpty) {
-			return 0, nil
-		}
-		return 0, err
+// NonBlockingReader wraps an io.Reader and makes it non-blocking
+type NonBlockingReader struct {
+	src peekableReader
+	mu  sync.Mutex
+}
+
+func NewNonBlockingReader(r peekableReader) *NonBlockingReader {
+	return &NonBlockingReader{src: r}
+}
+
+// Read reads from the underlying reader without blocking.
+// If no data is immediately available, it returns 0, nil.
+func (n *NonBlockingReader) Read(p []byte) (int, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.src.Len() == 0 {
+		return 0, nil // no data available, return non-blocking
 	}
-
-	println("read=", len(p))
-
-	return n, nil
-}
-
-func (n2 *nonBlockingRW) Write(p []byte) (n int, err error) {
-	println("write=", len(p))
-	n2.aio.WriteChan() <- p
-	println("wrote", len(p))
-	return len(p), nil
-}
-
-func NewNonBlockingRW(aio AudioIO) io.ReadWriter {
-	var (
-		bufSize = 1024 * 8
-		x       = &nonBlockingRW{
-			aio:  aio,
-			read: ringbuffer.New(bufSize).SetBlocking(true),
-		}
-	)
-
-	go func() {
-		for {
-			select {
-			case data := <-aio.ReadChan():
-				_, err := x.read.Write(data)
-				if err != nil {
-					slog.Error(
-						"failed to write to ringbuffer",
-						slog.Any("err", err),
-					)
-					return
-				}
-			}
-		}
-	}()
-
-	return x
+	return n.src.Read(p)
 }

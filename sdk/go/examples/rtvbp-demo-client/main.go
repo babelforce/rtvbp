@@ -7,6 +7,7 @@ import (
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,12 +15,12 @@ import (
 	"time"
 )
 
-func connectClient(
+func createSession(
 	ctx context.Context,
 	url string,
 	headers http.Header,
 	handler rtvbp.SessionHandler,
-) *rtvbp.Session {
+) (*rtvbp.Session, error) {
 
 	transport, err := ws.Connect(ctx, ws.ClientConfig{
 		Dial: ws.DialConfig{
@@ -29,18 +30,14 @@ func connectClient(
 		},
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	s := rtvbp.NewSession(
+	return rtvbp.NewSession(
 		transport,
 		rtvbp.SessionConfig{},
 		handler,
-	)
-
-	go s.Run(ctx)
-
-	return s
+	), nil
 }
 
 type cliArgs struct {
@@ -49,6 +46,7 @@ type cliArgs struct {
 	audio      bool
 	proxyToken string
 	authToken  string
+	sampleRate float64
 }
 
 func parseLevel(levelStr string) (slog.Level, error) {
@@ -64,11 +62,13 @@ func main() {
 		audio:      true,
 		proxyToken: "",
 		authToken:  "",
+		sampleRate: 24_000,
 	}
 	flag.StringVar(&args.url, "url", args.url, "websocket url")
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
 	flag.StringVar(&args.authToken, "auth-token", args.authToken, "auth token used as Bearer token in Authorization header")
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
+	flag.Float64Var(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")
 	flag.Parse()
 
@@ -86,7 +86,7 @@ func main() {
 	// outer context with timeout
 	ctx := context.Background()
 
-	e1, e2 := audio.NewDuplex(ctx.Done(), 128)
+	e1, e2 := audio.NewDuplexBuffers()
 
 	headers := http.Header{}
 	if args.authToken != "" {
@@ -97,15 +97,24 @@ func main() {
 	}
 
 	// start client
-	sess := connectClient(
+	sess, err := createSession(
 		ctx,
 		args.url,
 		headers,
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{
-				AudioIO: e2,
+				Audio: func() (io.ReadWriter, error) {
+					return e2, nil
+				},
 				BeginHandler: func(ctx context.Context, h rtvbp.HandlerCtx) error {
 					// TODO: session.updated event
+					_ = h.Notify(ctx, &protov1.SessionUpdatedEvent{
+						Audio: &protov1.AudioConfig{
+							Channels:   1,
+							Format:     "pcm16",
+							SampleRate: int(args.sampleRate),
+						},
+					})
 
 					// emit some event
 					/*_ = h.Notify(ctx, &protov1.DummyEvent{
@@ -129,14 +138,26 @@ func main() {
 			}),
 		))
 
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		err := sess.Run(ctx)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
 	if args.audio {
 		//cb := rtvbp.NewChanBuf(1024*1024, false)
 
 		go func() {
 			err := pipeLocalAudio(
 				ctx,
-				e1.ToNonBlockingRW(),
-				24_000,
+				audio.NewNonBlockingReader(e1),
+				e1,
+				args.sampleRate,
 			)
 			if err != nil {
 				slog.Error("audio stream failed", slog.Any("err", err))

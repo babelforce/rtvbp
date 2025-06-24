@@ -33,22 +33,22 @@ func (m *wsMessage) controlTimeout() time.Duration {
 }
 
 type WebsocketTransport struct {
-	conn       *websocket.Conn
-	audioInner *audio.DuplexEndpoint
-	audioOuter *audio.DuplexEndpoint
-	cc         *controlChannel
-	msgOut     chan wsMessage // msgOut holds messages to be send out
-	chTextRcv  chan []byte
-	done       chan struct{}
-	logger     *slog.Logger
+	conn         *websocket.Conn
+	audioSession *audio.DuplexBuffer
+	audioLocal   *audio.DuplexBuffer
+	cc           *controlChannel
+	msgOut       chan wsMessage // msgOut holds messages to be send out
+	chTextRcv    chan []byte
+	done         chan struct{}
+	logger       *slog.Logger
 }
 
-func (w *WebsocketTransport) AudioIO() audio.AudioIO {
-	return w.audioOuter
+func (w *WebsocketTransport) Read(p []byte) (n int, err error) {
+	return w.audioSession.Read(p)
 }
 
-func (w *WebsocketTransport) WriteChan() chan<- []byte {
-	return w.audioOuter.WriteChan()
+func (w *WebsocketTransport) Write(p []byte) (n int, err error) {
+	return w.audioSession.Write(p)
 }
 
 func (w *WebsocketTransport) Closed() <-chan struct{} {
@@ -113,34 +113,23 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 				w.cc.input <- data
 			case websocket.BinaryMessage:
 				w.logger.Debug("rcv binary", slog.Int("len", len(data)))
-
-				ProcessChunks(data, 128, func(chunk []byte) {
-					// this is non-blocking, should it be configurable ?
-					select {
-					case w.audioInner.WriteChan() <- chunk:
-					default:
-						w.logger.Warn("rcv: audio buffer full")
-					}
-				})
-
+				if _, err := w.audioLocal.Write(data); err != nil {
+					w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
+					return
+				}
 			}
 		}
 	}()
 
 	go func() {
-
+		buf := make([]byte, 8_000)
 		for {
-			select {
-			case <-w.done:
+			n, err := w.audioLocal.Read(buf)
+			if err != nil {
+				w.logger.Error("read audio from buffer failed", slog.Any("err", err))
 				return
-			case <-ctx.Done():
-				return
-			case data, ok := <-w.audioInner.ReadChan():
-				if !ok {
-					return
-				}
-				w.msgOut <- wsMessage{mt: websocket.BinaryMessage, data: data}
 			}
+			w.msgOut <- wsMessage{mt: websocket.BinaryMessage, data: buf[:n]}
 		}
 	}()
 
@@ -214,16 +203,16 @@ func newTransport(
 
 	done := make(chan struct{})
 
-	e1, e2 := audio.NewDuplex(done, 128)
+	a1, a2 := audio.NewDuplexBuffers()
 
 	return &WebsocketTransport{
-		conn:       conn,
-		audioInner: e1,
-		audioOuter: e2,
-		cc:         newControlChannel(),
-		msgOut:     msgOut,
-		logger:     logger,
-		done:       done,
+		conn:         conn,
+		audioSession: a1,
+		audioLocal:   a2,
+		cc:           newControlChannel(),
+		msgOut:       msgOut,
+		logger:       logger,
+		done:         done,
 	}
 }
 

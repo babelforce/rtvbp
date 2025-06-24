@@ -2,8 +2,8 @@ package rtvbp
 
 import (
 	"context"
-	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto"
+	"io"
 	"log/slog"
 )
 
@@ -20,7 +20,7 @@ type HandlerCtx interface {
 }
 
 type SessionHandler interface {
-	AudioIO() audio.AudioIO
+	Audio() (io.ReadWriter, error)
 	OnBegin(ctx context.Context, h HandlerCtx) error
 	OnEnd(ctx context.Context, h HandlerCtx) error
 	OnRequest(ctx context.Context, h HandlerCtx, req *proto.Request) (*proto.Response, error)
@@ -32,11 +32,11 @@ type defaultSessionHandler struct {
 	requestHandlers map[string]RequestHandler
 	onEnd           func(ctx context.Context, h HandlerCtx) error
 	onBegin         func(ctx context.Context, h HandlerCtx) error
-	audioIO         audio.AudioIO
+	audioFactory    func() (io.ReadWriter, error)
 }
 
-func (d *defaultSessionHandler) AudioIO() audio.AudioIO {
-	return d.audioIO
+func (d *defaultSessionHandler) Audio() (io.ReadWriter, error) {
+	return d.audioFactory()
 }
 
 func (d *defaultSessionHandler) OnBegin(ctx context.Context, hc HandlerCtx) error {
@@ -75,9 +75,7 @@ func (d *defaultSessionHandler) OnEvent(ctx context.Context, hc HandlerCtx, evt 
 type HandlerConfig struct {
 	BeginHandler func(ctx context.Context, h HandlerCtx) error
 	EndHandler   func(ctx context.Context, h HandlerCtx) error
-	AudioIO      audio.AudioIO
-	AudioIn      <-chan []byte
-	AudioOut     chan<- []byte
+	Audio        func() (io.ReadWriter, error)
 }
 
 // NewHandler creates a new handler
@@ -87,11 +85,7 @@ func NewHandler(config HandlerConfig, args ...any) SessionHandler {
 		requestHandlers: make(map[string]RequestHandler),
 		onBegin:         config.BeginHandler,
 		onEnd:           config.EndHandler,
-		audioIO:         config.AudioIO,
-	}
-
-	if handler.audioIO == nil {
-
+		audioFactory:    config.Audio,
 	}
 
 	// TODO: handlers from args

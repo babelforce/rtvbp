@@ -2,16 +2,16 @@ package rtvbp
 
 import (
 	"context"
-	"github.com/babelforce/rtvbp-go/audio"
+	"io"
 )
 
 type DataChannel interface {
-	Output() chan<- []byte
-	Input() <-chan []byte
+	WriteChan() chan<- []byte
+	ReadChan() <-chan []byte
 }
 
 type Transport interface {
-	AudioIO() audio.AudioIO
+	io.ReadWriter
 	Closed() <-chan struct{}
 	Control() DataChannel
 	Close(ctx context.Context) error

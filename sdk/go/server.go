@@ -42,38 +42,41 @@ func (s *Server) Shutdown() error {
 	}
 }
 
-func (s *Server) runSession(ctx context.Context, sess *Session) {
-	func() {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		s.sessions[sess.id] = sess
-	}()
+func (s *Server) addSession(sess *Session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions[sess.id] = sess
+}
 
-	defer func() {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		delete(s.sessions, sess.id)
-	}()
+func (s *Server) removeSession(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, id)
+	println("REMOVED", id)
+}
+
+func (s *Server) runSession(ctx context.Context, sess *Session) {
+	s.addSession(sess)
+
+	defer s.removeSession(sess.id)
 
 	sess.Run(ctx)
+}
+
+func (s *Server) shutdownAllSessions(ctx context.Context) {
+	for _, sess := range s.sessions {
+		if err := sess.CloseContext(ctx); err != nil {
+			s.logger.Error("failed to close session", slog.Any("err", err))
+		}
+		s.removeSession(sess.id)
+	}
 }
 
 func (s *Server) tearDown() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// TODO: close async
-	func() {
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		for _, sess := range s.sessions {
-			s.logger.Debug("closing session", slog.String("session_id", sess.id))
-			if err := sess.CloseContext(ctx); err != nil {
-				s.logger.Error("failed to close session", slog.Any("err", err))
-			}
-			delete(s.sessions, sess.id)
-		}
-	}()
+	s.shutdownAllSessions(ctx)
 
 	if err := s.acceptor.Shutdown(ctx); err != nil {
 		s.logger.Error("failed to shutdown acceptor", slog.Any("err", err))

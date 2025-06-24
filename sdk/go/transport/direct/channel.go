@@ -13,11 +13,11 @@ type dcc struct {
 	once   sync.Once
 }
 
-func (d *dcc) Output() chan<- []byte {
+func (d *dcc) WriteChan() chan<- []byte {
 	return d.out
 }
 
-func (d *dcc) Input() <-chan []byte {
+func (d *dcc) ReadChan() <-chan []byte {
 	return d.in
 }
 
@@ -34,9 +34,18 @@ type directTransport struct {
 	cc *dcc
 }
 
-func (d *directTransport) Audio() rtvbp.AudioChannel {
+func (d *directTransport) Read(p []byte) (n int, err error) {
 	//TODO implement me
 	panic("implement me")
+}
+
+func (d *directTransport) Write(p []byte) (n int, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *directTransport) Closed() <-chan struct{} {
+	return make(chan struct{}, 1)
 }
 
 func (d *directTransport) Close(ctx context.Context) error {

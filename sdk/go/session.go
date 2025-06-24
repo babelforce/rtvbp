@@ -75,7 +75,7 @@ func (s *Session) writeMsgData(ctx context.Context, data []byte) error {
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("writeMsgData failed: %w", ErrRequestTimeout)
-	case s.transport.Control().Output() <- data:
+	case s.transport.Control().WriteChan() <- data:
 		return nil
 	}
 }
@@ -242,7 +242,7 @@ func (s *Session) handleIncoming(ctx context.Context, msg sessionMessage) {
 	}
 }
 
-func (s *Session) Run(ctx context.Context) {
+func (s *Session) Run(ctx context.Context) error {
 	var (
 		logger = s.logger
 	)
@@ -258,21 +258,26 @@ func (s *Session) Run(ctx context.Context) {
 
 	defer s.endSession()
 
-	// TODO: pipe from
-	audio.DuplexPipe(ctx.Done(), s.transport.AudioIO(), s.handler.AudioIO())
+	rw, err := s.handler.Audio()
+	if err != nil {
+		logger.Error("handler.Audio() failed", slog.Any("err", err))
+		return err
+	}
 
-	transportMsgInChan := s.transport.Control().Input()
+	audio.DuplexCopy(s.transport, rw)
+
+	transportMsgInChan := s.transport.Control().ReadChan()
 	transportClosedChan := s.transport.Closed()
 	pingTicker := time.NewTicker(5 * time.Second)
 	for {
 
 		select {
 		case <-s.close:
-			return
+			return nil
 		case <-ctx.Done():
-			return
+			return nil
 		case <-transportClosedChan:
-			return
+			return nil
 		case <-pingTicker.C:
 			// TODO: application level ping/pong
 			s.logger.Info("TODO: send app level ping")
@@ -280,7 +285,7 @@ func (s *Session) Run(ctx context.Context) {
 		case data, ok := <-transportMsgInChan:
 			if !ok {
 				s.logger.Debug("Session.Run() control channel closed")
-				return
+				return nil
 			}
 
 			var msg sessionMessage

@@ -10,21 +10,17 @@ import (
 )
 
 const (
-	framesPerBuffer = 1600
+	framesPerBuffer = 160
 )
 
 // TODO: allow to resample - so we can always configure as 48khz but then expose something else
 
 func pipeLocalAudio(
 	ctx context.Context,
-	rwo io.ReadWriter,
+	reader io.Reader,
+	writer io.Writer,
 	sampleRate float64,
 ) error {
-	// TODO: get from env
-	var deviceSampleRate float64 = 24_000
-
-	//rw := audio.NewResamplingReadWriter(rwo, sampleRate, deviceSampleRate)
-	rw := rwo
 
 	if err := portaudio.Initialize(); err != nil {
 		return err
@@ -54,7 +50,7 @@ func pipeLocalAudio(
 			Channels: 1,
 			Latency:  outputDevice.DefaultLowOutputLatency,
 		},
-		SampleRate:      deviceSampleRate,
+		SampleRate:      sampleRate,
 		FramesPerBuffer: framesPerBuffer,
 	}
 
@@ -63,7 +59,7 @@ func pipeLocalAudio(
 	callback := func(in, out []int16) {
 		// Write input to the stream
 		if len(in) > 0 {
-			if err := binary.Write(rw, binary.LittleEndian, in); err != nil {
+			if err := binary.Write(writer, binary.LittleEndian, in); err != nil {
 				stop <- fmt.Errorf("audio write error: %w", err)
 				return
 			}
@@ -71,7 +67,7 @@ func pipeLocalAudio(
 
 		// Read output from the stream, but in a non-blocking way
 		byteBuf := make([]byte, len(out)*2)
-		n, err := rw.Read(byteBuf)
+		n, err := reader.Read(byteBuf)
 		if err != nil {
 			slog.Error("audio read error", slog.Any("err", err))
 			stop <- fmt.Errorf("audio read error: %w", err)

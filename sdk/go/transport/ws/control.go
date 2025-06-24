@@ -13,11 +13,11 @@ type controlChannel struct {
 	closed chan struct{}
 }
 
-func (cc *controlChannel) Output() chan<- []byte {
+func (cc *controlChannel) WriteChan() chan<- []byte {
 	return cc.output
 }
 
-func (cc *controlChannel) Input() <-chan []byte {
+func (cc *controlChannel) ReadChan() <-chan []byte {
 	return cc.input
 }
 
