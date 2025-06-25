@@ -250,7 +250,6 @@ func (s *Session) Run(
 	defer s.endSession()
 
 	// init transport
-
 	if t, err := s.transportFunc(ctx); err != nil {
 		return err
 	} else {
@@ -258,15 +257,12 @@ func (s *Session) Run(
 	}
 
 	var (
-		logger = s.logger
+		onBeginDone = make(chan error, 1)
 	)
 
 	if s.handler != nil {
 		go func() {
-			if err := s.handler.OnBegin(ctx, s.shCtx); err != nil {
-				logger.Error("OnBegin() failed", slog.Any("err", err))
-				return
-			}
+			onBeginDone <- s.handler.OnBegin(ctx, s.shCtx)
 		}()
 	}
 
@@ -275,6 +271,9 @@ func (s *Session) Run(
 	for {
 
 		select {
+		case err := <-onBeginDone:
+			s.logger.Error("handler.OnBegin() failed", slog.Any("err", err))
+			return err
 		case <-s.close:
 			return nil
 		case <-ctx.Done():

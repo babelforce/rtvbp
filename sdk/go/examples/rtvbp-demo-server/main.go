@@ -32,7 +32,7 @@ func main() {
 
 					// after 10 seconds, use application.move to move the session to a new application
 					go func() {
-						<-time.After(10 * time.Second)
+						<-time.After(2 * time.Second)
 						_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
 							ApplicationID: "1234",
 						})
