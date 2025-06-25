@@ -87,7 +87,6 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) func() {
 
 func terminateAndClose(reason string) func(context.Context, rtvbp.SHC) error {
 	return func(ctx context.Context, hc rtvbp.SHC) error {
-		println("TERMINATING", reason, "SESSION", hc.SessionID())
 		// request to terminate the session
 		_, err := hc.Request(ctx, &SessionTerminateRequest{
 			// TODO: TerminationReason

@@ -48,7 +48,6 @@ func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *
 
 	var a any = params
 	if prh, ok := a.(PostResponseHook); ok {
-		println("IS POST")
 		return prh.PostResponseHook(ctx, h)
 	}
 

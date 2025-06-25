@@ -102,6 +102,4 @@ func main() {
 		_ = sess.CloseTimeout(5 * time.Second)
 	}
 
-	println("DONE")
-
 }
