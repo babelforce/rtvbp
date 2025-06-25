@@ -57,23 +57,7 @@ func Handler(
 		}),
 		rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error) {
-				// 1. telephony: application move
-				moveResponse, err := tel.Move(ctx, req)
-				if err != nil {
-					return nil, err
-				}
-				hc.Log().Debug("application moved", slog.Any("move", moveResponse))
-
-				// TODO: must find solution: this should be queued somehow
-				go func() {
-					<-time.After(1 * time.Second)
-					err := terminateAndClose("application.move")(ctx, hc)
-					if err != nil {
-						hc.Log().Error("failed to terminate session", slog.Any("err", err))
-					}
-				}()
-
-				return moveResponse, nil
+				return tel.Move(ctx, req)
 			},
 		),
 	)
@@ -103,6 +87,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) func() {
 
 func terminateAndClose(reason string) func(context.Context, rtvbp.SHC) error {
 	return func(ctx context.Context, hc rtvbp.SHC) error {
+		println("TERMINATING", reason, "SESSION", hc.SessionID())
 		// request to terminate the session
 		_, err := hc.Request(ctx, &SessionTerminateRequest{
 			// TODO: TerminationReason
