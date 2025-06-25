@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
@@ -11,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 )
 
@@ -74,28 +71,6 @@ func main() {
 
 	go func() {
 		done <- sess.Run(ctx)
-	}()
-
-	go func() {
-		scanner := bufio.NewScanner(os.Stdin)
-
-		for {
-			fmt.Print("> ")
-			if !scanner.Scan() {
-				break
-			}
-
-			input := strings.TrimSpace(scanner.Text())
-
-			switch input {
-			case "hangup":
-				_, _ = sess.Request(ctx, &protov1.SessionTerminateRequest{
-					Reason: "hangup",
-				})
-			default:
-				fmt.Println("Unknown command. Type 'help' for a list of commands.")
-			}
-		}
 	}()
 
 	sig := make(chan os.Signal, 1)
