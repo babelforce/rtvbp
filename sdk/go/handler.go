@@ -85,6 +85,9 @@ type defaultSessionHandler struct {
 }
 
 func (d *defaultSessionHandler) Audio() (io.ReadWriter, error) {
+	if d.audioFactory == nil {
+		return nil, fmt.Errorf("audio factory not set")
+	}
 	return d.audioFactory()
 }
 

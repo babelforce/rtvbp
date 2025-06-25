@@ -268,7 +268,7 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	// audio setup: [handler] <--> [transport]
 	rw, err := s.handler.Audio()
 	if err != nil {
-		logger.Error("handler.Audio() failed", slog.Any("err", err))
+		logger.Error("creating handler audio failed", slog.Any("err", err))
 		return err
 	}
 	audio.DuplexCopy(s.transport, rw)

@@ -34,5 +34,5 @@ func TestClientServer(t *testing.T) {
 	// CloseTimeout transport
 	closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	require.NoError(t, clientTransport.Close(closeCtx))
+	require.NoError(t, sess.CloseContext(closeCtx))
 }

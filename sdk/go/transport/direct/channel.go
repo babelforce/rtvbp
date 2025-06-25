@@ -1,6 +1,7 @@
 package direct
 
 import (
+	"bytes"
 	"context"
 	"github.com/babelforce/rtvbp-go"
 	"sync"
@@ -31,17 +32,16 @@ func (d *dcc) Close(_ context.Context) error {
 var _ rtvbp.DataChannel = &dcc{}
 
 type directTransport struct {
-	cc *dcc
+	cc    *dcc
+	audio bytes.Buffer
 }
 
 func (d *directTransport) Read(p []byte) (n int, err error) {
-	//TODO implement me
-	panic("implement me")
+	return d.audio.Read(p)
 }
 
 func (d *directTransport) Write(p []byte) (n int, err error) {
-	//TODO implement me
-	panic("implement me")
+	return d.audio.Write(p)
 }
 
 func (d *directTransport) Closed() <-chan struct{} {

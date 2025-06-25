@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/stretchr/testify/require"
+	"io"
 	"log/slog"
 	"sync"
 	"testing"
@@ -35,7 +37,12 @@ func TestSessionWithDirectTransport(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
+	_, b := audio.NewDuplexBuffers()
+
 	h := rtvbp.NewHandler(rtvbp.HandlerConfig{
+		Audio: func() (io.ReadWriter, error) {
+			return b, nil
+		},
 		BeginHandler: func(ctx context.Context, h rtvbp.SHC) error {
 			_ = h.Notify(ctx, &protov1.DummyEvent{Text: fmt.Sprintf("hello from session: %s", h.SessionID())})
 			_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{})
@@ -48,10 +55,16 @@ func TestSessionWithDirectTransport(t *testing.T) {
 		return &protov1.ApplicationMoveResponse{}, nil
 	}))
 
+	var f = func(t rtvbp.Transport) func(context.Context) (rtvbp.Transport, error) {
+		return func(ctx context.Context) (rtvbp.Transport, error) {
+			return t, nil
+		}
+	}
+
 	var (
 		t1, t2 = newTransports()
-		s1     = rtvbp.NewSession(t1, rtvbp.SessionConfig{}, h)
-		s2     = rtvbp.NewSession(t2, rtvbp.SessionConfig{}, h)
+		s1     = rtvbp.NewSession(f(t1), h)
+		s2     = rtvbp.NewSession(f(t2), h)
 	)
 
 	go s1.Run(ctx)
