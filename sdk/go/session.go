@@ -272,8 +272,10 @@ func (s *Session) Run(
 
 		select {
 		case err := <-onBeginDone:
-			s.logger.Error("handler.OnBegin() failed", slog.Any("err", err))
-			return err
+			if err != nil {
+				s.logger.Error("handler.OnBegin() failed", slog.Any("err", err))
+				return err
+			}
 		case <-s.close:
 			return nil
 		case <-ctx.Done():
