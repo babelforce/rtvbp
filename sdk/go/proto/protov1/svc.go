@@ -29,18 +29,22 @@ func Handler(
 					Audio: audioConfig,
 				})
 
-				// emit some event
-				/*_ = h.Notify(ctx, &protov1.DummyEvent{
-					Text: "hello from client",
-				})*/
-
-				// example request
-				/*moved, err := h.Request(ctx, &protov1.ApplicationMoveRequest{})
-				if err != nil {
-					return err
-				}
-				h.Log().Info("application move response", "response", moved)
-				*/
+				go func() {
+					pingTicker := time.NewTicker(1 * time.Second)
+					select {
+					case <-pingTicker.C:
+						pong, err := h.Request(ctx, &PingRequest{Data: map[string]any{
+							"time": time.Now().Unix(),
+						}})
+						if err != nil {
+							h.Log().Error("failed to send ping", slog.Any("err", err))
+						} else {
+							h.Log().Debug("ping response", slog.Any("response", pong))
+						}
+					case <-ctx.Done():
+						return
+					}
+				}()
 
 				return nil
 			},

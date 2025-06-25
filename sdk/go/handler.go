@@ -33,6 +33,10 @@ type SHC interface {
 	Close(ctx context.Context) error
 }
 
+type PostResponseHook interface {
+	PostResponseHook(ctx context.Context, hc SHC) error
+}
+
 type sessionHandlerCtx struct {
 	sess *Session
 }

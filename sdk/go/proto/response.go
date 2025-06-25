@@ -6,3 +6,7 @@ type Response struct {
 	Result   any            `json:"result,omitempty"`
 	Error    *ResponseError `json:"error,omitempty"`
 }
+
+func (r *Response) Ok() bool {
+	return r.Error == nil
+}

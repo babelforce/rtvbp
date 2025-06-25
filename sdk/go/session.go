@@ -132,6 +132,10 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	case <-ctx.Done():
 		return nil, fmt.Errorf("request [method=%s, id=%s] failed: %w", req.Method, req.ID, ErrRequestTimeout)
 	case resp := <-pendingRequest.ch:
+		if !resp.Ok() {
+			return nil, resp.Error
+		}
+
 		return resp, nil
 	}
 }
@@ -203,8 +207,7 @@ func (s *Session) handleRequest(ctx context.Context, req *proto.Request) {
 		return
 	}
 
-	err := s.handler.OnRequest(ctx, s.shCtx, req)
-	if err != nil {
+	if err := s.handler.OnRequest(ctx, s.shCtx, req); err != nil {
 		s.logger.Error("handleRequest failed", slog.Any("err", err))
 	}
 }
@@ -272,7 +275,6 @@ func (s *Session) Run(ctx context.Context) (err error) {
 
 	transportMsgInChan := s.transport.Control().ReadChan()
 	transportClosedChan := s.transport.Closed()
-	pingTicker := time.NewTicker(5 * time.Second)
 	for {
 
 		select {
@@ -282,9 +284,6 @@ func (s *Session) Run(ctx context.Context) (err error) {
 			return nil
 		case <-transportClosedChan:
 			return nil
-		case <-pingTicker.C:
-			// TODO: application level ping/pong
-			s.logger.Info("TODO: send app level ping")
 
 		case data, ok := <-transportMsgInChan:
 			if !ok {

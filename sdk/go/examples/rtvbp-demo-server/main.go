@@ -57,6 +57,9 @@ func main() {
 			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.SessionTerminateResponse, error) {
 				return &protov1.SessionTerminateResponse{}, nil
 			}),
+			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.PingRequest) (*protov1.PingResponse, error) {
+				return &protov1.PingResponse{Data: req.Data}, nil
+			}),
 		),
 	)
 

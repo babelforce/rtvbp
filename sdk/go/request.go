@@ -42,7 +42,16 @@ func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *
 		return err
 	}
 
-	return h.Respond(ctx, req.Ok(res))
+	if err := h.Respond(ctx, req.Ok(res)); err != nil {
+		return err
+	}
+
+	var a any = params
+	if prh, ok := a.(PostResponseHook); ok {
+		return prh.PostResponseHook(ctx, h)
+	}
+
+	return nil
 }
 
 func HandleRequest[REQ NamedRequest, RES any](handler func(context.Context, SHC, REQ) (RES, error)) RequestHandler {
