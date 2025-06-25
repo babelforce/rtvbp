@@ -7,8 +7,8 @@ type AudioConfig struct {
 }
 
 type SessionUpdatedEvent struct {
-	Audio    *AudioConfig
-	Metadata map[string]string
+	Audio    *AudioConfig   `json:"audio"`
+	Metadata map[string]any `json:"metadata"`
 }
 
 func (e *SessionUpdatedEvent) EventName() string {
