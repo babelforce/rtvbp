@@ -14,4 +14,4 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 )
 
-replace babelforce.go/ivr/rtvbp/rtvbp-go v0.0.0 => ../../../rtvbp-go
+//replace babelforce.go/ivr/rtvbp/rtvbp-go v0.0.0 => ../../../rtvbp-go
