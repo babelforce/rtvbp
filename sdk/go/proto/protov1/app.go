@@ -1,8 +1,8 @@
 package protov1
 
 import (
-	"babelforce.go/ivr/rtvbp/rtvbp-go"
 	"context"
+	"github.com/babelforce/rtvbp-go"
 )
 
 type ApplicationMoveRequest struct {

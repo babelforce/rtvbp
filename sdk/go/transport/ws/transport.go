@@ -1,10 +1,10 @@
 package ws
 
 import (
-	"babelforce.go/ivr/rtvbp/rtvbp-go"
-	"babelforce.go/ivr/rtvbp/rtvbp-go/audio"
 	"context"
 	"fmt"
+	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/gorilla/websocket"
 	"log/slog"
 	"net"

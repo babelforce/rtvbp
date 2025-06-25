@@ -1,8 +1,8 @@
 package ws
 
 import (
-	"babelforce.go/ivr/rtvbp/rtvbp-go"
 	"context"
+	"github.com/babelforce/rtvbp-go"
 	"sync"
 )
 

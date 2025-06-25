@@ -1,9 +1,9 @@
 package ws
 
 import (
-	"babelforce.go/ivr/rtvbp/rtvbp-go"
 	"context"
 	"fmt"
+	"github.com/babelforce/rtvbp-go"
 	"github.com/stretchr/testify/require"
 	"log/slog"
 	"testing"

@@ -1,6 +1,6 @@
 package protov1
 
-import "babelforce.go/ivr/rtvbp/rtvbp-go"
+import "github.com/babelforce/rtvbp-go"
 
 type DummyEvent struct {
 	Text string `json:"text,omitempty"`

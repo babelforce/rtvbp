@@ -2,6 +2,6 @@ go 1.24.3
 
 use (
 	.
-	//examples/rtvbp-demo-client
-	//examples/rtvbp-demo-server
+	examples/rtvbp-demo-client
+	examples/rtvbp-demo-server
 )
