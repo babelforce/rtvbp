@@ -13,48 +13,41 @@ type NamedRequest interface {
 
 type RequestHandler interface {
 	MethodName() string
-	Handle(ctx context.Context, hc HandlerCtx, req *proto.Request) (*proto.Response, error)
+	Handle(ctx context.Context, hc SHC, req *proto.Request) error
 }
 
-type typedRequestHandler[I NamedRequest, O any] struct {
+type typedRequestHandler[REQ NamedRequest, RES any] struct {
 	name string
-	h    func(context.Context, HandlerCtx, I) (*O, error)
+	h    func(context.Context, SHC, REQ) (RES, error)
 }
 
-func (t *typedRequestHandler[I, O]) MethodName() string {
+func (t *typedRequestHandler[REQ, RES]) MethodName() string {
 	return t.name
 }
 
-func (t *typedRequestHandler[I, O]) Handle(ctx context.Context, h HandlerCtx, req *proto.Request) (*proto.Response, error) {
+func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *proto.Request) error {
+
 	raw, err := json.Marshal(req.Params)
 	if err != nil {
-		return nil, fmt.Errorf("marshal data: %w", err)
+		return fmt.Errorf("marshal data: %w", err)
 	}
 
-	var params I
+	var params REQ
 	if err := json.Unmarshal(raw, &params); err != nil {
-		return nil, fmt.Errorf("unmarshal into type: %w", err)
+		return fmt.Errorf("unmarshal into type: %w", err)
 	}
 
-	out, err := t.h(ctx, h, params)
+	res, err := t.h(ctx, h, params)
 	if err != nil {
-		return nil, fmt.Errorf("handle request: %w", err)
+		return err
 	}
 
-	// TODO: if out is IntoResponseError
-
-	// TODO: howto handle errors ?
-
-	return &proto.Response{
-		Version:  req.Version,
-		Response: req.ID,
-		Result:   out,
-	}, nil
+	return h.Respond(ctx, req.Ok(res))
 }
 
-func HandleRequest[T NamedRequest, O any](handler func(context.Context, HandlerCtx, T) (*O, error)) RequestHandler {
-	var zero T
-	return &typedRequestHandler[T, O]{
+func HandleRequest[REQ NamedRequest, RES any](handler func(context.Context, SHC, REQ) (RES, error)) RequestHandler {
+	var zero REQ
+	return &typedRequestHandler[REQ, RES]{
 		name: zero.MethodName(),
 		h:    handler,
 	}

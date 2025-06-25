@@ -28,10 +28,10 @@ func TestClientServer(t *testing.T) {
 	client := rtvbp.NewSession(clientTransport, rtvbp.SessionConfig{}, rtvbp.NewHandler(rtvbp.HandlerConfig{}))
 	go client.Run(ctx)
 	<-time.After(1 * time.Second)
-	require.NoError(t, client.Close(5*time.Second))
-	require.NoError(t, client.Close(5*time.Second))
+	require.NoError(t, client.CloseTimeout(5*time.Second))
+	require.NoError(t, client.CloseTimeout(5*time.Second))
 
-	// Close transport
+	// CloseTimeout transport
 	closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	require.NoError(t, clientTransport.Close(closeCtx))

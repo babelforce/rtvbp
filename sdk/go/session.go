@@ -16,15 +16,15 @@ var (
 )
 
 type sessionMessage struct {
-	Version  string `json:"version,omitempty"`
-	ID       string `json:"id,omitempty"`
-	Method   string `json:"method,omitempty"`
-	Response string `json:"response,omitempty"`
-	Event    string `json:"event,omitempty"`
-	Data     any    `json:"data,omitempty"`
-	Params   any    `json:"params,omitempty"`
-	Result   any    `json:"result,omitempty"`
-	Error    any    `json:"error,omitempty"`
+	Version  string               `json:"version,omitempty"`
+	ID       string               `json:"id,omitempty"`
+	Method   string               `json:"method,omitempty"`
+	Response string               `json:"response,omitempty"`
+	Event    string               `json:"event,omitempty"`
+	Data     any                  `json:"data,omitempty"`
+	Params   any                  `json:"params,omitempty"`
+	Result   any                  `json:"result,omitempty"`
+	Error    *proto.ResponseError `json:"error,omitempty"`
 }
 
 type pendingRequest struct {
@@ -136,8 +136,8 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	}
 }
 
-// Close closes the client and the underlying transport
-func (s *Session) Close(timeout time.Duration) error {
+// CloseTimeout closes the client and the underlying transport
+func (s *Session) CloseTimeout(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -146,19 +146,18 @@ func (s *Session) Close(timeout time.Duration) error {
 
 func (s *Session) CloseContext(ctx context.Context) error {
 
-	s.logger.Info("closing session")
-
 	s.closeOnce.Do(func() {
+		s.logger.Info("closing session")
 		close(s.close)
 	})
+
+	// wait until done
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-s.done:
-		s.logger.Info("closed session")
 		return nil
 	}
-
 }
 
 func (s *Session) endSession() {
@@ -172,11 +171,17 @@ func (s *Session) endSession() {
 	}
 
 	// close transport
-	if err := s.transport.Close(ctx); err != nil {
-		s.logger.Error("failed to close transport", "err", err)
+	if s.transport != nil {
+		fmt.Printf("T %+v\n", s.transport)
+
+		if err := s.transport.Close(ctx); err != nil {
+			s.logger.Error("failed to close transport", "err", err)
+		}
 	}
 
 	close(s.done)
+
+	s.logger.Info("closed session")
 }
 
 func (s *Session) handleEvent(ctx context.Context, evt *proto.Event) {
@@ -192,25 +197,15 @@ func (s *Session) handleEvent(ctx context.Context, evt *proto.Event) {
 }
 
 func (s *Session) handleRequest(ctx context.Context, req *proto.Request) {
+
 	s.logger.Debug("handleRequest", slog.Any("req", req))
 	if s.handler == nil {
 		return
 	}
 
-	res, err := s.handler.OnRequest(ctx, s.shCtx, req)
+	err := s.handler.OnRequest(ctx, s.shCtx, req)
 	if err != nil {
 		s.logger.Error("handleRequest failed", slog.Any("err", err))
-		return
-	}
-
-	data, err := json.Marshal(res)
-	if err != nil {
-		s.logger.Error("json.Marshal failed", slog.Any("err", err))
-		return
-	}
-
-	if err := s.writeMsgData(ctx, data); err != nil {
-		s.logger.Error("failed to write response", slog.Any("err", err))
 	}
 }
 
@@ -244,9 +239,14 @@ func (s *Session) handleIncoming(ctx context.Context, msg sessionMessage) {
 }
 
 func (s *Session) Run(ctx context.Context) (err error) {
-	s.transport, err = s.transportFunc(ctx)
-	if err != nil {
+	defer s.endSession()
+
+	// init transport
+
+	if t, err := s.transportFunc(ctx); err != nil {
 		return err
+	} else {
+		s.transport = t
 	}
 
 	var (
@@ -262,14 +262,12 @@ func (s *Session) Run(ctx context.Context) (err error) {
 		}()
 	}
 
-	defer s.endSession()
-
+	// audio setup: [handler] <--> [transport]
 	rw, err := s.handler.Audio()
 	if err != nil {
 		logger.Error("handler.Audio() failed", slog.Any("err", err))
 		return err
 	}
-
 	audio.DuplexCopy(s.transport, rw)
 
 	transportMsgInChan := s.transport.Control().ReadChan()
@@ -330,25 +328,3 @@ func NewSession(
 
 	return session
 }
-
-type sessionHandlerCtx struct {
-	sess *Session
-}
-
-func (shc *sessionHandlerCtx) SessionID() string {
-	return shc.sess.id
-}
-
-func (shc *sessionHandlerCtx) Log() *slog.Logger {
-	return shc.sess.logger
-}
-
-func (shc *sessionHandlerCtx) Request(ctx context.Context, req NamedRequest) (*proto.Response, error) {
-	return shc.sess.Request(ctx, req)
-}
-
-func (shc *sessionHandlerCtx) Notify(ctx context.Context, evt NamedEvent) error {
-	return shc.sess.Notify(ctx, evt)
-}
-
-var _ HandlerCtx = &sessionHandlerCtx{}

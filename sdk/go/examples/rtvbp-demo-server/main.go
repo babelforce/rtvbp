@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	slog.SetLogLoggerLevel(slog.LevelInfo)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	// start server
 	srv := rtvbp.NewServer(
@@ -27,11 +27,23 @@ func main() {
 				Audio: func() (io.ReadWriter, error) {
 					return audio.NewLoopback(), nil
 				},
+				BeginHandler: func(ctx context.Context, h rtvbp.SHC) error {
+					fmt.Printf("%s> -- server begin handler ---", h.SessionID())
+
+					go func() {
+						<-time.After(10 * time.Second)
+						_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
+							ApplicationID: "1234",
+						})
+					}()
+					return nil
+				},
+				EndHandler: func(ctx context.Context, h rtvbp.SHC) error {
+					fmt.Printf("%s> -- server end handler ---", h.SessionID())
+					return nil
+				},
 			},
-			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.HandlerCtx, evt *protov1.DummyEvent) error {
-				return nil
-			}),
-			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.HandlerCtx, evt *protov1.SessionUpdatedEvent) error {
+			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.SessionUpdatedEvent) error {
 				hc.Log().Info("session updated", slog.Any("event", evt))
 
 				if evt.Audio != nil {
@@ -41,6 +53,9 @@ func main() {
 				// TODO: init resampler ...
 
 				return nil
+			}),
+			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.SessionTerminateResponse, error) {
+				return &protov1.SessionTerminateResponse{}, nil
 			}),
 		),
 	)

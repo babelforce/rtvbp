@@ -36,15 +36,15 @@ func TestSessionWithDirectTransport(t *testing.T) {
 	wg.Add(2)
 
 	h := rtvbp.NewHandler(rtvbp.HandlerConfig{
-		BeginHandler: func(ctx context.Context, h rtvbp.HandlerCtx) error {
+		BeginHandler: func(ctx context.Context, h rtvbp.SHC) error {
 			_ = h.Notify(ctx, &protov1.DummyEvent{Text: fmt.Sprintf("hello from session: %s", h.SessionID())})
 			_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{})
 			return nil
 		},
-	}, rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.HandlerCtx, evt *protov1.DummyEvent) error {
+	}, rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.DummyEvent) error {
 		wg.Done()
 		return nil
-	}), rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.HandlerCtx, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
+	}), rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
 		return &protov1.ApplicationMoveResponse{}, nil
 	}))
 

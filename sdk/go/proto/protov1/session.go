@@ -7,9 +7,21 @@ type AudioConfig struct {
 }
 
 type SessionUpdatedEvent struct {
-	Audio *AudioConfig
+	Audio    *AudioConfig
+	Metadata map[string]string
 }
 
 func (e *SessionUpdatedEvent) EventName() string {
 	return "session.updated"
+}
+
+type SessionTerminateRequest struct {
+	Reason string `json:"reason"`
+}
+
+func (r *SessionTerminateRequest) MethodName() string {
+	return "session.terminate"
+}
+
+type SessionTerminateResponse struct {
 }

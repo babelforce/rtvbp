@@ -60,6 +60,7 @@ func (w *WebsocketTransport) Control() rtvbp.DataChannel {
 }
 
 func (w *WebsocketTransport) Close(ctx context.Context) error {
+
 	w.msgOut <- wsMessage{
 		mt:   websocket.CloseMessage,
 		data: websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Closed"),
@@ -112,7 +113,7 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 			case websocket.TextMessage:
 				w.cc.input <- data
 			case websocket.BinaryMessage:
-				w.logger.Debug("rcv binary", slog.Int("len", len(data)))
+				//w.logger.Debug("rcv binary", slog.Int("len", len(data)))
 				if _, err := w.audioLocal.Write(data); err != nil {
 					w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
 					return
@@ -161,7 +162,7 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 				}
 			} else if isData(msg.mt) {
 				if msg.mt == websocket.BinaryMessage {
-					w.logger.Debug("send binary", slog.Int("len", len(msg.data)))
+					//w.logger.Debug("send binary", slog.Int("len", len(msg.data)))
 				} else {
 					w.logger.Debug("send text", slog.String("data", string(msg.data)))
 				}

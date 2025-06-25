@@ -13,20 +13,20 @@ type NamedEvent interface {
 
 type EventHandler interface {
 	EventName() string
-	Handle(ctx context.Context, hc HandlerCtx, evt *proto.Event) error
+	Handle(ctx context.Context, hc SHC, evt *proto.Event) error
 }
 
 // Generic typed event handler
 type typedEventHandler[T NamedEvent] struct {
 	name string
-	h    func(context.Context, HandlerCtx, T) error
+	h    func(context.Context, SHC, T) error
 }
 
 func (t *typedEventHandler[T]) EventName() string {
 	return t.name
 }
 
-func (t *typedEventHandler[T]) Handle(ctx context.Context, h HandlerCtx, evt *proto.Event) error {
+func (t *typedEventHandler[T]) Handle(ctx context.Context, h SHC, evt *proto.Event) error {
 	raw, err := json.Marshal(evt.Data)
 	if err != nil {
 		return fmt.Errorf("marshal data: %w", err)
@@ -41,7 +41,7 @@ func (t *typedEventHandler[T]) Handle(ctx context.Context, h HandlerCtx, evt *pr
 }
 
 // HandleEvent creates a new typed event handler
-func HandleEvent[T NamedEvent](handler func(context.Context, HandlerCtx, T) error) EventHandler {
+func HandleEvent[T NamedEvent](handler func(context.Context, SHC, T) error) EventHandler {
 	var zero T
 	return &typedEventHandler[T]{
 		name: zero.EventName(),

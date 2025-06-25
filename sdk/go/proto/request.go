@@ -11,6 +11,31 @@ type Request struct {
 	Params  any    `json:"params,omitempty"`
 }
 
+func (r *Request) Ok(result any) *Response {
+	return &Response{
+		Version:  r.Version,
+		Response: r.ID,
+		Result:   result,
+	}
+}
+
+func (r *Request) NotOk(err *ResponseError) *Response {
+	return &Response{
+		Version:  r.Version,
+		Response: r.ID,
+		Error:    err,
+	}
+}
+
+func (r *Request) Respond(res any, err *ResponseError) *Response {
+	return &Response{
+		Version:  r.Version,
+		Response: r.ID,
+		Result:   res,
+		Error:    err,
+	}
+}
+
 func NewRequest(version string, method string, params any) *Request {
 	return &Request{
 		Version: version,
