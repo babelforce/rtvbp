@@ -52,7 +52,6 @@ func (s *Server) removeSession(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.sessions, id)
-	println("REMOVED", id)
 }
 
 func (s *Server) runSession(ctx context.Context, sess *Session) {

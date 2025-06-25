@@ -43,6 +43,7 @@ type Session struct {
 	handler         SessionHandler
 	pendingRequests map[string]*pendingRequest
 	muPending       sync.Mutex
+	out             chan []byte
 	logger          *slog.Logger
 }
 
@@ -75,8 +76,8 @@ func (s *Session) Notify(ctx context.Context, payload NamedEvent) error {
 func (s *Session) writeMsgData(ctx context.Context, data []byte) error {
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("writeMsgData failed: %w", ErrRequestTimeout)
-	case s.transport.Control().WriteChan() <- data:
+		return ctx.Err()
+	case s.out <- data:
 		return nil
 	}
 }
@@ -180,8 +181,6 @@ func (s *Session) endSession() {
 
 	// close transport
 	if s.transport != nil {
-		fmt.Printf("T %+v\n", s.transport)
-
 		if err := s.transport.Close(ctx); err != nil {
 			s.logger.Error("failed to close transport", "err", err)
 		}
@@ -271,18 +270,6 @@ func (s *Session) Run(
 		}()
 	}
 
-	// audio setup: [handler] <--> [transport]
-	/*if rw, err := s.handler.Audio(); err != nil {
-		logger.Error("creating handler audio failed", slog.Any("err", err))
-		return err
-	} else {
-		s.audio = rw
-	}
-	audio.DuplexCopy(s.transport, rw)*/
-	/*if stream != nil {
-		audio.DuplexCopy(s.transport, stream)
-	}*/
-
 	transportMsgInChan := s.transport.Control().ReadChan()
 	transportClosedChan := s.transport.Closed()
 	for {
@@ -294,7 +281,11 @@ func (s *Session) Run(
 			return nil
 		case <-transportClosedChan:
 			return nil
-
+		case data, ok := <-s.out:
+			if !ok {
+				return
+			}
+			s.transport.Control().WriteChan() <- data
 		case data, ok := <-transportMsgInChan:
 			if !ok {
 				s.logger.Debug("Session.Run() control channel closed")
@@ -331,6 +322,7 @@ func NewSession(
 		pendingRequests: map[string]*pendingRequest{},
 		handler:         handler,
 		logger:          logger,
+		out:             make(chan []byte, 32),
 	}
 
 	session.shCtx = &sessionHandlerCtx{sess: session}
