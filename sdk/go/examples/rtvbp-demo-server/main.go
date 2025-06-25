@@ -7,7 +7,6 @@ import (
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
-	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -15,7 +14,7 @@ import (
 )
 
 func main() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
+	slog.SetLogLoggerLevel(slog.LevelInfo)
 
 	// start server
 	srv := rtvbp.NewServer(
@@ -24,12 +23,14 @@ func main() {
 		}),
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{
-				Audio: func() (io.ReadWriter, error) {
-					return audio.NewLoopback(), nil
-				},
-				BeginHandler: func(ctx context.Context, h rtvbp.SHC) error {
+				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
 					fmt.Printf("%s> -- server begin handler ---", h.SessionID())
 
+					// start audio
+					lb := audio.NewLoopback()
+					audio.DuplexCopy(lb, h.AudioStream())
+
+					// after 10 seconds, use application.move to move the session to a new application
 					go func() {
 						<-time.After(10 * time.Second)
 						_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
@@ -38,7 +39,7 @@ func main() {
 					}()
 					return nil
 				},
-				EndHandler: func(ctx context.Context, h rtvbp.SHC) error {
+				OnEnd: func(ctx context.Context, h rtvbp.SHC) error {
 					fmt.Printf("%s> -- server end handler ---", h.SessionID())
 					return nil
 				},

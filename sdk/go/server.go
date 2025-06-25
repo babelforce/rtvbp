@@ -116,7 +116,10 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 }
 
-func NewServer(acceptor Acceptor, handler SessionHandler) *Server {
+func NewServer(
+	acceptor Acceptor,
+	handler SessionHandler,
+) *Server {
 	return &Server{
 		logger:   slog.Default().With(slog.String("component", "server")),
 		acceptor: acceptor,

@@ -15,6 +15,8 @@
 
 **Client**
 
+- [ ] client session must end if server dies or closes the connection
+
 **Server**
 
 - create example server handler

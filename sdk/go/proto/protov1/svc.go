@@ -14,37 +14,36 @@ type TelephonyAdapter interface {
 	// Play(prompt, etc)
 }
 
+type Config struct {
+	Metadata     map[string]any
+	Audio        *AudioConfig
+	PingInterval time.Duration
+}
+
 func Handler(
 	tel TelephonyAdapter,
-	audioStream io.ReadWriter,
-	audioConfig *AudioConfig,
+	config *Config,
+	onStreamProcess func(ctx context.Context, s io.ReadWriter) error,
 ) rtvbp.SessionHandler {
+
 	return rtvbp.NewHandler(
 		rtvbp.HandlerConfig{
-			Audio: func() (io.ReadWriter, error) {
-				return audioStream, nil
-			},
-			BeginHandler: func(ctx context.Context, h rtvbp.SHC) error {
+
+			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
+				// TODO: later do request/response based handshake here
+				if err := onStreamProcess(ctx, h.AudioStream()); err != nil {
+					h.Log().Error("failed to process audio stream", slog.Any("err", err))
+					return err
+				}
+
+				// send session.update
 				_ = h.Notify(ctx, &SessionUpdatedEvent{
-					Audio: audioConfig,
+					Audio:    config.Audio,
+					Metadata: config.Metadata,
 				})
 
-				go func() {
-					pingTicker := time.NewTicker(1 * time.Second)
-					select {
-					case <-pingTicker.C:
-						pong, err := h.Request(ctx, &PingRequest{Data: map[string]any{
-							"time": time.Now().Unix(),
-						}})
-						if err != nil {
-							h.Log().Error("failed to send ping", slog.Any("err", err))
-						} else {
-							h.Log().Debug("ping response", slog.Any("response", pong))
-						}
-					case <-ctx.Done():
-						return
-					}
-				}()
+				// periodic application level ping
+				go ping(ctx, config.PingInterval, h)
 
 				return nil
 			},
@@ -78,6 +77,28 @@ func Handler(
 			},
 		),
 	)
+}
+
+func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) func() {
+	if pingInterval == 0 {
+		pingInterval = 10 * time.Second
+	}
+	return func() {
+		pingTicker := time.NewTicker(pingInterval)
+		select {
+		case <-pingTicker.C:
+			pong, err := h.Request(ctx, &PingRequest{Data: map[string]any{
+				"time": time.Now().Unix(),
+			}})
+			if err != nil {
+				h.Log().Error("failed to send ping", slog.Any("err", err))
+			} else {
+				h.Log().Debug("ping response", slog.Any("response", pong))
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func terminateAndClose(reason string) func(context.Context, rtvbp.SHC) error {

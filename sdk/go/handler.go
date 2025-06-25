@@ -10,7 +10,6 @@ import (
 )
 
 type SessionHandler interface {
-	Audio() (io.ReadWriter, error)
 	OnBegin(ctx context.Context, h SHC) error
 	OnEnd(ctx context.Context, h SHC) error
 	OnRequest(ctx context.Context, h SHC, req *proto.Request) error
@@ -29,6 +28,7 @@ type SHC interface {
 	Request(ctx context.Context, req NamedRequest) (*proto.Response, error)
 	Respond(ctx context.Context, res *proto.Response) error
 	Notify(ctx context.Context, evt NamedEvent) error
+	AudioStream() io.ReadWriter
 
 	Close(ctx context.Context) error
 }
@@ -39,6 +39,10 @@ type PostResponseHook interface {
 
 type sessionHandlerCtx struct {
 	sess *Session
+}
+
+func (shc *sessionHandlerCtx) AudioStream() io.ReadWriter {
+	return shc.sess.transport
 }
 
 func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) error {
@@ -81,14 +85,6 @@ type defaultSessionHandler struct {
 	requestHandlers map[string]RequestHandler
 	onEnd           func(ctx context.Context, h SHC) error
 	onBegin         func(ctx context.Context, h SHC) error
-	audioFactory    func() (io.ReadWriter, error)
-}
-
-func (d *defaultSessionHandler) Audio() (io.ReadWriter, error) {
-	if d.audioFactory == nil {
-		return nil, fmt.Errorf("audio factory not set")
-	}
-	return d.audioFactory()
 }
 
 func (d *defaultSessionHandler) OnBegin(ctx context.Context, hc SHC) error {
@@ -124,11 +120,8 @@ func (d *defaultSessionHandler) OnEvent(ctx context.Context, hc SHC, evt *proto.
 }
 
 type HandlerConfig struct {
-	BeginHandler func(ctx context.Context, h SHC) error
-	EndHandler   func(ctx context.Context, h SHC) error
-
-	// Audio creates audio stream for the session
-	Audio func() (io.ReadWriter, error)
+	OnBegin func(ctx context.Context, h SHC) error
+	OnEnd   func(ctx context.Context, h SHC) error
 }
 
 // NewHandler creates a new handler
@@ -136,9 +129,8 @@ func NewHandler(config HandlerConfig, args ...any) SessionHandler {
 	handler := &defaultSessionHandler{
 		eventHandlers:   make(map[string]EventHandler),
 		requestHandlers: make(map[string]RequestHandler),
-		onBegin:         config.BeginHandler,
-		onEnd:           config.EndHandler,
-		audioFactory:    config.Audio,
+		onBegin:         config.OnBegin,
+		onEnd:           config.OnEnd,
 	}
 
 	// add handlers from args

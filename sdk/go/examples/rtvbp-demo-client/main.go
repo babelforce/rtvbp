@@ -6,6 +6,7 @@ import (
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -30,19 +31,32 @@ var _ protov1.TelephonyAdapter = &dummyPhoneSystem{}
 
 func main() {
 	var (
-		args, log = initCLI()
-		ctx       = context.Background()
-		e1, e2    = audio.NewDuplexBuffers()
-		done      = make(chan error, 1)
+		args, log                 = initCLI()
+		ctx                       = context.Background()
+		audioDevice, audioSession = audio.NewDuplexBuffers()
+		done                      = make(chan error, 1)
 	)
 
 	handler := protov1.Handler(
 		&dummyPhoneSystem{log: log.With(slog.String("phone_system", "dummy"))},
-		e2,
-		&protov1.AudioConfig{
-			Channels:   1,
-			Format:     "pcm16",
-			SampleRate: int(args.sampleRate),
+		&protov1.Config{
+			Metadata: map[string]any{
+				"recording_consent": true,
+				"call": map[string]any{
+					"id":   "1234",
+					"from": "+4910002000",
+					"to":   "+4910002000",
+				},
+			},
+			Audio: &protov1.AudioConfig{
+				Channels:   1,
+				Format:     "pcm16",
+				SampleRate: int(args.sampleRate),
+			},
+		},
+		func(ctx context.Context, s io.ReadWriter) error {
+			audio.DuplexCopy(s, audioSession)
+			return nil
 		},
 	)
 
@@ -57,8 +71,8 @@ func main() {
 		go func() {
 			err := pipeLocalAudio(
 				ctx,
-				audio.NewNonBlockingReader(e1),
-				e1,
+				audio.NewNonBlockingReader(audioDevice),
+				audioDevice,
 				args.sampleRate,
 			)
 			if err != nil {

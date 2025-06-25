@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/stretchr/testify/require"
-	"io"
 	"log/slog"
 	"sync"
 	"testing"
@@ -37,23 +35,22 @@ func TestSessionWithDirectTransport(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	_, b := audio.NewDuplexBuffers()
-
-	h := rtvbp.NewHandler(rtvbp.HandlerConfig{
-		Audio: func() (io.ReadWriter, error) {
-			return b, nil
+	h := rtvbp.NewHandler(
+		rtvbp.HandlerConfig{
+			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
+				_ = h.Notify(ctx, &protov1.DummyEvent{Text: fmt.Sprintf("hello from session: %s", h.SessionID())})
+				_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{})
+				return nil
+			},
 		},
-		BeginHandler: func(ctx context.Context, h rtvbp.SHC) error {
-			_ = h.Notify(ctx, &protov1.DummyEvent{Text: fmt.Sprintf("hello from session: %s", h.SessionID())})
-			_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{})
+		rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.DummyEvent) error {
+			wg.Done()
 			return nil
-		},
-	}, rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.DummyEvent) error {
-		wg.Done()
-		return nil
-	}), rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
-		return &protov1.ApplicationMoveResponse{}, nil
-	}))
+		}),
+		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
+			return &protov1.ApplicationMoveResponse{}, nil
+		}),
+	)
 
 	var f = func(t rtvbp.Transport) func(context.Context) (rtvbp.Transport, error) {
 		return func(ctx context.Context) (rtvbp.Transport, error) {

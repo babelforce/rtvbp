@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto"
+	"io"
 	"log/slog"
 	"sync"
 	"time"
@@ -44,6 +44,10 @@ type Session struct {
 	pendingRequests map[string]*pendingRequest
 	muPending       sync.Mutex
 	logger          *slog.Logger
+}
+
+func (s *Session) Audio() io.ReadWriter {
+	return s.transport
 }
 
 // Notify sends a notification
@@ -241,7 +245,9 @@ func (s *Session) handleIncoming(ctx context.Context, msg sessionMessage) {
 	}
 }
 
-func (s *Session) Run(ctx context.Context) (err error) {
+func (s *Session) Run(
+	ctx context.Context,
+) (err error) {
 	defer s.endSession()
 
 	// init transport
@@ -266,12 +272,16 @@ func (s *Session) Run(ctx context.Context) (err error) {
 	}
 
 	// audio setup: [handler] <--> [transport]
-	rw, err := s.handler.Audio()
-	if err != nil {
+	/*if rw, err := s.handler.Audio(); err != nil {
 		logger.Error("creating handler audio failed", slog.Any("err", err))
 		return err
+	} else {
+		s.audio = rw
 	}
-	audio.DuplexCopy(s.transport, rw)
+	audio.DuplexCopy(s.transport, rw)*/
+	/*if stream != nil {
+		audio.DuplexCopy(s.transport, stream)
+	}*/
 
 	transportMsgInChan := s.transport.Control().ReadChan()
 	transportClosedChan := s.transport.Closed()
