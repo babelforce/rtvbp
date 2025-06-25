@@ -1,11 +1,11 @@
 package rtvbp
 
 import (
+	"babelforce.go/ivr/rtvbp/rtvbp-go/audio"
+	"babelforce.go/ivr/rtvbp/rtvbp-go/proto"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/audio"
-	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
 	"sync"
 	"time"

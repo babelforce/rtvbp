@@ -1,9 +1,9 @@
 package direct
 
 import (
+	"babelforce.go/ivr/rtvbp/rtvbp-go"
 	"bytes"
 	"context"
-	"github.com/babelforce/rtvbp-go"
 	"sync"
 )
 

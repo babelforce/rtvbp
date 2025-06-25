@@ -1,13 +1,13 @@
 package main
 
 import (
+	"babelforce.go/ivr/rtvbp/rtvbp-go"
+	"babelforce.go/ivr/rtvbp/rtvbp-go/audio"
+	"babelforce.go/ivr/rtvbp/rtvbp-go/proto/protov1"
+	"babelforce.go/ivr/rtvbp/rtvbp-go/transport/ws"
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/audio"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
-	"github.com/babelforce/rtvbp-go/transport/ws"
 	"log/slog"
 	"os"
 	"os/signal"

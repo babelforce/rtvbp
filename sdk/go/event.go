@@ -1,10 +1,10 @@
 package rtvbp
 
 import (
+	"babelforce.go/ivr/rtvbp/rtvbp-go/proto"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type NamedEvent interface {

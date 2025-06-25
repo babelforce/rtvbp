@@ -1,9 +1,9 @@
 package main
 
 import (
+	"babelforce.go/ivr/rtvbp/rtvbp-go/transport/ws"
 	"flag"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/transport/ws"
 	"log/slog"
 	"net/http"
 	"os"

@@ -1,4 +1,4 @@
-module github.com/babelforce/rtvbp-go
+module babelforce.go/ivr/rtvbp/rtvbp-go
 
 go 1.24.3
 
