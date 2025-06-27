@@ -3,7 +3,6 @@ package protov1
 import (
 	"context"
 	"github.com/babelforce/rtvbp-go"
-	"io"
 	"log/slog"
 	"time"
 )
@@ -23,16 +22,14 @@ type Config struct {
 func Handler(
 	tel TelephonyAdapter,
 	config *Config,
-	onStreamProcess func(ctx context.Context, s io.ReadWriter) error,
+	onAudio func(ctx context.Context, h rtvbp.SHC) error,
 ) rtvbp.SessionHandler {
 
 	return rtvbp.NewHandler(
 		rtvbp.HandlerConfig{
 
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-				// TODO: later do request/response based handshake here
-				if err := onStreamProcess(ctx, h.AudioStream()); err != nil {
-					h.Log().Error("failed to process audio stream", slog.Any("err", err))
+				if err := onAudio(ctx, h); err != nil {
 					return err
 				}
 
@@ -58,6 +55,17 @@ func Handler(
 		rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error) {
 				return tel.Move(ctx, req)
+			},
+		),
+		rtvbp.HandleRequest(
+			func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
+				_, err := tel.Move(ctx, &ApplicationMoveRequest{})
+
+				if err != nil {
+					return nil, err
+				}
+
+				return &SessionTerminateResponse{}, nil
 			},
 		),
 	)
@@ -89,7 +97,6 @@ func terminateAndClose(reason string) func(context.Context, rtvbp.SHC) error {
 	return func(ctx context.Context, hc rtvbp.SHC) error {
 		// request to terminate the session
 		_, err := hc.Request(ctx, &SessionTerminateRequest{
-			// TODO: TerminationReason
 			Reason: reason,
 		})
 		if err != nil {
