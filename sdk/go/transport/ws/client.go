@@ -102,6 +102,8 @@ func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, erro
 		logger,
 	)
 
+	t.debugMessages = true
+
 	ok := make(chan struct{})
 	go func() {
 		ok <- struct{}{}

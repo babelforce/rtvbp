@@ -5,6 +5,7 @@ go 1.24.3
 require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/matoous/go-nanoid/v2 v2.1.0
+	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904
 	github.com/stretchr/testify v1.10.0
 )
 

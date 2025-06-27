@@ -2,10 +2,11 @@ package ws
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/gorilla/websocket"
+	"github.com/smallnest/ringbuffer"
 	"log/slog"
 	"net"
 	"time"
@@ -33,22 +34,24 @@ func (m *wsMessage) controlTimeout() time.Duration {
 }
 
 type WebsocketTransport struct {
-	conn         *websocket.Conn
-	audioSession *audio.DuplexBuffer
-	audioLocal   *audio.DuplexBuffer
-	cc           *controlChannel
-	msgOut       chan wsMessage // msgOut holds messages to be send out
-	chTextRcv    chan []byte
-	done         chan struct{}
-	logger       *slog.Logger
+	conn     *websocket.Conn
+	writeBuf *ringbuffer.RingBuffer
+	readBuf  *ringbuffer.RingBuffer
+	//rb            ringbuffer.RingBuffer
+	cc            *controlChannel
+	msgOut        chan wsMessage // msgOut holds messages to be send out
+	chTextRcv     chan []byte
+	done          chan struct{}
+	logger        *slog.Logger
+	debugMessages bool
 }
 
 func (w *WebsocketTransport) Read(p []byte) (n int, err error) {
-	return w.audioSession.Read(p)
+	return w.readBuf.Read(p)
 }
 
 func (w *WebsocketTransport) Write(p []byte) (n int, err error) {
-	return w.audioSession.Write(p)
+	return w.writeBuf.Write(p)
 }
 
 func (w *WebsocketTransport) Closed() <-chan struct{} {
@@ -111,10 +114,12 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 
 			switch mt {
 			case websocket.TextMessage:
+				if w.debugMessages {
+					fmt.Printf("MSG(in) <--\n%s\n", prettyJson(data))
+				}
 				w.cc.input <- data
 			case websocket.BinaryMessage:
-				//w.logger.Debug("rcv binary", slog.Int("len", len(data)))
-				if _, err := w.audioLocal.Write(data); err != nil {
+				if _, err := w.readBuf.Write(data); err != nil {
 					w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
 					return
 				}
@@ -125,7 +130,7 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 	go func() {
 		buf := make([]byte, 8_000)
 		for {
-			n, err := w.audioLocal.Read(buf)
+			n, err := w.writeBuf.Read(buf)
 			if err != nil {
 				w.logger.Error("read audio from buffer failed", slog.Any("err", err))
 				return
@@ -165,6 +170,10 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 					//w.logger.Debug("send binary", slog.Int("len", len(msg.data)))
 				} else {
 					w.logger.Debug("send text", slog.String("data", string(msg.data)))
+					if w.debugMessages {
+						fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
+					}
+
 				}
 				if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
 					w.logger.Error("write text failed", slog.Any("err", err))
@@ -173,6 +182,15 @@ func (w *WebsocketTransport) processConnection(ctx context.Context) {
 			}
 		}
 	}
+}
+
+func prettyJson(data []byte) string {
+	var d map[string]any
+	if err := json.Unmarshal(data, &d); err != nil {
+		return string(data)
+	}
+	x, _ := json.MarshalIndent(d, "", "  ")
+	return string(x)
 }
 
 var _ rtvbp.Transport = &WebsocketTransport{}
@@ -204,15 +222,16 @@ func newTransport(
 
 	done := make(chan struct{})
 
-	a1, a2 := audio.NewDuplexBuffers()
+	//a1, a2 := audio.NewDuplexBuffers()
 
 	return &WebsocketTransport{
-		conn:         conn,
-		audioSession: a1,
-		audioLocal:   a2,
-		cc:           newControlChannel(),
-		msgOut:       msgOut,
-		logger:       logger,
-		done:         done,
+		conn:          conn,
+		writeBuf:      ringbuffer.New(1024 * 4).SetBlocking(true),
+		readBuf:       ringbuffer.New(1024 * 4).SetBlocking(true),
+		cc:            newControlChannel(),
+		msgOut:        msgOut,
+		logger:        logger,
+		done:          done,
+		debugMessages: false,
 	}
 }
