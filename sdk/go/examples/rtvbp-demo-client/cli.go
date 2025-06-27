@@ -16,7 +16,7 @@ type cliArgs struct {
 	audio      bool
 	proxyToken string
 	authToken  string
-	sampleRate float64
+	sampleRate int
 }
 
 func (a *cliArgs) config() ws.ClientConfig {
@@ -62,7 +62,7 @@ func initCLI() (*cliArgs, *slog.Logger) {
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
 	flag.StringVar(&args.authToken, "auth-token", args.authToken, "auth token used as Bearer token in Authorization header")
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
-	flag.Float64Var(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
+	flag.IntVar(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")
 	flag.Parse()
 

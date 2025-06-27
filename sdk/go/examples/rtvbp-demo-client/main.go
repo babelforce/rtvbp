@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
+	"github.com/codewandler/audio-go"
+	"github.com/gordonklaus/portaudio"
 	"io"
 	"log/slog"
 	"os"
@@ -13,32 +14,71 @@ import (
 	"time"
 )
 
-type dummyPhoneSystem struct {
-	log *slog.Logger
+func must(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (d *dummyPhoneSystem) Hangup(ctx context.Context) error {
-	d.log.Info("hangup")
-	return nil
+func copyAudio(a io.ReadWriter, b io.ReadWriter, bufSize int) error {
+	buf := make([]byte, bufSize)
+	for {
+		n, err := a.Read(buf)
+		if err != nil {
+			return err
+		}
+		_, err = b.Write(buf[:n])
+		if err != nil {
+			return err
+		}
+	}
 }
 
-func (d *dummyPhoneSystem) Move(ctx context.Context, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
-	d.log.Info("move", slog.Any("req", req))
-	return &protov1.ApplicationMoveResponse{}, nil
+func streamAudio(
+	sAudio io.ReadWriter,
+	audioSink io.ReadWriter,
+) {
+	const (
+		bufSize = 8_000
+	)
+	go copyAudio(sAudio, audioSink, bufSize)
+	go copyAudio(audioSink, sAudio, bufSize)
 }
-
-var _ protov1.TelephonyAdapter = &dummyPhoneSystem{}
 
 func main() {
 	var (
-		args, log                 = initCLI()
-		ctx                       = context.Background()
-		audioDevice, audioSession = audio.NewDuplexBuffers()
-		done                      = make(chan error, 1)
+		args, log = initCLI()
+		ctx       = context.Background()
+		done      = make(chan error, 1)
 	)
 
+	if args.audio {
+		must(portaudio.Initialize())
+		defer portaudio.Terminate()
+	}
+
+	// get audio target
+	audioSink := func() io.ReadWriter {
+		if args.audio {
+			audioDev, err := audio.NewAudioIO(audio.Config{
+				CaptureSampleRate: args.sampleRate,
+				PlaySampleRate:    args.sampleRate,
+			})
+			if err != nil {
+				panic(err)
+			}
+			return audioDev
+		}
+		return nil
+	}()
+
+	phone := &dummyPhoneSystem{
+		done: make(chan struct{}),
+		log:  log.With(slog.String("phone_system", "dummy")),
+	}
+
 	handler := protov1.Handler(
-		&dummyPhoneSystem{log: log.With(slog.String("phone_system", "dummy"))},
+		phone,
 		&protov1.Config{
 			Metadata: map[string]any{
 				"recording_consent": true,
@@ -51,11 +91,11 @@ func main() {
 			Audio: &protov1.AudioConfig{
 				Channels:   1,
 				Format:     "pcm16",
-				SampleRate: int(args.sampleRate),
+				SampleRate: args.sampleRate,
 			},
 		},
-		func(ctx context.Context, s io.ReadWriter) error {
-			audio.DuplexCopy(s, audioSession)
+		func(ctx context.Context, h rtvbp.SHC) error {
+			streamAudio(h.AudioStream(), audioSink)
 			return nil
 		},
 	)
@@ -66,22 +106,6 @@ func main() {
 		ws.Client(args.config()),
 		handler,
 	)
-
-	if args.audio {
-		go func() {
-			err := pipeLocalAudio(
-				ctx,
-				audio.NewNonBlockingReader(audioDevice),
-				audioDevice,
-				args.sampleRate,
-			)
-			if err != nil {
-				slog.Error("audio stream failed", slog.Any("err", err))
-			}
-		}()
-	} else {
-		// TODO: consume channels
-	}
 
 	go func() {
 		done <- sess.Run(ctx)
@@ -95,11 +119,13 @@ func main() {
 		_ = sess.CloseTimeout(5 * time.Second)
 	case <-sig:
 		_ = sess.CloseTimeout(5 * time.Second)
+	case <-phone.done:
+		println("hangup")
+		_ = sess.CloseTimeout(5 * time.Second)
 	case err := <-done:
 		if err != nil {
 			log.Error("session failed", slog.Any("err", err))
 		}
 		_ = sess.CloseTimeout(5 * time.Second)
 	}
-
 }
