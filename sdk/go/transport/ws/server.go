@@ -30,8 +30,8 @@ func serverUpgradeHandler(srv *Server) func(http.ResponseWriter, *http.Request) 
 		defer conn.Close()
 
 		t := newTransport(conn, logger)
-		srv.c <- t
 		t.processConnection(r.Context())
+		srv.c <- t
 	}
 }
 
