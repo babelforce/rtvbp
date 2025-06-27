@@ -7,19 +7,14 @@
 `RTVBP` is a lightweight protocol which allows to integrate with babelforce
 telephony services.
 
-It allows an integrator to take control over an ongoing telephony session in the following ways:
-
-- Receive the callers audio data in `PCM16` format
-- Send audio data to the caller in `PCM16` format
-- Get notified about various events (like `session.updated`, `call.hangup`, etc )
-- Execute commands (`session.terminate`, `application.move`, etc)
+It allows an integrator to take control over an ongoing telephony session.
 
 ---
 
 ## Audio Format
 
-- Currently only `PCM16` is support
-- We will sent a continuous stream of audio
+- Currently only `PCM16` is supported at a sample rate of `8khz`
+- We will send a continuous stream of audio without any gaps
 - Peers can sent partial audio as well (You do not have to transmit silence)
 
 ## Protocol
@@ -61,176 +56,122 @@ Here you find an example flow where `babelforce` acts as a client (`peer_1`) and
 party via websocket (`peer_2`). After a connection has been established - we speak more about a peer-to-peer
 connection instead of a client-server relationship.
 
+### Application Move
+
+The following flow shows a full flow from initialization to termination
+
 **Initialization**
 
-After we (`peer_1`) connected to the external peer (`peer_2`) the following event is expected to be received at `peer_2`:
+`peer_1 -> peer_2`
 
 ```json
 {
-  "event": "session.updated",
+  "version": "1",
+  "id": "g8ZiC0iYseCLgtL1NU0vk",
+  "event": "session.updated",    
   "data": {
     "audio": {
-        "format": "pcm16",
+      "channels": 1,
+      "format": "pcm16",
+      "sample_rate": 8000
     },
-    "metadata": {
-        "call_id": "call-12345678",
-        "recording_consent": true,        
-    }    
-  }
-}
-```
-
-The `metadata` is a free form object which can be controlled via configuration
-and populated with the help of `babelforce` session variables and expressions. 
-
-After you have received this event you can expect to receive audio.
-
-**Caller hangup**
-
-If a caller hangs up the call on babelforce side (`peer_1`) - `peer_2` can expect the following events:
-
-`event(call.hungup): peer_1 -> peer_2`
-
-```json
-{
-  "event": "call.hungup",
-  "data": {
-    "call": {
-        "id": "1234",
-    },    
-  }
-}
-```
-
-`call` holds the standard babelforce call object as its known from the API.
-
-When babelforce detects the hangup we send a message to request the graceful termination of the session:
-
-`request(session.terminate): peer_1 -> peer_2`
-
-
-```json
-{
-    "id": "req-1234",
-    "method": "session.terminate",
-    "data": {
-      "reason": "call.hungup"
+    "metadata": {    
+      "recording_consent": true,
+      "babelforce": {
+        "call": {
+          "id": "2z2BweAZsKxcbZuK0RMRi8C32gV",
+          "session_id": "5000",
+          "from": "681278817354",
+          "to": "493010001000"
+        }
+      }
     }
+  }
 }
 ```
 
-`peer_2` acknowledges the request to terminate the session:
+**Peer 2 requests to move the application**
 
-`response(session.terminate): peer_2 -> peer_1`
-
-```json
-{
-  "response": "req-1234",
-  "result": null
-}
-```
-
-When we (`peer_1`) receive the response to a session termination request we will:
-
-- websocket: send a final close frame
-- close any underlying transport
-
-**Call control: moving a call**
-
-A call can be moved in two ways:
-1. Continue in the next IVR application module
-2. Continue in an application specified by its ID
-
-Examples:
-
-1. Continue in the after-flow of an IVR application:
-
-`request(application.move): peer_2 -> peer_1`
+`peer_2 -> peer_1`
 
 ```json
 {
-  "id": "req-1234",
-  "method": "application.move",
-  "params": "continue"
-}
-```
-
-2. Move to a specific application by ID 
-
-`request(application.move): peer_2 -> peer_1`
-
-```json
-
-{
-  "id": "req-1234",
+  "version": "1",
+  "id": "U4s5Em1ZQnDnmuv89TXso",
   "method": "application.move",
   "params": {
-    "application": {"id": "1234"},
+    "application_id": "0000"
   }
 }
 ```
 
-When we see a request to `application.move` we reply like this:
+**Response from peer_1**
 
-`response(application.move): peer_1 -> peer_2`
+`peer_1 -> peer_2`
 
 ```json
 {
-  "response": "req-1234",
+  "version": "1",
+  "response": "U4s5Em1ZQnDnmuv89TXso",
+  "result": {}  
+}
+```
+
+**Peer 1 requests session termination**
+
+```json
+{
+  "version": "1",
+  "id": "Aoo-pVU_urrAEY93xacfk",
+  "method": "session.terminate",
+  "params": {
+    "reason": "application.move"
+  }
+}
+```
+
+**Peer 2 confirms session termination**
+
+`peer_2 -> peer_1`
+
+
+```json
+{
+  "version": "1",
+  "response": "Aoo-pVU_urrAEY93xacfk",
   "result": {}
+  
 }
 ```
 
-After that we initiate the `session.terminate` flow described earlier.
+**Final Message from peer 1**
 
-**Errors**
-
-When sending a request and an error occurs you can expect a payload of the following shape:
+`peer_1 -> peer_2`
 
 ```json
 {
-    "response": "req-1234",
-    "error": {
-        "code": 404,
-        "message": "Application does not exist",
-        "data": {
-            "application_id": "1234"
-        }
-    }
+  "data": {},
+  "event": "session.terminated",
+  "id": "1hgD_V1PNq8pxQf9Nmova",
+  "version": "1"
 }
 ```
-
----
 
 ```mermaid
 sequenceDiagram
-    participant Peer_1 as peer_1 (babelforce)
-    participant Peer_2 as peer_2 (external service)
+    participant peer_1
+    participant peer_2
 
-    %% Step 1: Connection established
-    Peer_1->>Peer_2: WebSocket connection established (wss://)
-
-    %% Step 2: Initialization
-    Peer_1->>Peer_2: event: session.updated
-
-    %% Step 3: Audio exchange
-    Peer_1-->>Peer_2: Binary audio stream (PCM16)
-    Peer_2-->>Peer_1: Optional audio back (PCM16)
-
-    %% Step 4: Call move request
-    Peer_2->>Peer_1: request: application.move
-
-    %% Step 5: Acknowledge call move
-    Peer_1->>Peer_2: response: application.move
-
-    %% Step 6: Session termination
-    Peer_1->>Peer_2: request: session.terminate
-    Peer_2->>Peer_1: response: session.terminate
-
-    %% Step 7: Close connection
-    Peer_1->>Peer_2: WebSocket close frame
-    Note right of Peer_1: Connection closed
-
+    peer_1->>peer_2: WS connect
+    peer_2->>peer_1: WS accept
+    peer_1->>peer_2: EVT session.updated
+    peer_2->>peer_1: REQ application.move
+    peer_1->>peer_2: RES application.move
+    peer_1->>peer_2: REQ session.terminate
+    peer_2->>peer_1: RES session.terminate
+    peer_1->>peer_2: EVT session.terminated
+    peer_1->>peer_2: WS close(1000)
+    peer_2->>peer_1: WS close(1000)
 ```
 
 ---
