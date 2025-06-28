@@ -19,4 +19,5 @@
 
 **Server**
 
+- configure general timeout per client session
 - create example server handler

@@ -246,14 +246,15 @@ func (s *Session) handleIncoming(ctx context.Context, msg sessionMessage) {
 
 func (s *Session) Run(
 	ctx context.Context,
-) (err error) {
-	defer s.endSession()
+) <-chan error {
+	done := make(chan error, 1)
 
-	// init transport
-	if t, err := s.transportFunc(ctx); err != nil {
-		return err
+	// create transport
+	if trans, err := s.transportFunc(ctx); err != nil {
+		done <- err
+		return done
 	} else {
-		s.transport = t
+		s.transport = trans
 	}
 
 	var (
@@ -266,41 +267,47 @@ func (s *Session) Run(
 		}()
 	}
 
-	transportMsgInChan := s.transport.Control().ReadChan()
-	transportClosedChan := s.transport.Closed()
-	for {
+	go func() {
+		defer s.endSession()
+		ctrlMsgInCh := s.transport.Control().ReadChan()
+		transportClosedCh := s.transport.Closed()
+		for {
 
-		select {
-		case err := <-onBeginDone:
-			if err != nil {
-				s.logger.Error("handler.OnBegin() failed", slog.Any("err", err))
-				return err
-			}
-		case <-s.close:
-			return nil
-		case <-ctx.Done():
-			return nil
-		case <-transportClosedChan:
-			return nil
-		case data, ok := <-s.out:
-			if !ok {
+			select {
+			case err := <-onBeginDone:
+				if err != nil {
+					done <- fmt.Errorf("handler.OnBegin() failed: %w", err)
+					return
+				}
+			case <-s.close:
 				return
-			}
-			s.transport.Control().WriteChan() <- data
-		case data, ok := <-transportMsgInChan:
-			if !ok {
-				s.logger.Debug("Session.Run() control channel closed")
-				return nil
-			}
+			case <-ctx.Done():
+				return
+			case <-transportClosedCh:
+				return
+			case data, ok := <-s.out:
+				if !ok {
+					return
+				}
+				s.transport.Control().WriteChan() <- data
+			case data, ok := <-ctrlMsgInCh:
+				if !ok {
+					s.logger.Debug("Session.Accept() control channel closed")
+					return
+				}
 
-			var msg sessionMessage
-			if err := json.Unmarshal(data, &msg); err != nil {
-				s.logger.Error("parsing message json failed", slog.Any("err", err))
-			} else {
-				go s.handleIncoming(ctx, msg)
+				var msg sessionMessage
+				if err := json.Unmarshal(data, &msg); err != nil {
+					s.logger.Error("parsing message json failed", slog.Any("err", err))
+				} else {
+					go s.handleIncoming(ctx, msg)
+				}
 			}
 		}
-	}
+	}()
+
+	return done
+
 }
 
 // NewSession creates a new peer for a transport and config

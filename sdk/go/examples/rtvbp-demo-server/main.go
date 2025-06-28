@@ -17,10 +17,10 @@ func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	// start server
-	srv := rtvbp.NewServer(
-		ws.NewServer(ws.ServerConfig{
+	srv := ws.NewServer(
+		ws.ServerConfig{
 			Addr: ":8080",
-		}),
+		},
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{
 				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
@@ -64,31 +64,29 @@ func main() {
 		),
 	)
 
+	// run server
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(5 * time.Second):
-				slog.Info("server stats", slog.Any("stats", srv.Stats()))
-			}
+		err := srv.Listen()
+		if err != nil {
+			return
 		}
 	}()
 
-	go srv.Run(ctx)
-
+	// wait for signals
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
-
 	select {
 	case <-sig:
 	case <-ctx.Done():
 	}
 
-	if err := srv.Shutdown(); err != nil {
+	// shutdown server
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
 		slog.Error("failed to shutdown server", slog.Any("err", err))
 	}
 

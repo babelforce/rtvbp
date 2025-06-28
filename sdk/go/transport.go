@@ -16,9 +16,3 @@ type Transport interface {
 	Control() DataChannel
 	Close(ctx context.Context) error
 }
-
-type Acceptor interface {
-	Run(ctx context.Context) error
-	Channel() <-chan Transport
-	Shutdown(ctx context.Context) error
-}

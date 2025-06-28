@@ -85,7 +85,7 @@ func (w *WebsocketTransport) closeNow() {
 	}
 }
 
-func (w *WebsocketTransport) processConnection(ctx context.Context) {
+func (w *WebsocketTransport) process(ctx context.Context) {
 	defer func() {
 		// close connection
 		if err := w.conn.Close(); err != nil {

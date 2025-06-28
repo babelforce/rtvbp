@@ -11,12 +11,12 @@ type dummyPhoneSystem struct {
 	log  *slog.Logger
 }
 
-func (d *dummyPhoneSystem) Hangup(ctx context.Context) error {
+func (d *dummyPhoneSystem) Hangup(_ context.Context) error {
 	d.log.Info("hangup")
 	return nil
 }
 
-func (d *dummyPhoneSystem) Move(ctx context.Context, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
+func (d *dummyPhoneSystem) Move(_ context.Context, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
 	defer close(d.done)
 	d.log.Info("move", slog.Any("req", req))
 	return &protov1.ApplicationMoveResponse{}, nil

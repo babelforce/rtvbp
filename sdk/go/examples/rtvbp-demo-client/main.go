@@ -49,7 +49,6 @@ func main() {
 	var (
 		args, log = initCLI()
 		ctx       = context.Background()
-		done      = make(chan error, 1)
 	)
 
 	if args.audio {
@@ -107,9 +106,7 @@ func main() {
 		handler,
 	)
 
-	go func() {
-		done <- sess.Run(ctx)
-	}()
+	sessDoneCh := sess.Run(ctx)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -122,7 +119,7 @@ func main() {
 	case <-phone.done:
 		println("hangup")
 		_ = sess.CloseTimeout(5 * time.Second)
-	case err := <-done:
+	case err := <-sessDoneCh:
 		if err != nil {
 			log.Error("session failed", slog.Any("err", err))
 		}

@@ -75,8 +75,7 @@ func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, erro
 	c.Defaults()
 
 	logger := slog.Default().With(
-		slog.String("transport", "websocket"),
-		slog.String("component", "client"),
+		slog.String("websocket", "client"),
 		slog.String("endpoint", c.Dial.URL),
 	)
 
@@ -107,7 +106,7 @@ func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, erro
 	ok := make(chan struct{})
 	go func() {
 		ok <- struct{}{}
-		t.processConnection(ctx)
+		t.process(ctx)
 	}()
 	<-ok
 
