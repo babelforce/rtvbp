@@ -11,12 +11,13 @@ import (
 )
 
 type cliArgs struct {
-	url        string
-	logLevel   string
-	audio      bool
-	proxyToken string
-	authToken  string
-	sampleRate int
+	url             string
+	logLevel        string
+	audio           bool
+	proxyToken      string
+	authToken       string
+	sampleRate      int
+	audioBufferSize int
 }
 
 func (a *cliArgs) config() ws.ClientConfig {
@@ -51,18 +52,20 @@ func (a *cliArgs) LogLevel() slog.Level {
 
 func initCLI() (*cliArgs, *slog.Logger) {
 	args := cliArgs{
-		url:        "ws://localhost:8080/ws",
-		logLevel:   "info",
-		audio:      true,
-		proxyToken: "",
-		authToken:  "",
-		sampleRate: 24_000,
+		url:             "ws://localhost:8080/ws",
+		logLevel:        "info",
+		audio:           true,
+		proxyToken:      "",
+		authToken:       "",
+		sampleRate:      24_000,
+		audioBufferSize: 8_000,
 	}
 	flag.StringVar(&args.url, "url", args.url, "websocket url")
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
 	flag.StringVar(&args.authToken, "auth-token", args.authToken, "auth token used as Bearer token in Authorization header")
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
 	flag.IntVar(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
+	flag.IntVar(&args.audioBufferSize, "buffer-size", args.audioBufferSize, "audio streaming buffer size in bytes")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")
 	flag.Parse()
 

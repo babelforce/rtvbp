@@ -20,7 +20,6 @@ func (c *ClientConfig) Defaults() {
 	if c.PingInterval == 0 {
 		c.PingInterval = 10 * time.Second
 	}
-
 	c.Dial.Defaults()
 }
 

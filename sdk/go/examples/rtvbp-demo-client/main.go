@@ -20,29 +20,34 @@ func must(err error) {
 	}
 }
 
-func copyAudio(a io.ReadWriter, b io.ReadWriter, bufSize int) error {
+func copyAudio(
+	lbl string,
+	a io.ReadWriter,
+	b io.ReadWriter,
+	bufSize int,
+) error {
 	buf := make([]byte, bufSize)
 	for {
 		n, err := a.Read(buf)
 		if err != nil {
 			return err
 		}
-		_, err = b.Write(buf[:n])
+		n, err = b.Write(buf[:n])
 		if err != nil {
 			return err
 		}
+
+		//println("cpy", lbl, "->", n)
 	}
 }
 
 func streamAudio(
-	sAudio io.ReadWriter,
-	audioSink io.ReadWriter,
+	bufSize int,
+	transportAudio io.ReadWriter,
+	deviceAudio io.ReadWriter,
 ) {
-	const (
-		bufSize = 8_000
-	)
-	go copyAudio(sAudio, audioSink, bufSize)
-	go copyAudio(audioSink, sAudio, bufSize)
+	go copyAudio("transport -> device", transportAudio, deviceAudio, bufSize)
+	go copyAudio("transport <- device", deviceAudio, transportAudio, bufSize)
 }
 
 func main() {
@@ -94,7 +99,7 @@ func main() {
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
-			streamAudio(h.AudioStream(), audioSink)
+			streamAudio(args.audioBufferSize, h.AudioStream(), audioSink)
 			return nil
 		},
 	)

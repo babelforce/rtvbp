@@ -38,12 +38,12 @@ type Session struct {
 	transport       Transport
 	transportFunc   func(ctx context.Context) (Transport, error)
 	closeOnce       sync.Once
-	close           chan struct{} // close is a channel when closed will trigger shutdown of the session
-	done            chan struct{} // done is a channel which will be closed whenever the connection fails on reading
+	closeCh         chan struct{} // closeCh is a channel when closed will trigger shutdown of the session
+	doneCh          chan struct{} // doneCh is a channel which will be closed whenever the connection fails on reading
 	handler         SessionHandler
 	pendingRequests map[string]*pendingRequest
 	muPending       sync.Mutex
-	out             chan []byte
+	ctrlMsgOutCh    chan []byte
 	logger          *slog.Logger
 }
 
@@ -77,7 +77,7 @@ func (s *Session) writeMsgData(ctx context.Context, data []byte) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case s.out <- data:
+	case s.ctrlMsgOutCh <- data:
 		return nil
 	}
 }
@@ -157,14 +157,14 @@ func (s *Session) CloseContext(ctx context.Context) error {
 
 	s.closeOnce.Do(func() {
 		s.logger.Info("closing session")
-		close(s.close)
+		close(s.closeCh)
 	})
 
 	// wait until done
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-s.done:
+	case <-s.doneCh:
 		return nil
 	}
 }
@@ -186,7 +186,7 @@ func (s *Session) endSession() {
 		}
 	}
 
-	close(s.done)
+	close(s.doneCh)
 
 	s.logger.Info("closed session")
 }
@@ -267,29 +267,20 @@ func (s *Session) Run(
 		}()
 	}
 
+	transportClosedCh := s.transport.Closed()
+
+	// read incoming
 	go func() {
-		defer s.endSession()
 		ctrlMsgInCh := s.transport.Control().ReadChan()
-		transportClosedCh := s.transport.Closed()
 		for {
 
 			select {
-			case err := <-onBeginDone:
-				if err != nil {
-					done <- fmt.Errorf("handler.OnBegin() failed: %w", err)
-					return
-				}
-			case <-s.close:
+			case <-s.closeCh:
 				return
 			case <-ctx.Done():
 				return
 			case <-transportClosedCh:
 				return
-			case data, ok := <-s.out:
-				if !ok {
-					return
-				}
-				s.transport.Control().WriteChan() <- data
 			case data, ok := <-ctrlMsgInCh:
 				if !ok {
 					s.logger.Debug("Session.Accept() control channel closed")
@@ -302,6 +293,34 @@ func (s *Session) Run(
 				} else {
 					go s.handleIncoming(ctx, msg)
 				}
+			}
+		}
+	}()
+
+	// write outgoing
+	go func() {
+		defer s.endSession()
+
+		for {
+
+			select {
+			case err := <-onBeginDone:
+				if err != nil {
+					done <- fmt.Errorf("handler.OnBegin() failed: %w", err)
+					return
+				}
+			case <-s.closeCh:
+				return
+			case <-ctx.Done():
+				return
+			case <-transportClosedCh:
+				return
+			case data, ok := <-s.ctrlMsgOutCh:
+				if !ok {
+					return
+				}
+				s.transport.Control().WriteChan() <- data
+
 			}
 		}
 	}()
@@ -325,12 +344,12 @@ func NewSession(
 	session := &Session{
 		id:              sessionID,
 		transportFunc:   transportFunc,
-		close:           make(chan struct{}),
-		done:            make(chan struct{}),
+		closeCh:         make(chan struct{}),
+		doneCh:          make(chan struct{}),
 		pendingRequests: map[string]*pendingRequest{},
 		handler:         handler,
 		logger:          logger,
-		out:             make(chan []byte, 32),
+		ctrlMsgOutCh:    make(chan []byte, 32),
 	}
 
 	session.shCtx = &sessionHandlerCtx{sess: session}

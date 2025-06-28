@@ -36,7 +36,11 @@ func serverUpgradeHandler(
 
 		sess := rtvbp.NewSession(
 			func(ctx context.Context) (rtvbp.Transport, error) {
-				trans := newTransport(conn, logger)
+				trans := newTransport(
+					conn,
+					log,
+				)
+
 				go trans.process(ctx)
 				return trans, nil
 			},
@@ -60,6 +64,15 @@ func serverUpgradeHandler(
 type ServerConfig struct {
 	Addr string
 	Path string
+}
+
+func (c *ServerConfig) Defaults() {
+	if c.Addr == "" {
+		c.Addr = ":8080"
+	}
+	if c.Path == "" {
+		c.Path = "/"
+	}
 }
 
 type Server struct {
@@ -126,6 +139,8 @@ func NewServer(
 	config ServerConfig,
 	handler rtvbp.SessionHandler,
 ) *Server {
+	config.Defaults()
+
 	logger := slog.Default().With(
 		slog.String("websocket", "server"),
 	)

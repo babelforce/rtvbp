@@ -16,10 +16,6 @@ func isControl(frameType int) bool {
 	return frameType == websocket.CloseMessage || frameType == websocket.PingMessage || frameType == websocket.PongMessage
 }
 
-func isData(frameType int) bool {
-	return frameType == websocket.TextMessage || frameType == websocket.BinaryMessage
-}
-
 type wsMessage struct {
 	mt      int
 	data    []byte
@@ -34,13 +30,12 @@ func (m *wsMessage) controlTimeout() time.Duration {
 }
 
 type WebsocketTransport struct {
-	conn     *websocket.Conn
-	writeBuf *ringbuffer.RingBuffer
-	readBuf  *ringbuffer.RingBuffer
-	//rb            ringbuffer.RingBuffer
+	conn          *websocket.Conn
+	writeBuf      *ringbuffer.RingBuffer
+	readBuf       *ringbuffer.RingBuffer
 	cc            *controlChannel
-	msgOut        chan wsMessage // msgOut holds messages to be send out
-	chTextRcv     chan []byte
+	msgOutCh      chan wsMessage // msgOutCh holds messages to be send out
+	msgInCh       chan wsMessage // msgInCh holds messages received from the socket
 	done          chan struct{}
 	logger        *slog.Logger
 	debugMessages bool
@@ -64,7 +59,7 @@ func (w *WebsocketTransport) Control() rtvbp.DataChannel {
 
 func (w *WebsocketTransport) Close(ctx context.Context) error {
 
-	w.msgOut <- wsMessage{
+	w.msgOutCh <- wsMessage{
 		mt:   websocket.CloseMessage,
 		data: websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Closed"),
 	}
@@ -95,10 +90,12 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 		w.logger.Debug("transport processing done")
 	}()
 
-	// read messages from connection and write them to incoming channel
-	// Note: this does not contain any control messages!
+	// Read all messages from connection and store them in msgInCh channel
 	go func() {
-		defer close(w.done)
+		defer func() {
+			close(w.msgInCh)
+			close(w.done)
+		}()
 		for {
 			mt, data, err := w.conn.ReadMessage()
 
@@ -112,30 +109,63 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				return
 			}
 
-			switch mt {
-			case websocket.TextMessage:
-				if w.debugMessages {
-					fmt.Printf("MSG(in) <--\n%s\n", prettyJson(data))
-				}
-				w.cc.input <- data
-			case websocket.BinaryMessage:
-				if _, err := w.readBuf.Write(data); err != nil {
-					w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
-					return
-				}
-			}
+			w.msgInCh <- wsMessage{mt: mt, data: data}
 		}
 	}()
 
+	// Read from audio write buffer and send it to the socket
 	go func() {
-		buf := make([]byte, 8_000)
+		buf := make([]byte, 1024*1024)
 		for {
 			n, err := w.writeBuf.Read(buf)
 			if err != nil {
 				w.logger.Error("read audio from buffer failed", slog.Any("err", err))
 				return
 			}
-			w.msgOut <- wsMessage{mt: websocket.BinaryMessage, data: buf[:n]}
+			if err := w.conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				w.logger.Error("write text failed", slog.Any("err", err))
+				return
+			}
+		}
+	}()
+
+	// Process incoming messages
+	// - store control messages in Control Channel (cc)
+	// - store binary messages in readBuf
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case msg, ok := <-w.msgInCh:
+				if !ok {
+					return
+				}
+				switch msg.mt {
+				case websocket.TextMessage:
+					if w.debugMessages {
+						fmt.Printf("MSG(in) <--\n%s\n", prettyJson(msg.data))
+					}
+					w.cc.input <- msg.data
+				case websocket.BinaryMessage:
+					if _, err := w.readBuf.Write(msg.data); err != nil {
+						w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case data, ok := <-w.cc.output:
+			if !ok {
+				return
+			}
+			w.msgOutCh <- wsMessage{mt: websocket.TextMessage, data: data}
 		}
 	}()
 
@@ -150,30 +180,19 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 			w.closeNow()
 
 		case <-pingTicker.C:
-			w.msgOut <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
+			w.msgOutCh <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
 
-		case data, ok := <-w.cc.output:
-			if !ok {
-				continue
-			}
-			w.msgOut <- wsMessage{mt: websocket.TextMessage, data: data}
-
-		case msg := <-w.msgOut:
+		case msg := <-w.msgOutCh:
 			if isControl(msg.mt) {
 				w.logger.Debug("send control", slog.Int("mt", msg.mt))
 				if err := w.conn.WriteControl(msg.mt, msg.data, time.Now().Add(msg.controlTimeout())); err != nil {
 					w.logger.Error("write control failed", slog.Any("err", err))
 					return
 				}
-			} else if isData(msg.mt) {
-				if msg.mt == websocket.BinaryMessage {
-					//w.logger.Debug("send binary", slog.Int("len", len(msg.data)))
-				} else {
-					w.logger.Debug("send text", slog.String("data", string(msg.data)))
-					if w.debugMessages {
-						fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
-					}
-
+			} else if msg.mt == websocket.TextMessage {
+				w.logger.Debug("send text", slog.String("data", string(msg.data)))
+				if w.debugMessages {
+					fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
 				}
 				if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
 					w.logger.Error("write text failed", slog.Any("err", err))
@@ -199,10 +218,6 @@ func newTransport(
 	conn *websocket.Conn,
 	logger *slog.Logger,
 ) *WebsocketTransport {
-	var (
-		bufSize = 1
-		msgOut  = make(chan wsMessage, bufSize)
-	)
 
 	conn.SetPingHandler(func(message string) error {
 		logger.Debug("received ping")
@@ -226,10 +241,11 @@ func newTransport(
 
 	return &WebsocketTransport{
 		conn:          conn,
-		writeBuf:      ringbuffer.New(1024 * 4).SetBlocking(true),
-		readBuf:       ringbuffer.New(1024 * 4).SetBlocking(true),
+		writeBuf:      ringbuffer.New(1024 * 1024).SetBlocking(true),
+		readBuf:       ringbuffer.New(1024 * 1024).SetBlocking(true),
 		cc:            newControlChannel(),
-		msgOut:        msgOut,
+		msgOutCh:      make(chan wsMessage, 1),
+		msgInCh:       make(chan wsMessage, 1),
 		logger:        logger,
 		done:          done,
 		debugMessages: false,

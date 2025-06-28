@@ -29,8 +29,8 @@ func (cc *controlChannel) Close(_ context.Context) error {
 }
 
 func newControlChannel() *controlChannel {
-	input := make(chan []byte, 1)
-	output := make(chan []byte, 1)
+	input := make(chan []byte, 64)
+	output := make(chan []byte, 64)
 
 	return &controlChannel{
 		input:  input,
