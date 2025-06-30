@@ -21,7 +21,6 @@ func must(err error) {
 }
 
 func copyAudio(
-	lbl string,
 	a io.ReadWriter,
 	b io.ReadWriter,
 	bufSize int,
@@ -36,8 +35,6 @@ func copyAudio(
 		if err != nil {
 			return err
 		}
-
-		//println("cpy", lbl, "->", n)
 	}
 }
 
@@ -46,8 +43,8 @@ func streamAudio(
 	transportAudio io.ReadWriter,
 	deviceAudio io.ReadWriter,
 ) {
-	go copyAudio("transport -> device", transportAudio, deviceAudio, bufSize)
-	go copyAudio("transport <- device", deviceAudio, transportAudio, bufSize)
+	go copyAudio(transportAudio, deviceAudio, bufSize)
+	go copyAudio(deviceAudio, transportAudio, bufSize)
 }
 
 func main() {
@@ -61,12 +58,17 @@ func main() {
 		defer portaudio.Terminate()
 	}
 
+	sr := args.sampleRate
+	if args.phone {
+		sr = 8_000
+	}
+
 	// get audio target
 	audioSink := func() io.ReadWriter {
 		if args.audio {
 			audioDev, err := audio.NewAudioIO(audio.Config{
-				CaptureSampleRate: args.sampleRate,
-				PlaySampleRate:    args.sampleRate,
+				CaptureSampleRate: sr,
+				PlaySampleRate:    sr,
 			})
 			if err != nil {
 				panic(err)
@@ -86,6 +88,9 @@ func main() {
 		&protov1.Config{
 			Metadata: map[string]any{
 				"recording_consent": true,
+				"application": map[string]any{
+					"id": "1234",
+				},
 				"call": map[string]any{
 					"id":   "1234",
 					"from": "+4910002000",
@@ -95,11 +100,11 @@ func main() {
 			Audio: &protov1.AudioConfig{
 				Channels:   1,
 				Format:     "pcm16",
-				SampleRate: args.sampleRate,
+				SampleRate: sr,
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
-			streamAudio(args.audioBufferSize, h.AudioStream(), audioSink)
+			streamAudio(args.chunkSize(), h.AudioStream(), audioSink)
 			return nil
 		},
 	)
