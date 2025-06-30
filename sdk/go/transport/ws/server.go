@@ -13,6 +13,7 @@ import (
 )
 
 func serverUpgradeHandler(
+	config *ServerConfig,
 	logger *slog.Logger,
 	handler rtvbp.SessionHandler,
 ) func(http.ResponseWriter, *http.Request) {
@@ -38,7 +39,10 @@ func serverUpgradeHandler(
 			func(ctx context.Context) (rtvbp.Transport, error) {
 				trans := newTransport(
 					conn,
-					log,
+					&TransportConfig{
+						ChunkSize: config.ChunkSize,
+						Logger:    log,
+					},
 				)
 
 				go trans.process(ctx)
@@ -62,8 +66,9 @@ func serverUpgradeHandler(
 }
 
 type ServerConfig struct {
-	Addr string
-	Path string
+	Addr      string
+	Path      string
+	ChunkSize int
 }
 
 func (c *ServerConfig) Defaults() {
@@ -142,7 +147,8 @@ func NewServer(
 	config.Defaults()
 
 	logger := slog.Default().With(
-		slog.String("websocket", "server"),
+		slog.String("transport", "websocket"),
+		slog.String("peer", "server"),
 	)
 
 	// handler
@@ -151,7 +157,7 @@ func NewServer(
 	if path == "" {
 		path = "/"
 	}
-	mux.HandleFunc(path, serverUpgradeHandler(logger, handler))
+	mux.HandleFunc(path, serverUpgradeHandler(&config, logger, handler))
 
 	return &Server{
 		logger: logger,

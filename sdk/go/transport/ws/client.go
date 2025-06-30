@@ -12,8 +12,24 @@ import (
 )
 
 type ClientConfig struct {
-	Dial         DialConfig
-	PingInterval time.Duration
+	Dial            DialConfig
+	PingInterval    time.Duration
+	SampleRate      int
+	AudioMaxLatency time.Duration
+}
+
+func (c *ClientConfig) Validate() error {
+	if c.SampleRate <= 0 {
+		return fmt.Errorf("invalid sample rate: %d", c.SampleRate)
+	}
+	if c.AudioMaxLatency <= 0 {
+		return fmt.Errorf("invalid audio max latency: %d", c.AudioMaxLatency)
+	}
+	return nil
+}
+
+func (c *ClientConfig) GetChunkSize() int {
+	return int(float64(c.SampleRate) * 2.0 * c.AudioMaxLatency.Seconds())
 }
 
 func (c *ClientConfig) Defaults() {
@@ -45,6 +61,7 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 	}
 
 	var header = http.Header{}
+	header.Add("User-Agent", "babelforce/rtvbp-go")
 	if d.AuthHeaderFunc != nil {
 		authToken, err := d.AuthHeaderFunc(ctx)
 		if err != nil {
@@ -73,8 +90,13 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, error) {
 	c.Defaults()
 
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
+
 	logger := slog.Default().With(
-		slog.String("websocket", "client"),
+		slog.String("transport", "websocket"),
+		slog.String("peer", "client"),
 		slog.String("endpoint", c.Dial.URL),
 	)
 
@@ -97,7 +119,10 @@ func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, erro
 
 	t := newTransport(
 		conn,
-		logger,
+		&TransportConfig{
+			ChunkSize: c.GetChunkSize(),
+			Logger:    logger,
+		},
 	)
 
 	t.debugMessages = true

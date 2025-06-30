@@ -39,6 +39,7 @@ type WebsocketTransport struct {
 	done          chan struct{}
 	logger        *slog.Logger
 	debugMessages bool
+	chunkSize     int
 }
 
 func (w *WebsocketTransport) Read(p []byte) (n int, err error) {
@@ -115,17 +116,18 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 
 	// Read from audio write buffer and send it to the socket
 	go func() {
-		buf := make([]byte, 1024*1024)
+		buf := make([]byte, w.chunkSize)
 		for {
 			n, err := w.writeBuf.Read(buf)
 			if err != nil {
 				w.logger.Error("read audio from buffer failed", slog.Any("err", err))
 				return
 			}
-			if err := w.conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
-				w.logger.Error("write text failed", slog.Any("err", err))
-				return
-			}
+
+			// TODO: buffer reuse for more efficient memory allocations
+			data := make([]byte, n)
+			copy(data, buf[:n])
+			w.msgOutCh <- wsMessage{mt: websocket.BinaryMessage, data: data}
 		}
 	}()
 
@@ -157,6 +159,8 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 		}
 	}()
 
+	// read []byte messages from control channel
+	// and move them to msgOutCh
 	go func() {
 		select {
 		case <-ctx.Done():
@@ -198,6 +202,13 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 					w.logger.Error("write text failed", slog.Any("err", err))
 					return
 				}
+			} else if msg.mt == websocket.BinaryMessage {
+				if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
+					w.logger.Error("write binary failed", slog.Any("err", err))
+					return
+				} else {
+					//w.logger.Debug("sent", slog.Int("len", len(msg.data)))
+				}
 			}
 		}
 	}
@@ -216,8 +227,30 @@ var _ rtvbp.Transport = &WebsocketTransport{}
 
 func newTransport(
 	conn *websocket.Conn,
-	logger *slog.Logger,
+	config *TransportConfig,
 ) *WebsocketTransport {
+	// setup logger
+	logger := config.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	if config.ChunkSize == 0 {
+		panic("chunk size must be set")
+	}
+
+	audioBufferSize := config.AudioBufferSize
+	if audioBufferSize == 0 {
+		audioBufferSize = 160_000
+	}
+
+	logger = logger.With()
+
+	logger.Debug(
+		"new transport",
+		slog.Int("audio_buffer_size", audioBufferSize),
+		slog.Int("audio_chunk_size", config.ChunkSize),
+	)
 
 	conn.SetPingHandler(func(message string) error {
 		logger.Debug("received ping")
@@ -237,17 +270,16 @@ func newTransport(
 
 	done := make(chan struct{})
 
-	//a1, a2 := audio.NewDuplexBuffers()
-
 	return &WebsocketTransport{
 		conn:          conn,
-		writeBuf:      ringbuffer.New(1024 * 1024).SetBlocking(true),
-		readBuf:       ringbuffer.New(1024 * 1024).SetBlocking(true),
+		writeBuf:      ringbuffer.New(audioBufferSize).SetBlocking(true),
+		readBuf:       ringbuffer.New(audioBufferSize).SetBlocking(true),
 		cc:            newControlChannel(),
 		msgOutCh:      make(chan wsMessage, 1),
 		msgInCh:       make(chan wsMessage, 1),
 		logger:        logger,
 		done:          done,
 		debugMessages: false,
+		chunkSize:     config.ChunkSize,
 	}
 }
