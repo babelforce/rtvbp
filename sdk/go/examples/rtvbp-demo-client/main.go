@@ -21,8 +21,8 @@ func must(err error) {
 }
 
 func copyAudio(
-	a io.ReadWriter,
-	b io.ReadWriter,
+	a io.Reader,
+	b io.Writer,
 	bufSize int,
 ) error {
 	buf := make([]byte, bufSize)

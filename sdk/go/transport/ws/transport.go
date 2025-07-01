@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/gorilla/websocket"
 	"github.com/smallnest/ringbuffer"
 	"log/slog"
@@ -15,10 +16,11 @@ import (
 )
 
 type WebsocketTransport struct {
-	connMu        sync.Mutex
-	conn          *websocket.Conn
-	writeBuf      *ringbuffer.RingBuffer
-	readBuf       *ringbuffer.RingBuffer
+	connMu   sync.Mutex
+	conn     *websocket.Conn
+	writeBuf *ringbuffer.RingBuffer // writeBuf holds audio data to be send to the socket
+	//readBuf       *ringbuffer.RingBuffer // writeBuf holds audio data to be send to the socket
+	readBuf       *audio.Buffer // writeBuf holds audio data to be send to the socket
 	cc            *controlChannel
 	msgOutCh      chan wsMessage // msgOutCh holds messages to be send out
 	msgInCh       chan wsMessage // msgInCh holds messages received from the socket
@@ -299,9 +301,10 @@ func newTransport(
 	msgOutCh := make(chan wsMessage, 16)
 
 	return &WebsocketTransport{
-		conn:          conn,
-		writeBuf:      ringbuffer.New(audioBufferSize).SetBlocking(true),
-		readBuf:       ringbuffer.New(audioBufferSize).SetBlocking(true),
+		conn:     conn,
+		writeBuf: ringbuffer.New(audioBufferSize).SetBlocking(true),
+		//readBuf:  ringbuffer.New(audioBufferSize).SetBlocking(true),
+		readBuf:       audio.NewBuffer(audioBufferSize),
 		cc:            newControlChannel(msgOutCh),
 		msgOutCh:      msgOutCh,
 		msgInCh:       make(chan wsMessage, 16),
