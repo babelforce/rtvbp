@@ -38,15 +38,6 @@ func copyAudio(
 	}
 }
 
-func streamAudio(
-	bufSize int,
-	transportAudio io.ReadWriter,
-	deviceAudio io.ReadWriter,
-) {
-	go copyAudio(transportAudio, deviceAudio, bufSize)
-	go copyAudio(deviceAudio, transportAudio, bufSize)
-}
-
 func main() {
 	var (
 		args, log = initCLI()
@@ -104,7 +95,9 @@ func main() {
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
-			streamAudio(args.chunkSize(), h.AudioStream(), audioSink)
+			go copyAudio(h.AudioStream(), audioSink, args.chunkSize())
+			go copyAudio(audioSink, h.AudioStream(), args.chunkSize())
+
 			return nil
 		},
 	)
