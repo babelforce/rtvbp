@@ -3,6 +3,7 @@ package protov1
 import (
 	"context"
 	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
 	"time"
 )
@@ -41,15 +42,7 @@ func NewClientHandler(
 			},
 		},
 		// REQ: ping
-		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *PingRequest) (*PingResponse, error) {
-			err := tel.Hangup(ctx)
-			if err != nil {
-				return nil, err
-			}
-			return &PingResponse{
-				Data: req.Data,
-			}, nil
-		}),
+		NewPingHandler(),
 		// REQ: call.hangup
 		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *CallHangupRequest) (*CallHangupResponse, error) {
 			err := tel.Hangup(ctx)
@@ -82,21 +75,38 @@ func NewClientHandler(
 	)
 }
 
-func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) func() {
+func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
+
 	if pingInterval == 0 {
 		pingInterval = 10 * time.Second
 	}
-	return func() {
-		pingTicker := time.NewTicker(pingInterval)
+	h.Log().Info("starting ping", slog.Any("interval", pingInterval))
+
+	var seq = 1
+
+	pingTicker := time.NewTicker(pingInterval)
+	for {
 		select {
 		case <-pingTicker.C:
-			pong, err := h.Request(ctx, &PingRequest{Data: map[string]any{
-				"time": time.Now().Unix(),
-			}})
+			ping := &PingRequest{
+				Sequence:  seq,
+				Timestamp: time.Now().UnixMilli(),
+			}
+			pong, err := h.Request(ctx, ping)
+			seq = seq + 1
+
 			if err != nil {
 				h.Log().Error("failed to send ping", slog.Any("err", err))
 			} else {
-				h.Log().Debug("ping response", slog.Any("response", pong))
+				pr, err := proto.As[PingResponse](pong.Result)
+				if err != nil {
+					h.Log().Error("failed to parse ping response", slog.Any("err", err))
+					return
+				}
+				rtt := ping.Timestamp - pr.Timestamp
+
+				h.Log().Info("ping response", slog.Any("response", pong), slog.Any("rtt", rtt))
+
 			}
 		case <-ctx.Done():
 			return
