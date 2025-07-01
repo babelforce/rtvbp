@@ -83,9 +83,9 @@ func main() {
 		log:  log.With(slog.String("phone_system", "dummy")),
 	}
 
-	handler := protov1.Handler(
+	handler := protov1.NewClientHandler(
 		phone,
-		&protov1.Config{
+		&protov1.HandlerConfig{
 			Metadata: map[string]any{
 				"recording_consent": true,
 				"application": map[string]any{
@@ -123,16 +123,16 @@ func main() {
 
 	select {
 	case <-ctx.Done():
-		_ = sess.CloseTimeout(5 * time.Second)
+		_ = sess.CloseWithTimeout(5 * time.Second)
 	case <-sig:
-		_ = sess.CloseTimeout(5 * time.Second)
+		_ = sess.CloseWithTimeout(5 * time.Second)
 	case <-phone.done:
 		println("hangup")
-		_ = sess.CloseTimeout(5 * time.Second)
+		_ = sess.CloseWithTimeout(5 * time.Second)
 	case err := <-sessDoneCh:
 		if err != nil {
 			log.Error("session failed", slog.Any("err", err))
 		}
-		_ = sess.CloseTimeout(5 * time.Second)
+		_ = sess.CloseWithTimeout(5 * time.Second)
 	}
 }

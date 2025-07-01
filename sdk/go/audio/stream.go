@@ -10,6 +10,10 @@ func mediaCopy(a io.Reader, b io.Writer) error {
 	for {
 		n, err := a.Read(buf)
 		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			// TODO: handle reset
 			return err
 		}
 		_, err = b.Write(buf[:n])

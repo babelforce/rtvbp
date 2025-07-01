@@ -11,6 +11,61 @@ import (
 	"time"
 )
 
+func TestTransport_Close(t *testing.T) {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+
+	srv := NewServer(ServerConfig{
+		Addr:      "127.0.0.1:0",
+		ChunkSize: 1000,
+	}, rtvbp.NewHandler(rtvbp.HandlerConfig{}))
+	require.NoError(t, srv.Listen())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	trans, err := Client(srv.GetClientConfig())(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, trans)
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	require.NoError(t, trans.Close(closeCtx))
+
+	trans2 := trans.(*WebsocketTransport)
+	select {
+	case <-trans2.closeCh:
+	default:
+		require.Fail(t, "close channel not closed")
+	}
+}
+
+func TestTransport_CloseByContext(t *testing.T) {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+
+	srv := NewServer(ServerConfig{
+		Addr:      "127.0.0.1:0",
+		ChunkSize: 1000,
+	}, rtvbp.NewHandler(rtvbp.HandlerConfig{}))
+	require.NoError(t, srv.Listen())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	trans, err := Client(srv.GetClientConfig())(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, trans)
+
+	<-trans.Closed()
+
+	trans2 := trans.(*WebsocketTransport)
+	select {
+	case <-trans2.closeCh:
+	default:
+		require.Fail(t, "close channel not closed")
+	}
+
+}
+
 func TestClientServer(t *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelInfo)
 
@@ -19,7 +74,6 @@ func TestClientServer(t *testing.T) {
 
 	var (
 		srvOnBeginCalled atomic.Bool
-		srvOnEndCalled   atomic.Bool
 		srvUpdatedEvent  atomic.Bool
 	)
 
@@ -28,17 +82,14 @@ func TestClientServer(t *testing.T) {
 			srvOnBeginCalled.Store(true)
 			return nil
 		},
-		OnEnd: func(ctx context.Context, h rtvbp.SHC) error {
-			srvOnEndCalled.Store(true)
-			return nil
-		},
 	}, rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, evt *protov1.SessionUpdatedEvent) error {
 		srvUpdatedEvent.Store(true)
 		return nil
 	}))
 
 	srv := NewServer(ServerConfig{
-		Addr: "127.0.0.1:0",
+		Addr:      "127.0.0.1:0",
+		ChunkSize: 1000,
 	}, handler)
 
 	err := srv.Listen()
@@ -64,9 +115,7 @@ func TestClientServer(t *testing.T) {
 	require.True(t, srvUpdatedEvent.Load(), "server on event handler not called")
 
 	// --- closing session ---
-	require.NoError(t, client.CloseTimeout(5*time.Second))
-
-	require.True(t, srvOnEndCalled.Load())
+	require.NoError(t, client.CloseWithTimeout(5*time.Second))
 
 	// server shutdown
 	require.NoError(t, srv.Shutdown(ctx))

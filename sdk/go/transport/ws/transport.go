@@ -3,43 +3,31 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
 	"github.com/smallnest/ringbuffer"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 )
 
-func isControl(frameType int) bool {
-	return frameType == websocket.CloseMessage || frameType == websocket.PingMessage || frameType == websocket.PongMessage
-}
-
-type wsMessage struct {
-	mt      int
-	data    []byte
-	timeout time.Duration
-}
-
-func (m *wsMessage) controlTimeout() time.Duration {
-	if m.timeout == 0 {
-		return 1 * time.Second
-	}
-	return m.timeout
-}
-
 type WebsocketTransport struct {
+	connMu        sync.Mutex
 	conn          *websocket.Conn
 	writeBuf      *ringbuffer.RingBuffer
 	readBuf       *ringbuffer.RingBuffer
 	cc            *controlChannel
 	msgOutCh      chan wsMessage // msgOutCh holds messages to be send out
 	msgInCh       chan wsMessage // msgInCh holds messages received from the socket
-	done          chan struct{}
+	wsClosedCh    chan struct{}
+	closeCh       chan struct{}
 	logger        *slog.Logger
 	debugMessages bool
 	chunkSize     int
+	closeOnce     sync.Once
 }
 
 func (w *WebsocketTransport) Read(p []byte) (n int, err error) {
@@ -51,62 +39,84 @@ func (w *WebsocketTransport) Write(p []byte) (n int, err error) {
 }
 
 func (w *WebsocketTransport) Closed() <-chan struct{} {
-	return w.done
+	return w.wsClosedCh
 }
 
 func (w *WebsocketTransport) Control() rtvbp.DataChannel {
 	return w.cc
 }
 
+// Close closes the websocket transport
+// will send all currently buffered outgoing messages
+// and wait for the connection to be closed
 func (w *WebsocketTransport) Close(ctx context.Context) error {
+
+	select {
+	case <-w.wsClosedCh:
+		return nil
+	default:
+	}
+
+	w.closeOnce.Do(func() {
+		close(w.closeCh)
+	})
+
+	w.drainOut()
 
 	w.msgOutCh <- wsMessage{
 		mt:   websocket.CloseMessage,
 		data: websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Closed"),
 	}
+
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("close failed: %w", ctx.Err())
-	case <-w.done:
+	case <-w.wsClosedCh:
 		return nil
 	}
 }
 
-func (w *WebsocketTransport) closeNow() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err := w.Close(ctx)
-	if err != nil {
-		w.logger.Error("close failed", slog.Any("err", err))
+func (w *WebsocketTransport) drainOut() {
+	w.logger.Debug("drain outgoing messages", slog.Int("len", len(w.msgOutCh)))
+	for {
+		select {
+		case msg := <-w.msgOutCh:
+			w.sendMessage(msg)
+		default:
+			w.logger.Debug("drained outgoing messages")
+			return
+		}
 	}
 }
 
-func (w *WebsocketTransport) process(ctx context.Context) {
-	defer func() {
-		// close connection
-		if err := w.conn.Close(); err != nil {
-			w.logger.Error("connection close failed", slog.Any("err", err))
-		}
+func (w *WebsocketTransport) closeWithTimeout(timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return w.Close(ctx)
+}
 
-		w.logger.Debug("transport processing done")
+func (w *WebsocketTransport) process(ctx context.Context) {
+	// cleanup
+	defer func() {
+		_ = w.conn.Close()
 	}()
 
 	// Read all messages from connection and store them in msgInCh channel
 	go func() {
-		defer func() {
-			close(w.msgInCh)
-			close(w.done)
-		}()
 		for {
 			mt, data, err := w.conn.ReadMessage()
 
 			// on error: return
 			if err != nil {
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					w.logger.Debug("connection was closed by other peer", slog.Any("err", err))
-				} else {
-					w.logger.Error("read failed", slog.Any("err", err))
+
+				var e *websocket.CloseError
+				if errors.As(err, &e) {
+					close(w.wsClosedCh)
+					return
 				}
+
+				w.logger.Error("read failed", slog.Any("err", err))
+
 				return
 			}
 
@@ -127,7 +137,13 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 			// TODO: buffer reuse for more efficient memory allocations
 			data := make([]byte, n)
 			copy(data, buf[:n])
-			w.msgOutCh <- wsMessage{mt: websocket.BinaryMessage, data: data}
+
+			select {
+			case <-w.closeCh:
+				return
+			case w.msgOutCh <- wsMessage{mt: websocket.BinaryMessage, data: data}:
+			}
+
 		}
 	}()
 
@@ -137,6 +153,8 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 	go func() {
 		for {
 			select {
+			case <-w.wsClosedCh:
+				return
 			case <-ctx.Done():
 				return
 			case msg, ok := <-w.msgInCh:
@@ -159,57 +177,60 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 		}
 	}()
 
-	// read []byte messages from control channel
-	// and move them to msgOutCh
+	// outgoing messages
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case data, ok := <-w.cc.output:
-			if !ok {
+		pingTicker := time.NewTicker(5 * time.Second)
+		for {
+			select {
+
+			case <-w.wsClosedCh:
 				return
+
+			case <-pingTicker.C:
+				w.msgOutCh <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
+
+			case msg := <-w.msgOutCh:
+				w.sendMessage(msg)
 			}
-			w.msgOutCh <- wsMessage{mt: websocket.TextMessage, data: data}
 		}
 	}()
 
-	// outgoing messages
-	pingTicker := time.NewTicker(5 * time.Second)
 	for {
 		select {
-		case <-w.done:
+		case <-ctx.Done():
+			_ = w.closeWithTimeout(5 * time.Second)
 			return
 
-		case <-ctx.Done():
-			w.closeNow()
+		case <-w.wsClosedCh:
+			return
+		}
+	}
+}
 
-		case <-pingTicker.C:
-			w.msgOutCh <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
-
-		case msg := <-w.msgOutCh:
-			if isControl(msg.mt) {
-				w.logger.Debug("send control", slog.Int("mt", msg.mt))
-				if err := w.conn.WriteControl(msg.mt, msg.data, time.Now().Add(msg.controlTimeout())); err != nil {
-					w.logger.Error("write control failed", slog.Any("err", err))
-					return
-				}
-			} else if msg.mt == websocket.TextMessage {
-				w.logger.Debug("send text", slog.String("data", string(msg.data)))
-				if w.debugMessages {
-					fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
-				}
-				if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
-					w.logger.Error("write text failed", slog.Any("err", err))
-					return
-				}
-			} else if msg.mt == websocket.BinaryMessage {
-				if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
-					w.logger.Error("write binary failed", slog.Any("err", err))
-					return
-				} else {
-					//w.logger.Debug("sent", slog.Int("len", len(msg.data)))
-				}
-			}
+func (w *WebsocketTransport) sendMessage(msg wsMessage) {
+	w.connMu.Lock()
+	defer w.connMu.Unlock()
+	if isControl(msg.mt) {
+		w.logger.Debug("send control", slog.Int("mt", msg.mt))
+		if err := w.conn.WriteControl(msg.mt, msg.data, time.Now().Add(msg.controlTimeout())); err != nil {
+			w.logger.Error("write control failed", slog.Any("err", err))
+			return
+		}
+	} else if msg.mt == websocket.TextMessage {
+		w.logger.Debug("send text", slog.String("data", string(msg.data)))
+		if w.debugMessages {
+			fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
+		}
+		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
+			w.logger.Error("write text failed", slog.Any("err", err))
+			return
+		}
+	} else if msg.mt == websocket.BinaryMessage {
+		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
+			w.logger.Error("write binary failed", slog.Any("err", err))
+			return
+		} else {
+			//w.logger.Debug("sent", slog.Int("len", len(msg.data)))
 		}
 	}
 }
@@ -268,17 +289,19 @@ func newTransport(
 		return nil
 	})
 
-	done := make(chan struct{})
+	wsClosedCh := make(chan struct{})
+	msgOutCh := make(chan wsMessage, 16)
 
 	return &WebsocketTransport{
 		conn:          conn,
 		writeBuf:      ringbuffer.New(audioBufferSize).SetBlocking(true),
 		readBuf:       ringbuffer.New(audioBufferSize).SetBlocking(true),
-		cc:            newControlChannel(),
-		msgOutCh:      make(chan wsMessage, 1),
-		msgInCh:       make(chan wsMessage, 1),
+		cc:            newControlChannel(msgOutCh),
+		msgOutCh:      msgOutCh,
+		msgInCh:       make(chan wsMessage, 16),
+		closeCh:       make(chan struct{}),
 		logger:        logger,
-		done:          done,
+		wsClosedCh:    wsClosedCh,
 		debugMessages: false,
 		chunkSize:     config.ChunkSize,
 	}

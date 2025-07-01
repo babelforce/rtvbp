@@ -1,5 +1,10 @@
 package protov1
 
+import (
+	"context"
+	"github.com/babelforce/rtvbp-go"
+)
+
 type CallHangupEvent struct {
 }
 
@@ -13,6 +18,10 @@ type CallHangupRequest struct {
 
 func (r *CallHangupRequest) MethodName() string {
 	return "call.hangup"
+}
+
+func (r *CallHangupRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
+	return terminateAndClose("call.hangup")(ctx, hc)
 }
 
 type CallHangupResponse struct {

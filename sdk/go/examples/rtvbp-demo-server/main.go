@@ -40,10 +40,6 @@ func main() {
 					}()
 					return nil
 				},
-				OnEnd: func(ctx context.Context, h rtvbp.SHC) error {
-					fmt.Printf("%s> -- server end handler ---", h.SessionID())
-					return nil
-				},
 			},
 			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.SessionUpdatedEvent) error {
 				hc.Log().Info("session updated", slog.Any("event", evt))

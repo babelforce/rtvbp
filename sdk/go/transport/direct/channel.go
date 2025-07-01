@@ -14,8 +14,9 @@ type dcc struct {
 	once   sync.Once
 }
 
-func (d *dcc) WriteChan() chan<- []byte {
-	return d.out
+func (d *dcc) Write(data []byte) error {
+	d.out <- data
+	return nil
 }
 
 func (d *dcc) ReadChan() <-chan []byte {

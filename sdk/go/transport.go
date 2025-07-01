@@ -6,7 +6,7 @@ import (
 )
 
 type DataChannel interface {
-	WriteChan() chan<- []byte
+	Write(data []byte) error
 	ReadChan() <-chan []byte
 }
 

@@ -11,7 +11,6 @@ import (
 
 type SessionHandler interface {
 	OnBegin(ctx context.Context, h SHC) error
-	OnEnd(ctx context.Context, h SHC) error
 	OnRequest(ctx context.Context, h SHC, req *proto.Request) error
 	OnEvent(ctx context.Context, h SHC, evt *proto.Event) error
 }
@@ -31,6 +30,8 @@ type SHC interface {
 	AudioStream() io.ReadWriter
 
 	Close(ctx context.Context) error
+
+	State() SessionState
 }
 
 type PostResponseHook interface {
@@ -39,6 +40,10 @@ type PostResponseHook interface {
 
 type sessionHandlerCtx struct {
 	sess *Session
+}
+
+func (shc *sessionHandlerCtx) State() SessionState {
+	return shc.sess.State()
 }
 
 func (shc *sessionHandlerCtx) AudioStream() io.ReadWriter {
@@ -51,7 +56,7 @@ func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) 
 		return fmt.Errorf("marshal response: %w", err)
 	}
 
-	if err := shc.sess.writeMsgData(ctx, data); err != nil {
+	if err := shc.sess.writeMsgData(data); err != nil {
 		return fmt.Errorf("write response: %w", err)
 	}
 
@@ -59,7 +64,7 @@ func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) 
 }
 
 func (shc *sessionHandlerCtx) Close(ctx context.Context) error {
-	return shc.sess.CloseContext(ctx)
+	return shc.sess.Close(ctx)
 }
 
 func (shc *sessionHandlerCtx) SessionID() string {
@@ -121,7 +126,6 @@ func (d *defaultSessionHandler) OnEvent(ctx context.Context, hc SHC, evt *proto.
 
 type HandlerConfig struct {
 	OnBegin func(ctx context.Context, h SHC) error
-	OnEnd   func(ctx context.Context, h SHC) error
 }
 
 // NewHandler creates a new handler
@@ -130,7 +134,6 @@ func NewHandler(config HandlerConfig, args ...any) SessionHandler {
 		eventHandlers:   make(map[string]EventHandler),
 		requestHandlers: make(map[string]RequestHandler),
 		onBegin:         config.OnBegin,
-		onEnd:           config.OnEnd,
 	}
 
 	// add handlers from args

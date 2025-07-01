@@ -12,6 +12,16 @@ import (
 	"time"
 )
 
+type DummyEvent struct {
+	Text string `json:"text,omitempty"`
+}
+
+func (e *DummyEvent) EventName() string {
+	return "dummy"
+}
+
+var _ rtvbp.NamedEvent = &DummyEvent{}
+
 func TestDirectTransport(t *testing.T) {
 
 	var (
@@ -20,8 +30,8 @@ func TestDirectTransport(t *testing.T) {
 		c2     = t2.Control()
 	)
 
-	c1.WriteChan() <- []byte("hello")
-	c2.WriteChan() <- []byte("world")
+	_ = c1.Write([]byte("hello"))
+	_ = c2.Write([]byte("world"))
 
 	require.Equal(t, "hello", string(<-c2.ReadChan()))
 	require.Equal(t, "world", string(<-c1.ReadChan()))
@@ -38,12 +48,12 @@ func TestSessionWithDirectTransport(t *testing.T) {
 	h := rtvbp.NewHandler(
 		rtvbp.HandlerConfig{
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-				_ = h.Notify(ctx, &protov1.DummyEvent{Text: fmt.Sprintf("hello from session: %s", h.SessionID())})
+				_ = h.Notify(ctx, &DummyEvent{Text: fmt.Sprintf("hello from session: %s", h.SessionID())})
 				_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{})
 				return nil
 			},
 		},
-		rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.DummyEvent) error {
+		rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *DummyEvent) error {
 			wg.Done()
 			return nil
 		}),

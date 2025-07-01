@@ -57,10 +57,13 @@ func serverUpgradeHandler(
 
 		select {
 		case <-ctx.Done():
-			_ = sess.CloseTimeout(5 * time.Second)
+			_ = sess.CloseWithTimeout(5 * time.Second)
 			return
 		case err := <-sess.Run(ctx):
-			log.Error("session failed", slog.Any("err", err))
+			if err != nil {
+				log.Error("session failed", slog.Any("err", err))
+			}
+
 		}
 	}
 }
@@ -73,10 +76,13 @@ type ServerConfig struct {
 
 func (c *ServerConfig) Defaults() {
 	if c.Addr == "" {
-		c.Addr = ":8080"
+		c.Addr = "127.0.0.1:8080"
 	}
 	if c.Path == "" {
 		c.Path = "/"
+	}
+	if c.ChunkSize == 0 {
+		c.ChunkSize = 160
 	}
 }
 
@@ -88,15 +94,23 @@ type Server struct {
 	listener net.Listener
 }
 
-func (s *Server) Shutdown(ctx context.Context) error {
-	return s.http.Shutdown(ctx)
+func (s *Server) Shutdown(ctx context.Context) (err error) {
+	err = s.http.Shutdown(ctx)
+	s.logger.Info("shutdown complete", slog.Any("err", err))
+	return err
+}
+
+func (s *Server) URL() string {
+	return fmt.Sprintf("ws://%s:%d%s", s.addr.IP, s.addr.Port, s.config.Path)
 }
 
 func (s *Server) GetClientConfig() ClientConfig {
 	return ClientConfig{
 		Dial: DialConfig{
-			URL: fmt.Sprintf("ws://%s:%d%s", s.addr.IP, s.addr.Port, s.config.Path),
+			URL: s.URL(),
 		},
+		SampleRate:      8000,
+		AudioMaxLatency: 50 * time.Millisecond,
 	}
 }
 

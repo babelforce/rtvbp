@@ -25,4 +25,5 @@ func (m *ApplicationMoveRequest) PostResponseHook(ctx context.Context, hc rtvbp.
 }
 
 type ApplicationMoveResponse struct {
+	NextApplicationID string `json:"next_application_id,omitempty"`
 }

@@ -2,7 +2,9 @@ package protov1
 
 import (
 	"context"
+	"fmt"
 	"github.com/babelforce/rtvbp-go"
+	"time"
 )
 
 type AudioConfig struct {
@@ -29,7 +31,18 @@ func (r *SessionTerminateRequest) MethodName() string {
 }
 
 func (r *SessionTerminateRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
-	return hc.Notify(ctx, &SessionTerminatedEvent{})
+	_ = hc.Notify(ctx, &SessionTerminatedEvent{})
+
+	// close
+	closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := hc.Close(closeCtx); err != nil {
+		return fmt.Errorf("failed to close session on session.terminate request: %w", err)
+	}
+
+	return nil
+
 }
 
 type SessionTerminateResponse struct {
