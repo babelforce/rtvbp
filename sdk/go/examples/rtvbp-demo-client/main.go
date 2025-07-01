@@ -110,7 +110,8 @@ func main() {
 	)
 
 	// create and run the session
-	log.Info("starting client", slog.String("url", args.url))
+	log.Info("starting client", slog.Any("url", args.connectURL()))
+	log.Debug("config", slog.Any("config", args.config()))
 	sess := rtvbp.NewSession(
 		ws.Client(args.config()),
 		handler,
