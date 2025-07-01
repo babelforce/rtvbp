@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/audio"
@@ -13,13 +14,28 @@ import (
 	"time"
 )
 
+type serverCLI struct {
+	moveAfterSeconds      int
+	hangupAfterSeconds    int
+	terminateAfterSeconds int
+}
+
 func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
+
+	args := serverCLI{}
+
+	flag.IntVar(&args.moveAfterSeconds, "move", args.moveAfterSeconds, "move application after x")
+	flag.IntVar(&args.hangupAfterSeconds, "hangup", args.hangupAfterSeconds, "hangup after x seconds")
+	flag.IntVar(&args.terminateAfterSeconds, "terminate", args.terminateAfterSeconds, "terminate after x seconds")
+	flag.Parse()
+
+	slog.Info("starting server", slog.Any("args", args))
 
 	// start server
 	srv := ws.NewServer(
 		ws.ServerConfig{
-			Addr:      ":8080",
+			Addr:      "0.0.0.0:8080",
 			ChunkSize: 160,
 		},
 		rtvbp.NewHandler(
@@ -31,15 +47,33 @@ func main() {
 					lb := audio.NewLoopback()
 					audio.DuplexCopy(lb, h.AudioStream())
 
-					// after 10 seconds, use application.move to move the session to a new application
-					/*go func() {
-						<-time.After(10 * time.Second)
-						_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
-							ApplicationID: "1234",
-						})
-					}()*/
+					if args.moveAfterSeconds != 0 {
+						go func() {
+							<-time.After(time.Duration(args.moveAfterSeconds) * time.Second)
+							_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
+								Reason:        "auto move",
+								ApplicationID: "1234",
+							})
+						}()
+					}
 
-					// TODO: control via repl
+					if args.terminateAfterSeconds != 0 {
+						go func() {
+							<-time.After(time.Duration(args.terminateAfterSeconds) * time.Second)
+							_, _ = h.Request(ctx, &protov1.SessionTerminateRequest{
+								Reason: "auto terminate",
+							})
+						}()
+					}
+
+					if args.hangupAfterSeconds != 0 {
+						go func() {
+							<-time.After(time.Duration(args.hangupAfterSeconds) * time.Second)
+							_, _ = h.Request(ctx, &protov1.CallHangupRequest{
+								Reason: "auto hangup",
+							})
+						}()
+					}
 
 					return nil
 				},
