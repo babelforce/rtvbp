@@ -81,7 +81,10 @@ func (w *WebsocketTransport) drainOut() {
 	for {
 		select {
 		case msg := <-w.msgOutCh:
-			w.sendMessage(msg)
+			err := w.sendMessage(msg)
+			if err != nil {
+				w.logger.Error("drainOut: failed to send message", slog.Any("err", err))
+			}
 		default:
 			w.logger.Debug("drained outgoing messages")
 			return
@@ -190,7 +193,11 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				w.msgOutCh <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
 
 			case msg := <-w.msgOutCh:
-				w.sendMessage(msg)
+				err := w.sendMessage(msg)
+				if err != nil {
+					w.logger.Error("failed to send message", slog.Any("err", err))
+					return
+				}
 			}
 		}
 	}()
@@ -207,14 +214,13 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 	}
 }
 
-func (w *WebsocketTransport) sendMessage(msg wsMessage) {
+func (w *WebsocketTransport) sendMessage(msg wsMessage) error {
 	w.connMu.Lock()
 	defer w.connMu.Unlock()
 	if isControl(msg.mt) {
 		w.logger.Debug("send control", slog.Int("mt", msg.mt))
 		if err := w.conn.WriteControl(msg.mt, msg.data, time.Now().Add(msg.controlTimeout())); err != nil {
-			w.logger.Error("write control failed", slog.Any("err", err))
-			return
+			return fmt.Errorf("write control failed: %w", err)
 		}
 	} else if msg.mt == websocket.TextMessage {
 		w.logger.Debug("send text", slog.String("data", string(msg.data)))
@@ -222,17 +228,17 @@ func (w *WebsocketTransport) sendMessage(msg wsMessage) {
 			fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
 		}
 		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
-			w.logger.Error("write text failed", slog.Any("err", err))
-			return
+			return fmt.Errorf("write text failed: %w", err)
 		}
 	} else if msg.mt == websocket.BinaryMessage {
 		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
-			w.logger.Error("write binary failed", slog.Any("err", err))
-			return
+			return fmt.Errorf("write binary failed: %w", err)
 		} else {
 			//w.logger.Debug("sent", slog.Int("len", len(msg.data)))
 		}
 	}
+
+	return nil
 }
 
 func prettyJson(data []byte) string {
