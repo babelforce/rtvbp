@@ -11,10 +11,11 @@ import (
 )
 
 type cliArgs struct {
-	url        string
-	logLevel   string
-	audio      bool
-	proxyToken string
+	url        string // url is the URL to connect to
+	logLevel   string // logLevel is the log level user for the client application
+	audio      bool   // audio defines if audio is enabled or not
+	proxyToken string // proxyToken
+	proxyURL   string
 	authToken  string
 	sampleRate int
 	phone      bool
@@ -25,7 +26,7 @@ func (a *cliArgs) config() ws.ClientConfig {
 		AudioMaxLatency: a.latency(),
 		SampleRate:      a.sampleRate,
 		Dial: ws.DialConfig{
-			URL:            a.url,
+			URL:            a.connectURL(),
 			ConnectTimeout: 5 * time.Second,
 			Headers:        a.httpHeader(),
 		},
@@ -40,13 +41,24 @@ func (a *cliArgs) chunkSize() int {
 	return int(float64(a.sampleRate) * 2 * a.latency().Seconds())
 }
 
+func (a *cliArgs) connectURL() string {
+	if a.proxyURL != "" {
+		return a.proxyURL
+	}
+	return a.url
+}
+
 func (a *cliArgs) httpHeader() http.Header {
 	headers := http.Header{}
 	if a.authToken != "" {
 		headers.Set("authorization", "Bearer "+a.authToken)
 	}
-	if a.proxyToken != "" {
-		headers.Set("x-proxy-token", a.proxyToken)
+
+	if a.proxyURL != "" {
+		if a.proxyToken != "" {
+			headers.Set("x-proxy-token", a.proxyToken)
+		}
+		headers.Set("x-proxy-url", a.url)
 	}
 	return headers
 }
@@ -73,6 +85,7 @@ func initCLI() (*cliArgs, *slog.Logger) {
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
 	flag.StringVar(&args.authToken, "auth-token", args.authToken, "auth token used as Bearer token in Authorization header")
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
+	flag.StringVar(&args.proxyURL, "proxy-url", args.proxyURL, "set proxy url for websocket proxy")
 	flag.IntVar(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")
 	flag.BoolVar(&args.phone, "phone", args.phone, "set 8khz sample rate and enable audio")
