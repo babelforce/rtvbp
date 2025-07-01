@@ -92,9 +92,9 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 				Sequence:  seq,
 				Timestamp: time.Now().UnixMilli(),
 			}
-			pong, err := h.Request(ctx, ping)
 			seq = seq + 1
 
+			pong, err := h.Request(ctx, ping)
 			if err != nil {
 				h.Log().Error("failed to send ping", slog.Any("err", err))
 			} else {
@@ -103,8 +103,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 					h.Log().Error("failed to parse ping response", slog.Any("err", err))
 					return
 				}
-				rtt := ping.Timestamp - pr.Timestamp
-
+				rtt := pr.Timestamp - ping.Timestamp
 				h.Log().Info("ping response", slog.Any("response", pong), slog.Any("rtt", rtt))
 
 			}

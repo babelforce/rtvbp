@@ -32,12 +32,15 @@ func main() {
 					audio.DuplexCopy(lb, h.AudioStream())
 
 					// after 10 seconds, use application.move to move the session to a new application
-					go func() {
+					/*go func() {
 						<-time.After(10 * time.Second)
 						_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
 							ApplicationID: "1234",
 						})
-					}()
+					}()*/
+
+					// TODO: control via repl
+
 					return nil
 				},
 			},
