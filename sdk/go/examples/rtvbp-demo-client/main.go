@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
-	"github.com/codewandler/audio-go"
+	audiogo "github.com/codewandler/audio-go"
 	"github.com/gordonklaus/portaudio"
 	"io"
 	"log/slog"
@@ -17,24 +18,6 @@ import (
 func must(err error) {
 	if err != nil {
 		panic(err)
-	}
-}
-
-func copyAudio(
-	a io.Reader,
-	b io.Writer,
-	bufSize int,
-) error {
-	buf := make([]byte, bufSize)
-	for {
-		n, err := a.Read(buf)
-		if err != nil {
-			return err
-		}
-		n, err = b.Write(buf[:n])
-		if err != nil {
-			return err
-		}
 	}
 }
 
@@ -57,9 +40,11 @@ func main() {
 	// get audio target
 	audioSink := func() io.ReadWriter {
 		if args.audio {
-			audioDev, err := audio.NewAudioIO(audio.Config{
+			audioDev, err := audiogo.NewAudioIO(audiogo.Config{
 				CaptureSampleRate: sr,
 				PlaySampleRate:    sr,
+				PlayLatency:       time.Duration(args.audioLatencyMs) * time.Millisecond,
+				CaptureLatency:    time.Duration(args.audioLatencyMs) * time.Millisecond,
 			})
 			if err != nil {
 				panic(err)
@@ -95,8 +80,9 @@ func main() {
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
-			go copyAudio(h.AudioStream(), audioSink, args.chunkSize())
-			go copyAudio(audioSink, h.AudioStream(), args.chunkSize())
+			lat := time.Duration(args.audioLatencyMs) * time.Millisecond
+			s := int(float64(args.sampleRate) * 2 * lat.Seconds())
+			audio.DuplexCopy(h.AudioStream(), s, audioSink, s)
 
 			return nil
 		},
@@ -107,7 +93,7 @@ func main() {
 	log.Debug("config", slog.Any("config", args.config()))
 	sess := rtvbp.NewSession(
 		ws.Client(args.config()),
-		handler,
+		rtvbp.WithHandler(handler),
 	)
 
 	sessDoneCh := sess.Run(ctx)
