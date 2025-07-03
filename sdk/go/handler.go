@@ -15,6 +15,12 @@ type SessionHandler interface {
 	OnEvent(ctx context.Context, h SHC, evt *proto.Event) error
 }
 
+type HandlerAudio interface {
+	io.ReadWriter
+	ClearBuffer() (int, error)
+	Len() int
+}
+
 // SHC - Session Handler Context
 type SHC interface {
 	// SessionID retrieves the ID of the current session
@@ -27,7 +33,7 @@ type SHC interface {
 	Request(ctx context.Context, req NamedRequest) (*proto.Response, error)
 	Respond(ctx context.Context, res *proto.Response) error
 	Notify(ctx context.Context, evt NamedEvent) error
-	AudioStream() io.ReadWriter
+	AudioStream() HandlerAudio
 
 	Close(ctx context.Context) error
 
@@ -40,14 +46,15 @@ type PostResponseHook interface {
 
 type sessionHandlerCtx struct {
 	sess *Session
+	ha   HandlerAudio
 }
 
 func (shc *sessionHandlerCtx) State() SessionState {
 	return shc.sess.State()
 }
 
-func (shc *sessionHandlerCtx) AudioStream() io.ReadWriter {
-	return shc.sess.transport
+func (shc *sessionHandlerCtx) AudioStream() HandlerAudio {
+	return shc.ha
 }
 
 func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) error {

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/babelforce/rtvbp-go/proto"
-	"io"
 	"log/slog"
 	"sync"
 	"time"
@@ -21,7 +20,8 @@ type Session struct {
 	mu              sync.Mutex
 	shCtx           *sessionHandlerCtx
 	transport       Transport
-	transportFunc   func(ctx context.Context) (Transport, error)
+	transportFunc   TransportFunc
+	audio           *DuplexAudio
 	closeOnce       sync.Once
 	closeCh         chan struct{} // closeCh is a channel when closed will trigger shutdown of the session
 	doneCh          chan struct{} // doneCh is a channel which will be closed whenever the connection fails on reading
@@ -29,10 +29,6 @@ type Session struct {
 	pendingRequests map[string]*pendingRequest
 	muPending       sync.Mutex
 	logger          *slog.Logger
-}
-
-func (s *Session) Audio() io.ReadWriter {
-	return s.transport
 }
 
 // Notify sends a notification
@@ -169,7 +165,7 @@ func (s *Session) Run(
 	)
 
 	// create transport
-	if trans, err := s.transportFunc(ctx); err != nil {
+	if trans, err := s.transportFunc(ctx, s.audio.TransportRW()); err != nil {
 		done <- err
 		return done
 	} else {
@@ -233,27 +229,35 @@ func (s *Session) Run(
 
 // NewSession creates a new peer session
 func NewSession(
-	transportFunc func(ctx context.Context) (Transport, error),
-	handler SessionHandler,
+	opts ...Option,
 ) *Session {
-	sessionID := proto.ID()
+	// init options
+	options := &sessionOptions{}
+	withDefaults()(options)
+	for _, opt := range opts {
+		opt(options)
+	}
 
-	logger := slog.Default().With(
-		slog.String("session", sessionID),
+	logger := options.logger.With(
+		slog.String("session", options.id),
 	)
 
 	session := &Session{
-		id:              sessionID,
+		id:              options.id,
 		state:           SessionStateInactive,
-		transportFunc:   transportFunc,
+		transportFunc:   options.transport,
 		closeCh:         make(chan struct{}),
 		doneCh:          make(chan struct{}),
 		pendingRequests: map[string]*pendingRequest{},
-		handler:         handler,
+		handler:         options.handler,
 		logger:          logger,
+		audio:           NewSessionAudio(options.audioBufferSize),
 	}
 
-	session.shCtx = &sessionHandlerCtx{sess: session}
+	session.shCtx = &sessionHandlerCtx{
+		sess: session,
+		ha:   session.audio.toHandlerAudio(),
+	}
 
 	return session
 }

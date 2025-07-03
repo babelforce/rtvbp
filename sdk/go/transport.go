@@ -11,8 +11,9 @@ type DataChannel interface {
 }
 
 type Transport interface {
-	io.ReadWriter
 	Closed() <-chan struct{}
 	Control() DataChannel
 	Close(ctx context.Context) error
 }
+
+type TransportFunc func(ctx context.Context, audio io.ReadWriter) (Transport, error)
