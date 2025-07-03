@@ -72,6 +72,18 @@ func NewClientHandler(
 				return &SessionTerminateResponse{}, nil
 			},
 		),
+		// REQ: audio.buffer.clear
+		rtvbp.HandleRequest(
+			func(ctx context.Context, hc rtvbp.SHC, req *AudioBufferClearRequest) (*AudioBufferClearResponse, error) {
+				n, err := hc.AudioStream().ClearBuffer()
+				if err != nil {
+					return nil, err
+				}
+				return &AudioBufferClearResponse{
+					Len: n,
+				}, nil
+			},
+		),
 	)
 }
 
