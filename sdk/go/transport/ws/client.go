@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -12,24 +13,16 @@ import (
 )
 
 type ClientConfig struct {
-	Dial            DialConfig
-	PingInterval    time.Duration
-	SampleRate      int
-	AudioMaxLatency time.Duration
+	Dial         DialConfig
+	PingInterval time.Duration
+	SampleRate   int
 }
 
 func (c *ClientConfig) Validate() error {
 	if c.SampleRate <= 0 {
 		return fmt.Errorf("invalid sample rate: %d", c.SampleRate)
 	}
-	if c.AudioMaxLatency <= 0 {
-		return fmt.Errorf("invalid audio max latency: %d", c.AudioMaxLatency)
-	}
 	return nil
-}
-
-func (c *ClientConfig) GetChunkSize() int {
-	return int(float64(c.SampleRate) * 2.0 * c.AudioMaxLatency.Seconds())
 }
 
 func (c *ClientConfig) Defaults() {
@@ -87,7 +80,7 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 }
 
 // Connect connects to the websocket endpoint
-func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, error) {
+func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*WebsocketTransport, error) {
 	c.Defaults()
 
 	if err := c.Validate(); err != nil {
@@ -119,9 +112,9 @@ func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, erro
 
 	t := newTransport(
 		conn,
+		audio,
 		&TransportConfig{
-			ChunkSize: c.GetChunkSize(),
-			Logger:    logger,
+			Logger: logger,
 		},
 	)
 
@@ -137,8 +130,10 @@ func (c *ClientConfig) doConnect(ctx context.Context) (*WebsocketTransport, erro
 	return t, nil
 }
 
-func Client(config ClientConfig) func(ctx context.Context) (rtvbp.Transport, error) {
-	return func(ctx context.Context) (rtvbp.Transport, error) {
-		return config.doConnect(ctx)
-	}
+func Client(config ClientConfig) rtvbp.Option {
+	return rtvbp.WithTransport(
+		func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
+			return Connect(ctx, config, audio)
+		},
+	)
 }

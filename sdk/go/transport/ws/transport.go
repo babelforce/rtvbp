@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
-	"github.com/smallnest/ringbuffer"
+	"io"
 	"log/slog"
 	"net"
 	"sync"
@@ -17,8 +17,8 @@ import (
 type WebsocketTransport struct {
 	connMu        sync.Mutex
 	conn          *websocket.Conn
-	writeBuf      *ringbuffer.RingBuffer // writeBuf holds audio data to be send to the socket
-	readBuf       *ringbuffer.RingBuffer // writeBuf holds audio data to be send to the socket
+	audio         io.ReadWriter
+	config        *TransportConfig
 	cc            *controlChannel
 	msgOutCh      chan wsMessage // msgOutCh holds messages to be send out
 	msgInCh       chan wsMessage // msgInCh holds messages received from the socket
@@ -26,16 +26,7 @@ type WebsocketTransport struct {
 	closeCh       chan struct{}
 	logger        *slog.Logger
 	debugMessages bool
-	chunkSize     int
 	closeOnce     sync.Once
-}
-
-func (w *WebsocketTransport) Read(p []byte) (n int, err error) {
-	return w.readBuf.Read(p)
-}
-
-func (w *WebsocketTransport) Write(p []byte) (n int, err error) {
-	return w.writeBuf.Write(p)
 }
 
 func (w *WebsocketTransport) Closed() <-chan struct{} {
@@ -127,11 +118,11 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 		}
 	}()
 
-	// Read from audio write buffer and send it to the socket
+	// Read audio data and send to socket
 	go func() {
-		buf := make([]byte, w.chunkSize)
+		buf := make([]byte, 320)
 		for {
-			n, err := w.writeBuf.Read(buf)
+			n, err := w.audio.Read(buf)
 			if err != nil {
 				w.logger.Error("read audio from buffer failed", slog.Any("err", err))
 				return
@@ -171,7 +162,7 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 					}
 					w.cc.input <- msg.data
 				case websocket.BinaryMessage:
-					if _, err := w.readBuf.Write(msg.data); err != nil {
+					if _, err := w.audio.Write(msg.data); err != nil {
 						w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
 						return
 					}
@@ -254,6 +245,7 @@ var _ rtvbp.Transport = &WebsocketTransport{}
 
 func newTransport(
 	conn *websocket.Conn,
+	audio io.ReadWriter,
 	config *TransportConfig,
 ) *WebsocketTransport {
 	// setup logger
@@ -262,21 +254,10 @@ func newTransport(
 		logger = slog.Default()
 	}
 
-	if config.ChunkSize == 0 {
-		panic("chunk size must be set")
-	}
-
-	audioBufferSize := config.AudioBufferSize
-	if audioBufferSize == 0 {
-		audioBufferSize = 160_000
-	}
-
 	logger = logger.With()
 
 	logger.Debug(
 		"new transport",
-		slog.Int("audio_buffer_size", audioBufferSize),
-		slog.Int("audio_chunk_size", config.ChunkSize),
 	)
 
 	conn.SetPingHandler(func(message string) error {
@@ -300,8 +281,8 @@ func newTransport(
 
 	return &WebsocketTransport{
 		conn:          conn,
-		writeBuf:      ringbuffer.New(audioBufferSize).SetBlocking(true),
-		readBuf:       ringbuffer.New(audioBufferSize).SetBlocking(true),
+		audio:         audio,
+		config:        config,
 		cc:            newControlChannel(msgOutCh),
 		msgOutCh:      msgOutCh,
 		msgInCh:       make(chan wsMessage, 16),
@@ -309,6 +290,5 @@ func newTransport(
 		logger:        logger,
 		wsClosedCh:    wsClosedCh,
 		debugMessages: false,
-		chunkSize:     config.ChunkSize,
 	}
 }

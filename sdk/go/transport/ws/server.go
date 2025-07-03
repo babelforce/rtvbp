@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -36,19 +37,20 @@ func serverUpgradeHandler(
 		log.Debug("websocket upgrade successful")
 
 		sess := rtvbp.NewSession(
-			func(ctx context.Context) (rtvbp.Transport, error) {
+			rtvbp.WithTransport(func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
 				trans := newTransport(
 					conn,
+					audio,
 					&TransportConfig{
-						ChunkSize: config.ChunkSize,
-						Logger:    log,
+						Logger: log,
 					},
 				)
 
 				go trans.process(ctx)
 				return trans, nil
-			},
-			handler,
+			}),
+			rtvbp.WithHandler(handler),
+			rtvbp.WithLogger(log),
 		)
 
 		// run session
@@ -109,15 +111,14 @@ func (s *Server) GetClientConfig() ClientConfig {
 		Dial: DialConfig{
 			URL: s.URL(),
 		},
-		SampleRate:      8000,
-		AudioMaxLatency: 50 * time.Millisecond,
+		SampleRate: 8000,
 	}
 }
 
 func (s *Server) NewClientSession(handler rtvbp.SessionHandler) *rtvbp.Session {
 	return rtvbp.NewSession(
 		Client(s.GetClientConfig()),
-		handler,
+		rtvbp.WithHandler(handler),
 	)
 }
 

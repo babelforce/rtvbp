@@ -5,7 +5,5 @@ import (
 )
 
 type TransportConfig struct {
-	AudioBufferSize int
-	ChunkSize       int
-	Logger          *slog.Logger
+	Logger *slog.Logger
 }

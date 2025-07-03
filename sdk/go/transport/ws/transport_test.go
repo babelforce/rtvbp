@@ -23,7 +23,7 @@ func TestTransport_Close(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	trans, err := Client(srv.GetClientConfig())(ctx)
+	trans, err := Connect(ctx, srv.GetClientConfig(), nil)
 	require.NoError(t, err)
 	require.NotNil(t, trans)
 
