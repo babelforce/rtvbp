@@ -3,17 +3,25 @@ package audio
 import (
 	"io"
 	"log/slog"
+	"time"
 )
 
-func mediaCopy(a io.Reader, b io.Writer) error {
-	buf := make([]byte, 1024)
+func Copy(a io.Reader, b io.Writer, size int) error {
+	return CopyWithBuf(a, b, make([]byte, size))
+}
+
+func CopyWithBuf(a io.Reader, b io.Writer, buf []byte) error {
 	for {
 		n, err := a.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
-			// TODO: handle reset
+
+			if err.Error() == "reset called" {
+				<-time.After(10 * time.Millisecond)
+				continue
+			}
 			return err
 		}
 		_, err = b.Write(buf[:n])
@@ -23,15 +31,15 @@ func mediaCopy(a io.Reader, b io.Writer) error {
 	}
 }
 
-func DuplexCopy(a io.ReadWriter, b io.ReadWriter) {
+func DuplexCopy(a io.ReadWriter, na int, b io.ReadWriter, nb int) {
 	go func() {
-		err := mediaCopy(a, b)
+		err := Copy(a, b, na)
 		if err != nil {
 			slog.Error("failed to copy audio", slog.Any("err", err))
 		}
 	}()
 	go func() {
-		err := mediaCopy(b, a)
+		err := Copy(b, a, nb)
 		if err != nil {
 			slog.Error("failed to copy audio", slog.Any("err", err))
 		}
