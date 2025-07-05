@@ -40,12 +40,7 @@ func main() {
 	// get audio target
 	audioSink := func() io.ReadWriter {
 		if args.audio {
-			audioDev, err := audiogo.NewAudioIO(audiogo.Config{
-				CaptureSampleRate: sr,
-				PlaySampleRate:    sr,
-				PlayLatency:       time.Duration(args.audioLatencyMs) * time.Millisecond,
-				CaptureLatency:    time.Duration(args.audioLatencyMs) * time.Millisecond,
-			})
+			audioDev, err := audiogo.NewDevice(sr, 1)
 			if err != nil {
 				panic(err)
 			}
@@ -80,7 +75,7 @@ func main() {
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
-			lat := time.Duration(args.audioLatencyMs) * time.Millisecond
+			lat := 20 * time.Millisecond
 			s := int(float64(args.sampleRate) * 2 * lat.Seconds())
 			audio.DuplexCopy(h.AudioStream(), s, audioSink, s)
 

@@ -2,6 +2,8 @@ github.com/MarkKremer/microphone/v2 v2.0.1 h1:PWI0MgBu3Nd9CSxdnIjwol8qshstNfywER
 github.com/MarkKremer/microphone/v2 v2.0.1/go.mod h1:IdM74GKdsZAWVbkgX8xLGAdd4ytzBt7uk5F0brfTZRM=
 github.com/codewandler/audio-go v0.6.0 h1:h3gUlgiFislP9sL4bGHSNY9g0lx+efTo8XRPnjNYxns=
 github.com/codewandler/audio-go v0.6.0/go.mod h1:spiZ9Iz/JqS8wyM06hS9fT0P+mabtRkVwfTCmk8O0OA=
+github.com/codewandler/audio-go v1.0.1 h1:oxj19ivDRfLd9jKAnas1c834LDgdSUyQUj6XKZC+kBg=
+github.com/codewandler/audio-go v1.0.1/go.mod h1:4PnvwO2BYUVaA28DLc+GS7zI5bE2A8DtHVinj3ec9Hg=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/ebitengine/oto/v3 v3.3.3 h1:m6RV69OqoXYSWCDsHXN9rc07aDuDstGHtait7HXSM7g=

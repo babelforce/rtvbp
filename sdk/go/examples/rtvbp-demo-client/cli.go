@@ -11,15 +11,14 @@ import (
 )
 
 type cliArgs struct {
-	url            string // url is the URL to connect to
-	logLevel       string // logLevel is the log level user for the client application
-	audio          bool   // audio defines if audio is enabled or not
-	proxyToken     string // proxyToken
-	proxyURL       string
-	authToken      string
-	sampleRate     int
-	audioLatencyMs int
-	phone          bool
+	url        string // url is the URL to connect to
+	logLevel   string // logLevel is the log level user for the client application
+	audio      bool   // audio defines if audio is enabled or not
+	proxyToken string // proxyToken
+	proxyURL   string
+	authToken  string
+	sampleRate int
+	phone      bool
 }
 
 func (a *cliArgs) config() ws.ClientConfig {
@@ -66,13 +65,12 @@ func (a *cliArgs) LogLevel() slog.Level {
 
 func initCLI() (*cliArgs, *slog.Logger) {
 	args := cliArgs{
-		url:            "ws://localhost:8080/ws",
-		logLevel:       "info",
-		audio:          true,
-		proxyToken:     "",
-		authToken:      "",
-		sampleRate:     24_000,
-		audioLatencyMs: 50,
+		url:        "ws://localhost:8080/ws",
+		logLevel:   "info",
+		audio:      true,
+		proxyToken: "",
+		authToken:  "",
+		sampleRate: 24_000,
 	}
 	flag.StringVar(&args.url, "url", args.url, "websocket url")
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
@@ -80,7 +78,6 @@ func initCLI() (*cliArgs, *slog.Logger) {
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
 	flag.StringVar(&args.proxyURL, "proxy-url", args.proxyURL, "set proxy url for websocket proxy")
 	flag.IntVar(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
-	flag.IntVar(&args.audioLatencyMs, "audio-latency", args.audioLatencyMs, "audio latency in ms")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")
 	flag.BoolVar(&args.phone, "phone", args.phone, "set 8khz sample rate and enable audio")
 	flag.Parse()
