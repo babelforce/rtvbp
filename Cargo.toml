@@ -1,9 +1,0 @@
-[workspace]
-resolver = "3"
-members = [
-    "src/rtvbp-spec",
-    "src/rtvbp-demo",
-]
-
-[workspace.dependencies]
-rtvbp-spec = {path = "src/rtvbp-spec"}
