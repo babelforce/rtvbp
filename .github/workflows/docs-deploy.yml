@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Builc docs
+    name: Build docs
     runs-on: ubuntu-latest
 
     steps:
