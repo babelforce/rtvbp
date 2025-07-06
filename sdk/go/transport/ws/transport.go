@@ -121,6 +121,9 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 	// Read audio data and send to socket
 	go func() {
 		buf := make([]byte, 320)
+		if w.audio == nil {
+			return
+		}
 		for {
 			n, err := w.audio.Read(buf)
 			if err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/stretchr/testify/require"
+	"io"
 	"log/slog"
 	"sync"
 	"testing"
@@ -62,16 +63,16 @@ func TestSessionWithDirectTransport(t *testing.T) {
 		}),
 	)
 
-	var f = func(t rtvbp.Transport) func(context.Context) (rtvbp.Transport, error) {
-		return func(ctx context.Context) (rtvbp.Transport, error) {
+	var f = func(t rtvbp.Transport) rtvbp.TransportFunc {
+		return func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
 			return t, nil
 		}
 	}
 
 	var (
 		t1, t2 = newTransports()
-		s1     = rtvbp.NewSession(f(t1), h)
-		s2     = rtvbp.NewSession(f(t2), h)
+		s1     = rtvbp.NewSession(rtvbp.WithTransport(f(t1)), rtvbp.WithHandler(h))
+		s2     = rtvbp.NewSession(rtvbp.WithTransport(f(t2)), rtvbp.WithHandler(h))
 	)
 
 	go s1.Run(ctx)

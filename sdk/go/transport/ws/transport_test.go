@@ -31,9 +31,8 @@ func TestTransport_Close(t *testing.T) {
 	defer cancel()
 	require.NoError(t, trans.Close(closeCtx))
 
-	trans2 := trans.(*WebsocketTransport)
 	select {
-	case <-trans2.closeCh:
+	case <-trans.closeCh:
 	default:
 		require.Fail(t, "close channel not closed")
 	}
@@ -51,15 +50,14 @@ func TestTransport_CloseByContext(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	trans, err := Client(srv.GetClientConfig())(ctx)
+	trans, err := Connect(ctx, srv.GetClientConfig(), nil)
 	require.NoError(t, err)
 	require.NotNil(t, trans)
 
 	<-trans.Closed()
 
-	trans2 := trans.(*WebsocketTransport)
 	select {
-	case <-trans2.closeCh:
+	case <-trans.closeCh:
 	default:
 		require.Fail(t, "close channel not closed")
 	}
