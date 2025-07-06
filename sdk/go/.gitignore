@@ -1,1 +1,3 @@
 .idea
+*.cov
+report.xml
