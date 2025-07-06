@@ -24,7 +24,7 @@ const config: Config = {
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "babelforce", // Usually your GitHub org/user name.
   projectName: "rtvbp", // Usually your repo name.
-  deploymentBranch: "docs",
+  deploymentBranch: "main",
 
   onBrokenLinks: "throw",
   onBrokenMarkdownLinks: "warn",
