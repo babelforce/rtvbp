@@ -68,11 +68,7 @@ func main() {
 					"to":   "+4910002000",
 				},
 			},
-			Audio: &protov1.AudioConfig{
-				Channels:   1,
-				Format:     "pcm16",
-				SampleRate: sr,
-			},
+			SampleRate: sr,
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
 			lat := 20 * time.Millisecond

@@ -50,6 +50,11 @@ func createTestServerHandler(
 					return nil
 				},
 			},
+			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+				return &SessionInitializeResponse{
+					AudioCodec: &req.AudioCodecOfferings[0],
+				}, nil
+			}),
 			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
 				return &SessionTerminateResponse{}, nil
 			}),

@@ -10,8 +10,27 @@ import (
 
 type HandlerConfig struct {
 	Metadata     map[string]any
-	Audio        *AudioConfig
 	PingInterval time.Duration
+	SampleRate   int
+}
+
+func sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+	r1, err := h.Request(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	r2, err := proto.As[SessionInitializeResponse](r1.Result)
+	if err != nil {
+		return nil, err
+	}
+
+	// notify session.update
+	_ = h.Notify(ctx, &SessionUpdatedEvent{
+		AudioCodec: r2.AudioCodec,
+		Metadata:   req.Metadata,
+	})
+
+	return r2, nil
 }
 
 // NewClientHandler creates the handler which runs as client
@@ -25,15 +44,20 @@ func NewClientHandler(
 		rtvbp.HandlerConfig{
 
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
+				//
+				r, err := sessionInitialize(ctx, h, &SessionInitializeRequest{
+					Metadata:            config.Metadata,
+					AudioCodecOfferings: []AudioCodec{newL16Codec(config.SampleRate)},
+				})
+				if err != nil {
+					return err
+				}
+				h.Log().Info("session initialized", slog.Any("response", r))
+
+				// start audio streaming
 				if err := onAudio(ctx, h); err != nil {
 					return err
 				}
-
-				// notify session.update
-				_ = h.Notify(ctx, &SessionUpdatedEvent{
-					Audio:    config.Audio,
-					Metadata: config.Metadata,
-				})
 
 				// periodic application level ping
 				go ping(ctx, config.PingInterval, h)

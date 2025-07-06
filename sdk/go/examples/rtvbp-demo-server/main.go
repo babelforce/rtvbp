@@ -43,10 +43,6 @@ func main() {
 				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
 					fmt.Printf("%s> -- server begin handler ---", h.SessionID())
 
-					// start audio
-					lb := audio.NewLoopback()
-					audio.DuplexCopy(lb, h.AudioStream())
-
 					if args.moveAfterSeconds != 0 {
 						go func() {
 							<-time.After(time.Duration(args.moveAfterSeconds) * time.Second)
@@ -78,11 +74,24 @@ func main() {
 					return nil
 				},
 			},
+			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionInitializeRequest) (*protov1.SessionInitializeResponse, error) {
+				if req.AudioCodecOfferings == nil || len(req.AudioCodecOfferings) == 0 {
+					return nil, fmt.Errorf("no audio codec offerings")
+				}
+
+				// start audio
+				lb := audio.NewLoopback()
+				audio.DuplexCopy(lb, 3200, hc.AudioStream(), 3200)
+
+				return &protov1.SessionInitializeResponse{
+					AudioCodec: &req.AudioCodecOfferings[0],
+				}, nil
+			}),
 			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.SessionUpdatedEvent) error {
 				hc.Log().Info("session updated", slog.Any("event", evt))
 
-				if evt.Audio != nil {
-					fmt.Printf("[session]\nformat: %s\nsample_rate: %d\n", evt.Audio.Format, evt.Audio.SampleRate)
+				if evt.AudioCodec != nil {
+					fmt.Printf("[session]\nformat: %s\nsample_rate: %d\n", evt.AudioCodec.ID, evt.AudioCodec.SampleRate)
 				}
 
 				// TODO: init resampler ...
