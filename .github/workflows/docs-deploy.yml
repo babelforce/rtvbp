@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build Docusaurus
+    name: Builc docs
     runs-on: ubuntu-latest
 
     steps:
@@ -31,6 +31,7 @@ jobs:
 
       - name: Upload Build Artifact
         uses: actions/upload-pages-artifact@v3
+        working-directory: docs
         with:
           path: build
 
