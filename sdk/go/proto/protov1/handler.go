@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type HandlerConfig struct {
+type ClientHandlerConfig struct {
 	Metadata     map[string]any
 	PingInterval time.Duration
 	SampleRate   int

@@ -56,7 +56,7 @@ func main() {
 
 	handler := protov1.NewClientHandler(
 		phone,
-		&protov1.HandlerConfig{
+		&protov1.ClientHandlerConfig{
 			Metadata: map[string]any{
 				"recording_consent": true,
 				"application": map[string]any{
