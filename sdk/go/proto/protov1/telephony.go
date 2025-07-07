@@ -4,7 +4,7 @@ import "context"
 
 type TelephonyAdapter interface {
 	Move(ctx context.Context, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error)
-	Hangup(ctx context.Context) error
+	Hangup(ctx context.Context, req *CallHangupRequest) (*CallHangupResponse, error)
 	// Play(prompt, etc)
 }
 
@@ -24,9 +24,9 @@ func (f *FakeTelephonyAdapter) Move(ctx context.Context, req *ApplicationMoveReq
 	}, nil
 }
 
-func (f *FakeTelephonyAdapter) Hangup(ctx context.Context) error {
+func (f *FakeTelephonyAdapter) Hangup(ctx context.Context, req *CallHangupRequest) (*CallHangupResponse, error) {
 	f.hangup = true
-	return nil
+	return &CallHangupResponse{}, nil
 }
 
 var _ TelephonyAdapter = &FakeTelephonyAdapter{}

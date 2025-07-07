@@ -11,9 +11,9 @@ type dummyPhoneSystem struct {
 	log  *slog.Logger
 }
 
-func (d *dummyPhoneSystem) Hangup(_ context.Context) error {
+func (d *dummyPhoneSystem) Hangup(_ context.Context, req *protov1.CallHangupRequest) (*protov1.CallHangupResponse, error) {
 	d.log.Info("hangup")
-	return nil
+	return &protov1.CallHangupResponse{}, nil
 }
 
 func (d *dummyPhoneSystem) Move(_ context.Context, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
