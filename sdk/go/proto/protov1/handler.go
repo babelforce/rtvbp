@@ -149,22 +149,22 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 	}
 }
 
-func terminateAndClose(reason string) func(context.Context, rtvbp.SHC) error {
-	return func(ctx context.Context, hc rtvbp.SHC) error {
-		terminateCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-		defer cancel()
+func terminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) error {
 
-		// request to terminate the session
-		_, err := hc.Request(terminateCtx, &SessionTerminateRequest{
-			Reason: reason,
-		})
-		if err != nil {
-			hc.Log().Error("failed to request terminate session", slog.Any("err", err))
-		}
+	terminateCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
 
-		// close
-		closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		return hc.Close(closeCtx)
+	// request to terminate the session
+	_, err := hc.Request(terminateCtx, &SessionTerminateRequest{
+		Reason: reason,
+	})
+	if err != nil {
+		hc.Log().Error("failed to request terminate session", slog.Any("err", err))
 	}
+
+	// close
+	closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return hc.Close(closeCtx)
+
 }

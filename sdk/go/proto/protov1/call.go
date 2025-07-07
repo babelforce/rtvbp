@@ -21,7 +21,7 @@ func (r *CallHangupRequest) MethodName() string {
 }
 
 func (r *CallHangupRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
-	return terminateAndClose("call.hangup")(ctx, hc)
+	return terminateAndClose(ctx, hc, "call.hangup")
 }
 
 type CallHangupResponse struct {

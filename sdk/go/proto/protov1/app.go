@@ -21,7 +21,7 @@ func (m *ApplicationMoveRequest) MethodName() string {
 }
 
 func (m *ApplicationMoveRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
-	return terminateAndClose("application.move")(ctx, hc)
+	return terminateAndClose(ctx, hc, "application.move")
 }
 
 type ApplicationMoveResponse struct {
