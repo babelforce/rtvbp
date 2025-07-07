@@ -12,60 +12,52 @@ import (
 )
 
 func createTestClientHandler(tel TelephonyAdapter) rtvbp.SessionHandler {
-
 	return NewClientHandler(
 		tel,
-		&HandlerConfig{},
+		&ClientHandlerConfig{},
 		func(ctx context.Context, h rtvbp.SHC) error {
 			return nil
 		},
 	)
 }
 
-type serverHandler struct {
-	rtvbp.SessionHandler
-}
-
 func createTestServerHandler(
 	t *testing.T,
 	tel *FakeTelephonyAdapter,
 	scenario func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter),
-) (*serverHandler, chan struct{}) {
+) (rtvbp.SessionHandler, chan struct{}) {
 	done := make(chan struct{}, 1)
 	updatedCh := make(chan *SessionUpdatedEvent, 1)
-	return &serverHandler{
-		SessionHandler: rtvbp.NewHandler(
-			rtvbp.HandlerConfig{
-				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-					go func() {
-						// wait until session updated event is received
-						<-updatedCh
+	return rtvbp.NewHandler(
+		rtvbp.HandlerConfig{
+			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
+				go func() {
+					// wait until session updated event is received
+					<-updatedCh
 
-						// run the scenario
-						scenario(t, ctx, h, tel)
+					// run the scenario
+					scenario(t, ctx, h, tel)
 
-						// mark scenario as done
-						done <- struct{}{}
-					}()
-					return nil
-				},
-			},
-			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
-				return &SessionInitializeResponse{
-					AudioCodec: &req.AudioCodecOfferings[0],
-				}, nil
-			}),
-			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
-				return &SessionTerminateResponse{}, nil
-			}),
-			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *SessionUpdatedEvent) error {
-				hc.Log().Info("session updated", slog.Any("event", evt))
-				updatedCh <- evt
+					// mark scenario as done
+					done <- struct{}{}
+				}()
 				return nil
-			}),
-			NewPingHandler(),
-		),
-	}, done
+			},
+		},
+		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+			return &SessionInitializeResponse{
+				AudioCodec: &req.AudioCodecOfferings[0],
+			}, nil
+		}),
+		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
+			return &SessionTerminateResponse{}, nil
+		}),
+		rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *SessionUpdatedEvent) error {
+			updatedCh <- evt
+			return nil
+		}),
+		NewPingHandler(),
+	), done
 }
 
 func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter)) {
@@ -79,9 +71,9 @@ func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context,
 	srv := ws.NewServer(ws.ServerConfig{
 		Addr: "127.0.0.1:0",
 	}, srvHdl)
-	defer func() {
-		require.NoError(t, srv.Shutdown(ctx))
-	}()
+	t.Cleanup(func() {
+		require.NoError(t, srv.Shutdown(context.TODO()))
+	})
 	require.NoError(t, srv.Listen())
 
 	// client
@@ -106,11 +98,14 @@ func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context,
 }
 
 type tc struct {
+	// name is the name of the test case
 	name string
-	fn   func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter)
+
+	// fn describes the scenario on the server side (integrator)
+	fn func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter)
 }
 
-func TestHandler(outerT *testing.T) {
+func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	var testCases = []tc{
@@ -120,21 +115,19 @@ func TestHandler(outerT *testing.T) {
 				res, err := h.Request(ctx, &PingRequest{Data: "hello"})
 				require.NoError(t, err)
 				require.NotNil(t, res)
-				//require.Equal(t, map[string]interface{}{"data": "hello"}, res.Result)
 				_, _ = h.Request(ctx, &SessionTerminateRequest{})
 			},
 		},
 		{
-			name: "terminate session",
+			name: "session.terminate",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
 				res, err := h.Request(ctx, &SessionTerminateRequest{})
 				require.NoError(t, err)
 				require.NotNil(t, res)
 			},
 		},
-
 		{
-			name: "move to app by id",
+			name: "application.move (by id)",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
 				res, err := h.Request(ctx, &ApplicationMoveRequest{
 					Reason:        "something",
@@ -153,9 +146,8 @@ func TestHandler(outerT *testing.T) {
 				require.Equal(t, "something", tel.moved.Reason)
 			},
 		},
-
 		{
-			name: "move to next app",
+			name: "application.move (next)",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
 				res, err := h.Request(ctx, &ApplicationMoveRequest{
 					Reason: "something",
@@ -174,13 +166,22 @@ func TestHandler(outerT *testing.T) {
 			},
 		},
 		{
-			name: "hangup call",
+			name: "call.hangup",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
 				res, err := h.Request(ctx, &CallHangupRequest{})
 				require.NoError(t, err)
 				require.NotNil(t, res)
-
 				require.True(t, tel.hangup)
+			},
+		},
+		{
+			name: "audio.buffer.clear",
+			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
+				res, err := h.Request(ctx, &AudioBufferClearRequest{})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+
+				_, _ = h.Request(ctx, &SessionTerminateRequest{})
 			},
 		},
 	}
@@ -191,3 +192,6 @@ func TestHandler(outerT *testing.T) {
 		})
 	}
 }
+
+// TODO: what if no response is retrieved for session.initialize -> MUST fail and terminate session
+// TODO: what if requests are send before session.initialize request is handled -> requests must fail

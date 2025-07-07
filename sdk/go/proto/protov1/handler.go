@@ -2,9 +2,11 @@ package protov1
 
 import (
 	"context"
+	"fmt"
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -14,7 +16,20 @@ type ClientHandlerConfig struct {
 	SampleRate   int
 }
 
-func sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+type ClientHandler struct {
+	rtvbp.SessionHandler
+	mu          sync.Mutex
+	initialized bool
+}
+
+func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	if ch.initialized {
+		return nil, fmt.Errorf("session already initialized")
+	}
+
 	r1, err := h.Request(ctx, req)
 	if err != nil {
 		return nil, err
@@ -23,6 +38,14 @@ func sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeR
 	if err != nil {
 		return nil, err
 	}
+
+	if r2 == nil {
+		return nil, fmt.Errorf("invalid response")
+	}
+
+	// TODO: verify that returned audio codec is supported by the client (is in the list of audio codecs offered)
+
+	ch.initialized = true
 
 	// notify session.update
 	_ = h.Notify(ctx, &SessionUpdatedEvent{
@@ -36,16 +59,26 @@ func sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeR
 // NewClientHandler creates the handler which runs as client
 func NewClientHandler(
 	tel TelephonyAdapter,
-	config *HandlerConfig,
+	config *ClientHandlerConfig,
 	onAudio func(ctx context.Context, h rtvbp.SHC) error,
 ) rtvbp.SessionHandler {
+	hdl := &ClientHandler{}
 
-	return rtvbp.NewHandler(
+	var check rtvbp.RequestMiddlewareFunc = func(ctx context.Context, h rtvbp.SHC, req *proto.Request) error {
+		hdl.mu.Lock()
+		defer hdl.mu.Unlock()
+		if !hdl.initialized {
+			return fmt.Errorf("session not initialized")
+		}
+		return nil
+	}
+
+	hdl.SessionHandler = rtvbp.NewHandler(
 		rtvbp.HandlerConfig{
 
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
 				//
-				r, err := sessionInitialize(ctx, h, &SessionInitializeRequest{
+				r, err := hdl.sessionInitialize(ctx, h, &SessionInitializeRequest{
 					Metadata:            config.Metadata,
 					AudioCodecOfferings: []AudioCodec{newL16Codec(config.SampleRate)},
 				})
@@ -68,19 +101,15 @@ func NewClientHandler(
 		// REQ: ping
 		NewPingHandler(),
 		// REQ: call.hangup
-		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *CallHangupRequest) (*CallHangupResponse, error) {
-			err := tel.Hangup(ctx)
-			if err != nil {
-				return nil, err
-			}
-			return &CallHangupResponse{}, nil
-		}),
+		rtvbp.Middleware(check, rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *CallHangupRequest) (*CallHangupResponse, error) {
+			return tel.Hangup(ctx, req)
+		})),
 		// REQ: application.move
-		rtvbp.HandleRequest(
+		rtvbp.Middleware(check, rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error) {
 				return tel.Move(ctx, req)
 			},
-		),
+		)),
 		// REQ: session.terminate
 		rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
@@ -97,7 +126,7 @@ func NewClientHandler(
 			},
 		),
 		// REQ: audio.buffer.clear
-		rtvbp.HandleRequest(
+		rtvbp.Middleware(check, rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *AudioBufferClearRequest) (*AudioBufferClearResponse, error) {
 				n, err := hc.AudioStream().ClearBuffer()
 				if err != nil {
@@ -107,8 +136,10 @@ func NewClientHandler(
 					Len: n,
 				}, nil
 			},
-		),
+		)),
 	)
+
+	return hdl
 }
 
 func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
