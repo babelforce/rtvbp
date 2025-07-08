@@ -7,6 +7,7 @@ import (
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
+	"github.com/google/uuid"
 	"github.com/gordonklaus/portaudio"
 	"io"
 	"log/slog"
@@ -57,16 +58,17 @@ func main() {
 	handler := protov1.NewClientHandler(
 		phone,
 		&protov1.ClientHandlerConfig{
+			Call: protov1.CallInfo{
+				ID:        uuid.NewString(),
+				SessionID: uuid.NewString(),
+				From:      "+4910002000",
+				To:        "+4910003000",
+			},
+			App: protov1.AppInfo{
+				ID: "1234",
+			},
 			Metadata: map[string]any{
 				"recording_consent": true,
-				"application": map[string]any{
-					"id": "1234",
-				},
-				"call": map[string]any{
-					"id":   "1234",
-					"from": "+4910002000",
-					"to":   "+4910002000",
-				},
 			},
 			SampleRate: sr,
 		},

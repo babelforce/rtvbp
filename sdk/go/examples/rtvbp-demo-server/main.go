@@ -87,17 +87,6 @@ func main() {
 					AudioCodec: &req.AudioCodecOfferings[0],
 				}, nil
 			}),
-			rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *protov1.SessionUpdatedEvent) error {
-				hc.Log().Info("session updated", slog.Any("event", evt))
-
-				if evt.AudioCodec != nil {
-					fmt.Printf("[session]\nformat: %s\nsample_rate: %d\n", evt.AudioCodec.ID, evt.AudioCodec.SampleRate)
-				}
-
-				// TODO: init resampler ...
-
-				return nil
-			}),
 			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.SessionTerminateResponse, error) {
 				return &protov1.SessionTerminateResponse{}, nil
 			}),

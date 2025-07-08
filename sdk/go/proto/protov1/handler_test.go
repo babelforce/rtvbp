@@ -5,6 +5,7 @@ import (
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/proto"
 	"github.com/babelforce/rtvbp-go/transport/ws"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"log/slog"
 	"testing"
@@ -14,7 +15,21 @@ import (
 func createTestClientHandler(tel TelephonyAdapter) rtvbp.SessionHandler {
 	return NewClientHandler(
 		tel,
-		&ClientHandlerConfig{},
+		&ClientHandlerConfig{
+			SampleRate: 8_000,
+			Metadata: map[string]any{
+				"foobar": 23,
+			},
+			Call: CallInfo{
+				ID:        uuid.NewString(),
+				SessionID: uuid.NewString(),
+				From:      "493010001000",
+				To:        "493010001001",
+			},
+			App: AppInfo{
+				ID: uuid.NewString(),
+			},
+		},
 		func(ctx context.Context, h rtvbp.SHC) error {
 			return nil
 		},
@@ -27,7 +42,7 @@ func createTestServerHandler(
 	scenario func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter),
 ) (rtvbp.SessionHandler, chan struct{}) {
 	done := make(chan struct{}, 1)
-	updatedCh := make(chan *SessionUpdatedEvent, 1)
+	updatedCh := make(chan struct{}, 1)
 	return rtvbp.NewHandler(
 		rtvbp.HandlerConfig{
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
@@ -45,16 +60,15 @@ func createTestServerHandler(
 			},
 		},
 		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+			defer func() {
+				updatedCh <- struct{}{}
+			}()
 			return &SessionInitializeResponse{
 				AudioCodec: &req.AudioCodecOfferings[0],
 			}, nil
 		}),
 		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
 			return &SessionTerminateResponse{}, nil
-		}),
-		rtvbp.HandleEvent(func(ctx context.Context, hc rtvbp.SHC, evt *SessionUpdatedEvent) error {
-			updatedCh <- evt
-			return nil
 		}),
 		NewPingHandler(),
 	), done

@@ -27,9 +27,22 @@ func newL16Codec(sr int) AudioCodec {
 	}
 }
 
+type CallInfo struct {
+	ID        string `json:"id"`
+	SessionID string `json:"session_id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+}
+
+type AppInfo struct {
+	ID string `json:"id"`
+}
+
 type SessionInitializeRequest struct {
-	Metadata            map[string]any `json:"metadata"`
+	AppInfo             AppInfo        `json:"application"`
+	CallInfo            CallInfo       `json:"call"`
 	AudioCodecOfferings []AudioCodec   `json:"audio_codec_offerings"`
+	Metadata            map[string]any `json:"metadata"`
 }
 
 func (r *SessionInitializeRequest) MethodName() string {
@@ -41,8 +54,7 @@ type SessionInitializeResponse struct {
 }
 
 type SessionUpdatedEvent struct {
-	AudioCodec *AudioCodec    `json:"audio_codec"`
-	Metadata   map[string]any `json:"metadata,omitempty"`
+	AudioCodec *AudioCodec `json:"audio_codec"`
 }
 
 func (e *SessionUpdatedEvent) EventName() string {

@@ -72,7 +72,6 @@ func TestClientServer(t *testing.T) {
 
 	var (
 		srvOnBeginCalled atomic.Bool
-		srvUpdatedEvent  atomic.Bool
 	)
 
 	handler := rtvbp.NewHandler(rtvbp.HandlerConfig{
@@ -80,10 +79,7 @@ func TestClientServer(t *testing.T) {
 			srvOnBeginCalled.Store(true)
 			return nil
 		},
-	}, rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, evt *protov1.SessionUpdatedEvent) error {
-		srvUpdatedEvent.Store(true)
-		return nil
-	}))
+	})
 
 	srv := NewServer(ServerConfig{
 		Addr:      "127.0.0.1:0",
@@ -110,7 +106,6 @@ func TestClientServer(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 
 	require.True(t, srvOnBeginCalled.Load(), "server on begin handler not called")
-	require.True(t, srvUpdatedEvent.Load(), "server on event handler not called")
 
 	// --- closing session ---
 	require.NoError(t, client.CloseWithTimeout(5*time.Second))

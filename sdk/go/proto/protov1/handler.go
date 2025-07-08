@@ -11,6 +11,8 @@ import (
 )
 
 type ClientHandlerConfig struct {
+	Call         CallInfo
+	App          AppInfo
 	Metadata     map[string]any
 	PingInterval time.Duration
 	SampleRate   int
@@ -50,7 +52,6 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	// notify session.update
 	_ = h.Notify(ctx, &SessionUpdatedEvent{
 		AudioCodec: r2.AudioCodec,
-		Metadata:   req.Metadata,
 	})
 
 	return r2, nil
@@ -81,6 +82,8 @@ func NewClientHandler(
 				r, err := hdl.sessionInitialize(ctx, h, &SessionInitializeRequest{
 					Metadata:            config.Metadata,
 					AudioCodecOfferings: []AudioCodec{newL16Codec(config.SampleRate)},
+					CallInfo:            config.Call,
+					AppInfo:             config.App,
 				})
 				if err != nil {
 					return err
