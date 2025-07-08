@@ -72,6 +72,9 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	// wait for response
 	select {
 	case <-ctx.Done():
+		s.muPending.Lock()
+		defer s.muPending.Unlock()
+		delete(s.pendingRequests, req.ID)
 		return nil, fmt.Errorf("request [method=%s, id=%s] failed: %w", req.Method, req.ID, ErrRequestTimeout)
 	case resp := <-pendingRequest.ch:
 		if !resp.Ok() {
