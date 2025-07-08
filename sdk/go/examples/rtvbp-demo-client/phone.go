@@ -12,7 +12,8 @@ type dummyPhoneSystem struct {
 }
 
 func (d *dummyPhoneSystem) Hangup(_ context.Context, req *protov1.CallHangupRequest) (*protov1.CallHangupResponse, error) {
-	d.log.Info("hangup")
+	defer close(d.done)
+	d.log.Info("hangup", slog.Any("req", req))
 	return &protov1.CallHangupResponse{}, nil
 }
 

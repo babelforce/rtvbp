@@ -89,6 +89,17 @@ func main() {
 		rtvbp.WithHandler(handler),
 	)
 
+	if args.hangupAfterSeconds > 0 {
+		go func() {
+			<-time.After(time.Duration(args.hangupAfterSeconds) * time.Second)
+			log.Info("simulating hangup", slog.Int("hangup_after_seconds", args.hangupAfterSeconds))
+			if err := handler.OnHangup(ctx, sess); err != nil {
+				log.Error("failed to simulate hangup", slog.Any("err", err))
+			}
+			phone.done <- struct{}{}
+		}()
+	}
+
 	sessDoneCh := sess.Run(ctx)
 
 	sig := make(chan os.Signal, 1)
@@ -100,7 +111,7 @@ func main() {
 	case <-sig:
 		_ = sess.CloseWithTimeout(5 * time.Second)
 	case <-phone.done:
-		println("hangup")
+		log.Info("phone system terminated")
 		_ = sess.CloseWithTimeout(5 * time.Second)
 	case err := <-sessDoneCh:
 		if err != nil {
