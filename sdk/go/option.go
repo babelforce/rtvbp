@@ -3,6 +3,7 @@ package rtvbp
 import (
 	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
+	"time"
 )
 
 type sessionOptions struct {
@@ -11,6 +12,7 @@ type sessionOptions struct {
 	transport       TransportFunc
 	handler         SessionHandler
 	audioBufferSize int
+	requestTimeout  time.Duration
 }
 
 type Option func(opts *sessionOptions)
@@ -18,6 +20,7 @@ type Option func(opts *sessionOptions)
 func withDefaults() Option {
 	return withOptions(
 		WithLogger(slog.Default()),
+		WithRequestTimeout(5*time.Second),
 		WithAudioBufferSize(1024*1024),
 		WithID(proto.ID()),
 	)
@@ -28,6 +31,12 @@ func withOptions(os ...Option) Option {
 		for _, o := range os {
 			o(opts)
 		}
+	}
+}
+
+func WithRequestTimeout(timeout time.Duration) Option {
+	return func(opts *sessionOptions) {
+		opts.requestTimeout = timeout
 	}
 }
 

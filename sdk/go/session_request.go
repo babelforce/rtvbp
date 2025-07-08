@@ -45,6 +45,10 @@ func (s *Session) resolvePendingRequest(resp *proto.Response) {
 
 // Request sends a request
 func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Response, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, s.requestTimeout)
+	defer cancel()
+
 	req := proto.NewRequest("1", payload.MethodName(), payload)
 
 	slog.Debug(

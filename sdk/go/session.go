@@ -29,6 +29,7 @@ type Session struct {
 	pendingRequests map[string]*pendingRequest
 	muPending       sync.Mutex
 	logger          *slog.Logger
+	requestTimeout  time.Duration
 }
 
 // Notify sends a notification
@@ -252,6 +253,7 @@ func NewSession(
 		handler:         options.handler,
 		logger:          logger,
 		audio:           NewSessionAudio(options.audioBufferSize),
+		requestTimeout:  options.requestTimeout,
 	}
 
 	session.shCtx = &sessionHandlerCtx{
