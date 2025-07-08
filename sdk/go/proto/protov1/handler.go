@@ -57,6 +57,15 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	return r2, nil
 }
 
+// OnHangup is called when the call is hung up by the remote party
+func (ch *ClientHandler) OnHangup(ctx context.Context, s *rtvbp.Session) error {
+	_ = s.Notify(ctx, &CallHangupEvent{})
+	if _, err := s.Request(ctx, &SessionTerminateRequest{Reason: "hangup"}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // NewClientHandler creates the handler which runs as client
 func NewClientHandler(
 	tel TelephonyAdapter,
