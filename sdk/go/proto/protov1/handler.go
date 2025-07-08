@@ -62,7 +62,7 @@ func NewClientHandler(
 	tel TelephonyAdapter,
 	config *ClientHandlerConfig,
 	onAudio func(ctx context.Context, h rtvbp.SHC) error,
-) rtvbp.SessionHandler {
+) *ClientHandler {
 	hdl := &ClientHandler{}
 
 	var check rtvbp.RequestMiddlewareFunc = func(ctx context.Context, h rtvbp.SHC, req *proto.Request) error {
@@ -155,6 +155,8 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 	var seq = 1
 
 	pingTicker := time.NewTicker(pingInterval)
+	defer pingTicker.Stop()
+	
 	for {
 		select {
 		case <-pingTicker.C:
@@ -178,6 +180,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 
 			}
 		case <-ctx.Done():
+			h.Log().Info("ping stopped")
 			return
 		}
 	}
