@@ -17,6 +17,7 @@ type cliArgs struct {
 	proxyToken         string // proxyToken
 	proxyURL           string
 	authToken          string
+	authJWT            bool
 	sampleRate         int
 	phone              bool
 	hangupAfterSeconds int
@@ -42,6 +43,17 @@ func (a *cliArgs) connectURL() string {
 
 func (a *cliArgs) httpHeader() http.Header {
 	headers := http.Header{}
+
+	if a.authJWT {
+		// Generate JWT token
+		jwt, err := generateJWT()
+		if err != nil {
+			slog.Error("Failed to generate JWT", "error", err)
+			panic(fmt.Errorf("JWT generation failed: %w", err))
+		}
+		headers.Set("authorization", "Bearer "+jwt)
+	}
+
 	if a.authToken != "" {
 		headers.Set("authorization", "Bearer "+a.authToken)
 	}
@@ -71,12 +83,14 @@ func initCLI() (*cliArgs, *slog.Logger) {
 		audio:              true,
 		proxyToken:         "",
 		authToken:          "",
+		authJWT:            false,
 		sampleRate:         24_000,
 		hangupAfterSeconds: 0,
 	}
 	flag.StringVar(&args.url, "url", args.url, "websocket url")
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
 	flag.StringVar(&args.authToken, "auth-token", args.authToken, "auth token used as Bearer token in Authorization header")
+	flag.BoolVar(&args.authJWT, "auth-jwt", args.authJWT, "use asymmetric JWT auth")
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
 	flag.StringVar(&args.proxyURL, "proxy-url", args.proxyURL, "set proxy url for websocket proxy")
 	flag.IntVar(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
