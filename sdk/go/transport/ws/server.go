@@ -28,6 +28,14 @@ func serverUpgradeHandler(
 		)
 		log.Debug("handling websocket upgrade", slog.Any("request", r))
 
+		// if auth function is specified validate here
+		if config.AuthHandler != nil {
+			if err := config.AuthHandler(r); err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+
 		// upgrade connection
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -71,9 +79,10 @@ func serverUpgradeHandler(
 }
 
 type ServerConfig struct {
-	Addr      string
-	Path      string
-	ChunkSize int
+	Addr        string
+	Path        string
+	ChunkSize   int
+	AuthHandler func(req *http.Request) error
 }
 
 func (c *ServerConfig) Defaults() {
