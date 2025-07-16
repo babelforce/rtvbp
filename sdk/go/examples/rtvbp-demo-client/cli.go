@@ -48,7 +48,6 @@ func (a *cliArgs) httpHeader() http.Header {
 		// Generate JWT token
 		jwt, err := generateJWT()
 		if err != nil {
-			slog.Error("Failed to generate JWT", "error", err)
 			panic(fmt.Errorf("JWT generation failed: %w", err))
 		}
 		headers.Set("authorization", "Bearer "+jwt)

@@ -13,12 +13,10 @@ import (
 )
 
 const (
-	// Key ID for the JWT header
-	keyID = "dev-rtvbp-demo-key-1"
-	// Account ID for audience claim
-	accountID = "demo-account-123"
-	// Subject identifier for the application
-	subject = "rtvbp.auth.babelforce.com"
+	authJWTKeyID    = "jwt-rsa-2048-v1"                       // authJWTKeyID Key ID for the JWT header
+	authJWTIssuer   = "auth.babelforce.com"                   // authJWTIssuer is the Issuer of the token
+	authJWTAudience = "demo-account-123"                      // authJWTAudience is the Account ID for audience claim
+	authJWTSubject  = "com.babelforce.svc.telephony.realtime" // authJWTSubject is the Subject identifier for the application
 )
 
 //go:embed keys/*.pem
@@ -43,13 +41,14 @@ func generateJWT() (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
 		"exp": now.Add(time.Hour).Unix(), // Expires in 1 hour
 		"iat": now.Unix(),                // Issued at current time
-		"aud": accountID,                 // Audience - account ID
-		"sub": subject,                   // Subject - application identifier
+		"iss": authJWTIssuer,             // Issued by
+		"aud": authJWTAudience,           // Audience - account ID
+		"sub": authJWTSubject,            // Subject - application identifier
 		"jti": tokenID,                   // JWT ID - unique token identifier
 	})
 
 	// Set the Key ID in header
-	token.Header["kid"] = keyID
+	token.Header["kid"] = authJWTKeyID
 
 	// Sign the token
 	tokenString, err := token.SignedString(privateKey)
@@ -89,29 +88,4 @@ func loadPrivateKey(filename string) (*rsa.PrivateKey, error) {
 	}
 
 	return privateKey, nil
-}
-
-// loadPublicKey loads RSA public key from PEM file
-func loadPublicKey(filename string) (*rsa.PublicKey, error) {
-	keyData, err := keyFiles.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read key file: %w", err)
-	}
-
-	block, _ := pem.Decode(keyData)
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block")
-	}
-
-	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %w", err)
-	}
-
-	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
-	if !ok {
-		return nil, fmt.Errorf("key is not RSA public key")
-	}
-
-	return rsaPublicKey, nil
 }
