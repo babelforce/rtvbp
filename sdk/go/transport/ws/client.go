@@ -32,11 +32,12 @@ func (c *ClientConfig) Defaults() {
 	c.Dial.Defaults()
 }
 
+// DialConfig configures websocket dial operation
 type DialConfig struct {
-	URL            string
-	AuthHeaderFunc func(ctx context.Context) (string, error)
-	ConnectTimeout time.Duration
-	Headers        http.Header
+	URL                     string                                    // URL is the websocket URL to connect to
+	AuthorizationHeaderFunc func(ctx context.Context) (string, error) // AuthorizationHeaderFunc is a function which returns content for the Authorization header
+	ConnectTimeout          time.Duration                             // ConnectTimeout is the connection timeout applied when connecting to the URL
+	Headers                 http.Header                               // Headers are additional headers presented in the Upgrade request
 }
 
 func (d *DialConfig) Defaults() {
@@ -55,13 +56,13 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 
 	var header = http.Header{}
 	header.Add("User-Agent", "babelforce/rtvbp-go")
-	if d.AuthHeaderFunc != nil {
-		authToken, err := d.AuthHeaderFunc(ctx)
+	if d.AuthorizationHeaderFunc != nil {
+		authorizationHeaderValue, err := d.AuthorizationHeaderFunc(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
-		if authToken != "" {
-			header.Add("Authorization", fmt.Sprintf("Bearer %s", authToken))
+		if authorizationHeaderValue != "" {
+			header.Add("Authorization", authorizationHeaderValue)
 		}
 	}
 	for k, v := range d.Headers {
