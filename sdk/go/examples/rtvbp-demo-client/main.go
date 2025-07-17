@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"rtvbp_demo_client/dummyphone"
 	"time"
 )
 
@@ -25,7 +26,6 @@ func must(err error) {
 func main() {
 	var (
 		args, log = initCLI()
-		ctx       = context.Background()
 	)
 
 	if args.audio {
@@ -50,10 +50,10 @@ func main() {
 		return nil
 	}()
 
-	phone := &dummyPhoneSystem{
-		done: make(chan struct{}),
-		log:  log.With(slog.String("phone_system", "dummy")),
-	}
+	// init phone system
+	phone, ctx := dummyphone.New(
+		log.With(slog.String("phone_system", "dummy")),
+	)
 
 	handler := protov1.NewClientHandler(
 		phone,
@@ -89,34 +89,35 @@ func main() {
 		rtvbp.WithHandler(handler),
 	)
 
+	phone.OnHangup(func() {
+		if err := handler.OnHangup(ctx, sess); err != nil {
+			log.Error("failed to emulate hangup", slog.Any("err", err))
+		}
+	})
+
 	if args.hangupAfterSeconds > 0 {
 		go func() {
 			<-time.After(time.Duration(args.hangupAfterSeconds) * time.Second)
 			log.Info("simulating hangup", slog.Int("hangup_after_seconds", args.hangupAfterSeconds))
-			if err := handler.OnHangup(ctx, sess); err != nil {
-				log.Error("failed to simulate hangup", slog.Any("err", err))
-			}
-			phone.done <- struct{}{}
+			_ = phone.SimulateUserHangup()
 		}()
 	}
 
+	ctrlC := make(chan os.Signal, 1)
+	signal.Notify(ctrlC, os.Interrupt)
+
 	sessDoneCh := sess.Run(ctx)
 
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-
-	select {
-	case <-ctx.Done():
-		_ = sess.CloseWithTimeout(5 * time.Second)
-	case <-sig:
-		_ = sess.CloseWithTimeout(5 * time.Second)
-	case <-phone.done:
-		log.Info("phone system terminated")
-		_ = sess.CloseWithTimeout(5 * time.Second)
-	case err := <-sessDoneCh:
-		if err != nil {
-			log.Error("session failed", slog.Any("err", err))
+	for {
+		select {
+		case <-ctrlC:
+			_ = phone.SimulateUserHangup()
+		case err := <-sessDoneCh:
+			if err != nil {
+				log.Error("session ended with error", slog.Any("err", err))
+			}
+			log.Info("terminated")
+			os.Exit(0)
 		}
-		_ = sess.CloseWithTimeout(5 * time.Second)
 	}
 }
