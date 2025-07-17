@@ -200,7 +200,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 
 func terminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) error {
 
-	terminateCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	terminateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// request to terminate the session
