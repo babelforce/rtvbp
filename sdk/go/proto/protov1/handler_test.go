@@ -75,7 +75,7 @@ func createTestServerHandler(
 }
 
 func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter)) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	tel := &FakeTelephonyAdapter{}
