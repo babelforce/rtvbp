@@ -20,7 +20,7 @@ func (m *ApplicationMoveRequest) MethodName() string {
 	return "application.move"
 }
 
-func (m *ApplicationMoveRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
+func (m *ApplicationMoveRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
 	return terminateAndClose(ctx, hc, "application.move")
 }
 

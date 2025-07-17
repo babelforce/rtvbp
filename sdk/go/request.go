@@ -25,6 +25,7 @@ func (t *typedRequestHandler[REQ, RES]) MethodName() string {
 	return t.name
 }
 
+// Handle handles a request
 func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *proto.Request) error {
 
 	raw, err := json.Marshal(req.Params)
@@ -37,18 +38,20 @@ func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *
 		return fmt.Errorf("unmarshal into type: %w", err)
 	}
 
+	// handle request
 	res, err := t.h(ctx, h, params)
 	if err != nil {
 		return err
 	}
 
+	// respond to session
 	if err := h.Respond(ctx, req.Ok(res)); err != nil {
 		return err
 	}
 
 	var a any = params
-	if prh, ok := a.(PostResponseHook); ok {
-		return prh.PostResponseHook(ctx, h)
+	if prh, ok := a.(RequestHooks); ok {
+		return prh.OnAfterReply(ctx, h)
 	}
 
 	return nil

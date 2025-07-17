@@ -20,7 +20,7 @@ func (r *CallHangupRequest) MethodName() string {
 	return "call.hangup"
 }
 
-func (r *CallHangupRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
+func (r *CallHangupRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
 	return terminateAndClose(ctx, hc, "call.hangup")
 }
 

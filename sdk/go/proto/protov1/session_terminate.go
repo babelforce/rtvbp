@@ -15,7 +15,7 @@ func (r *SessionTerminateRequest) MethodName() string {
 	return "session.terminate"
 }
 
-func (r *SessionTerminateRequest) PostResponseHook(ctx context.Context, hc rtvbp.SHC) error {
+func (r *SessionTerminateRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
 	_ = hc.Notify(ctx, &SessionTerminatedEvent{})
 
 	// close
