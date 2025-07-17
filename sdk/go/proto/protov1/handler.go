@@ -58,6 +58,9 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 }
 
 // OnHangup is called when the call is hung up by the remote party
+// Triggers the following sequence
+// - EVT call.hangup
+// - REQ session.terminate(reason=hangup)
 func (ch *ClientHandler) OnHangup(ctx context.Context, s *rtvbp.Session) error {
 	_ = s.Notify(ctx, &CallHangupEvent{})
 	if _, err := s.Request(ctx, &SessionTerminateRequest{Reason: "hangup"}); err != nil {
@@ -165,7 +168,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 
 	pingTicker := time.NewTicker(pingInterval)
 	defer pingTicker.Stop()
-	
+
 	for {
 		select {
 		case <-pingTicker.C:
