@@ -124,8 +124,14 @@ func (s *Session) handleRequest(ctx context.Context, req *proto.Request) {
 		return
 	}
 
-	if err := s.handler.OnRequest(ctx, s.shCtx, req); err != nil {
-		s.logger.Error("handleRequest failed", slog.Any("request", req), slog.Any("err", err))
+	err := s.handler.OnRequest(ctx, s.shCtx, req)
+
+	if err != nil {
+		s.logger.Error("handler.OnRequest failed", slog.Any("request", req), slog.Any("err", err))
+
+		if err2 := s.shCtx.Respond(ctx, req.NotOk(proto.ToResponseError(err))); err2 != nil {
+			s.logger.Error("failed to respond to request", slog.Any("request", req), slog.Any("err", err))
+		}
 	}
 }
 
@@ -185,15 +191,16 @@ func (s *Session) Run(
 				return
 			case <-ctx.Done():
 				return
-			case data, ok := <-ctrlMsgInCh:
+			case p, ok := <-ctrlMsgInCh:
 				if !ok {
 					return
 				}
 
-				msg, err := proto.ParseMessage(data)
+				msg, err := proto.ParseMessage(p.Data)
 				if err != nil {
 					s.logger.Error("parsing message json failed", slog.Any("err", err))
 				} else {
+					msg.SetReceivedAt(p.ReceivedAt)
 					go s.handleIncomingMessage(ctx, msg)
 				}
 			}

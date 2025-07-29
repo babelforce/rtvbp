@@ -163,7 +163,7 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 					if w.debugMessages {
 						fmt.Printf("MSG(in) <--\n%s\n", prettyJson(msg.data))
 					}
-					w.cc.input <- msg.data
+					w.cc.input <- rtvbp.DataPackage{Data: msg.data, ReceivedAt: time.Now().UnixMilli()}
 				case websocket.BinaryMessage:
 					if _, err := w.audio.Write(msg.data); err != nil {
 						w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))

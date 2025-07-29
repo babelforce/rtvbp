@@ -63,7 +63,7 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 		return nil, err
 	}
 
-	pendingRequest := s.newPendingRequest(req.ID)
+	pr := s.newPendingRequest(req.ID)
 
 	if err := s.writeMsgData(data); err != nil {
 		return nil, fmt.Errorf("request [method=%s, id=%s]: %w", req.Method, req.ID, err)
@@ -76,7 +76,7 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 		defer s.muPending.Unlock()
 		delete(s.pendingRequests, req.ID)
 		return nil, fmt.Errorf("request [method=%s, id=%s] failed: %w", req.Method, req.ID, ErrRequestTimeout)
-	case resp := <-pendingRequest.ch:
+	case resp := <-pr.ch:
 		if !resp.Ok() {
 			return nil, resp.Error
 		}

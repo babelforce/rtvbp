@@ -5,9 +5,14 @@ import (
 	"io"
 )
 
+type DataPackage struct {
+	Data       []byte
+	ReceivedAt int64
+}
+
 type DataChannel interface {
 	Write(data []byte) error
-	ReadChan() <-chan []byte
+	ReadChan() <-chan DataPackage
 }
 
 type Transport interface {

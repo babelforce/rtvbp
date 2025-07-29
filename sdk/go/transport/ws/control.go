@@ -6,7 +6,7 @@ import (
 )
 
 type controlChannel struct {
-	input  chan []byte
+	input  chan rtvbp.DataPackage
 	output chan<- wsMessage
 }
 
@@ -15,12 +15,12 @@ func (cc *controlChannel) Write(data []byte) error {
 	return nil
 }
 
-func (cc *controlChannel) ReadChan() <-chan []byte {
+func (cc *controlChannel) ReadChan() <-chan rtvbp.DataPackage {
 	return cc.input
 }
 
 func newControlChannel(output chan<- wsMessage) *controlChannel {
-	input := make(chan []byte, 16)
+	input := make(chan rtvbp.DataPackage, 16)
 
 	return &controlChannel{
 		input:  input,

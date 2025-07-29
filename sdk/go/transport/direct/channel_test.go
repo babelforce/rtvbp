@@ -34,8 +34,8 @@ func TestDirectTransport(t *testing.T) {
 	_ = c1.Write([]byte("hello"))
 	_ = c2.Write([]byte("world"))
 
-	require.Equal(t, "hello", string(<-c2.ReadChan()))
-	require.Equal(t, "world", string(<-c1.ReadChan()))
+	require.Equal(t, "hello", string((<-c2.ReadChan()).Data))
+	require.Equal(t, "world", string((<-c1.ReadChan()).Data))
 }
 
 func TestSessionWithDirectTransport(t *testing.T) {

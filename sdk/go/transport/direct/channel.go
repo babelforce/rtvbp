@@ -8,18 +8,18 @@ import (
 )
 
 type dcc struct {
-	in     chan []byte
-	out    chan []byte
+	in     chan rtvbp.DataPackage
+	out    chan rtvbp.DataPackage
 	closed chan struct{}
 	once   sync.Once
 }
 
 func (d *dcc) Write(data []byte) error {
-	d.out <- data
+	d.out <- rtvbp.DataPackage{Data: data}
 	return nil
 }
 
-func (d *dcc) ReadChan() <-chan []byte {
+func (d *dcc) ReadChan() <-chan rtvbp.DataPackage {
 	return d.in
 }
 
@@ -58,8 +58,8 @@ func (d *directTransport) Control() rtvbp.DataChannel {
 }
 
 func newTransports() (rtvbp.Transport, rtvbp.Transport) {
-	aToB := make(chan []byte, 32)
-	bToA := make(chan []byte, 32)
+	aToB := make(chan rtvbp.DataPackage, 32)
+	bToA := make(chan rtvbp.DataPackage, 32)
 
 	a := &directTransport{
 		cc: &dcc{
