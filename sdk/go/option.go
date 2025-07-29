@@ -1,6 +1,8 @@
 package rtvbp
 
 import (
+	"context"
+	"io"
 	"log/slog"
 	"time"
 
@@ -10,7 +12,7 @@ import (
 type sessionOptions struct {
 	id              string
 	logger          *slog.Logger
-	transport       TransportFunc
+	transport       TransportFactory
 	handler         SessionHandler
 	audioBufferSize int
 	requestTimeout  time.Duration
@@ -53,9 +55,17 @@ func WithID(id string) Option {
 	}
 }
 
-func WithTransport(f TransportFunc) Option {
+func WithTransportFactory(f TransportFactory) Option {
 	return func(opts *sessionOptions) {
 		opts.transport = f
+	}
+}
+
+func WithTransport(t Transport) Option {
+	return func(opts *sessionOptions) {
+		opts.transport = func(ctx context.Context, audio io.ReadWriter) (Transport, error) {
+			return t, nil
+		}
 	}
 }
 

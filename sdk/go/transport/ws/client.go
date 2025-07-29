@@ -133,7 +133,7 @@ func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*Websock
 }
 
 func Client(config ClientConfig) rtvbp.Option {
-	return rtvbp.WithTransport(
+	return rtvbp.WithTransportFactory(
 		func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
 			return Connect(ctx, config, audio)
 		},

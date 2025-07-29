@@ -46,7 +46,7 @@ func serverUpgradeHandler(
 		log.Debug("websocket upgrade successful")
 
 		sess := rtvbp.NewSession(
-			rtvbp.WithTransport(func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
+			rtvbp.WithTransportFactory(func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
 				trans := newTransport(
 					conn,
 					audio,
