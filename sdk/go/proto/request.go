@@ -5,10 +5,12 @@ type IntoRequest interface {
 }
 
 type Request struct {
-	Version string `json:"version"`
-	ID      string `json:"id"`
-	Method  string `json:"method"`
-	Params  any    `json:"params,omitempty"`
+	messageBase
+	Version    string `json:"version"`
+	ID         string `json:"id"`
+	Method     string `json:"method"`
+	Params     any    `json:"params,omitempty"`
+	receivedAt int64
 }
 
 func (r *Request) MessageType() string {

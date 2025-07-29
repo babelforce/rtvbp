@@ -173,8 +173,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 		select {
 		case <-pingTicker.C:
 			ping := &PingRequest{
-				Sequence:  seq,
-				Timestamp: time.Now().UnixMilli(),
+				T0: time.Now().UnixMilli(),
 			}
 			seq = seq + 1
 
@@ -187,7 +186,7 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 					h.Log().Error("failed to parse ping response", slog.Any("err", err))
 					return
 				}
-				rtt := pr.Timestamp - ping.Timestamp
+				rtt := pr.T0 - ping.T0
 				h.Log().Info("ping response", slog.Any("response", pong), slog.Any("rtt", rtt))
 
 			}

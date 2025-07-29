@@ -5,6 +5,7 @@ type IntoEvent interface {
 }
 
 type Event struct {
+	messageBase
 	Version string `json:"version"`
 	ID      string `json:"id,omitempty"`
 	Event   string `json:"event"`

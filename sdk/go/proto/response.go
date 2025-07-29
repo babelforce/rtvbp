@@ -5,6 +5,7 @@ import (
 )
 
 type Response struct {
+	messageBase
 	Version  string         `json:"version,omitempty"`
 	Response string         `json:"response"`
 	Result   any            `json:"result,omitempty"`

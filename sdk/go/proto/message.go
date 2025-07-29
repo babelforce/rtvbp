@@ -7,6 +7,8 @@ import (
 
 type Message interface {
 	MessageType() string
+	GetReceivedAt() int64
+	SetReceivedAt(int64)
 }
 
 type rawMessage struct {
@@ -19,6 +21,18 @@ type rawMessage struct {
 	Params   any            `json:"params,omitempty"`
 	Result   any            `json:"result,omitempty"`
 	Error    *ResponseError `json:"error,omitempty"`
+}
+
+type messageBase struct {
+	receivedAt int64
+}
+
+func (r *messageBase) SetReceivedAt(receivedAt int64) {
+	r.receivedAt = receivedAt
+}
+
+func (r *messageBase) GetReceivedAt() int64 {
+	return r.receivedAt
 }
 
 func ParseMessage(raw []byte) (Message, error) {
