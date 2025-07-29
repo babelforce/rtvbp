@@ -28,20 +28,13 @@ type HandlerAudio interface {
 
 // SHC - Session Handler Context
 type SHC interface {
-	// SessionID retrieves the ID of the current session
-	SessionID() string
-
-	// Log returns the sessions Logger
-	Log() *slog.Logger
-
-	// Request performs a request execution
-	Request(ctx context.Context, req NamedRequest) (*proto.Response, error)
+	SessionID() string                                                      // SessionID retrieves the ID of the current session
+	Log() *slog.Logger                                                      // Log returns the sessions Logger
+	Request(ctx context.Context, req NamedRequest) (*proto.Response, error) // Request performs a request execution
 	Respond(ctx context.Context, res *proto.Response) error
 	Notify(ctx context.Context, evt NamedEvent) error
 	AudioStream() HandlerAudio
-
 	Close(ctx context.Context) error
-
 	State() SessionState
 }
 
