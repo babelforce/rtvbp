@@ -16,13 +16,13 @@ type PingRequest struct {
 
 func (r *PingRequest) Validate() error {
 	if r.T0 == 0 {
-		return fmt.Errorf("ping request T0 is required")
+		return fmt.Errorf("pingLoop request T0 is required")
 	}
 	return nil
 }
 
 func (r *PingRequest) MethodName() string {
-	return "ping"
+	return "pingLoop"
 }
 
 func NewPingRequest() *PingRequest {
@@ -41,15 +41,15 @@ type PingResponse struct {
 
 func (r *PingResponse) Validate() error {
 	if r.T0 == 0 {
-		return fmt.Errorf("ping response T0 is required")
+		return fmt.Errorf("pingLoop response T0 is required")
 	}
 
 	if r.T1 == 0 {
-		return fmt.Errorf("ping response T1 is required")
+		return fmt.Errorf("pingLoop response T1 is required")
 	}
 
 	if r.T2 == 0 {
-		return fmt.Errorf("ping response T2 is required")
+		return fmt.Errorf("pingLoop response T2 is required")
 	}
 
 	return nil
