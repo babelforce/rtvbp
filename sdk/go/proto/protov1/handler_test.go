@@ -235,6 +235,28 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 
 			},
 		},
+		{
+			name: "start and stop recording",
+			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
+				defer func() {
+					_, _ = h.Request(ctx, &SessionTerminateRequest{})
+				}()
+
+				// start
+				res, err := h.Request(ctx, &RecordingStartRequest{Tags: []string{"foo", "bar"}})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+
+				rec, err := proto.As[RecordingStartResponse](res.Result)
+				require.NoError(t, err)
+				require.NotNil(t, rec)
+				require.NotEmpty(t, rec.ID)
+
+				// stop
+				res, err = h.Request(ctx, &RecordingStopRequest{ID: rec.ID})
+				require.NoError(t, err)
+			},
+		},
 	}
 
 	for _, tc := range testCases {

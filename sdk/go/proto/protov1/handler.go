@@ -171,6 +171,20 @@ func NewClientHandler(
 				return tel.SessionVariablesGet(ctx, req)
 			},
 		)),
+		rtvbp.Middleware(check, rtvbp.HandleRequest(
+			func(ctx context.Context, shc rtvbp.SHC, req *RecordingStartRequest) (*RecordingStartResponse, error) {
+				return tel.RecordingStart(ctx, req)
+			},
+		)),
+		rtvbp.Middleware(check, rtvbp.HandleRequest(
+			func(ctx context.Context, shc rtvbp.SHC, req *RecordingStopRequest) (*EmptyResponse, error) {
+				err := tel.RecordingStop(ctx, req.ID)
+				if err != nil {
+					return nil, err
+				}
+				return &EmptyResponse{}, nil
+			},
+		)),
 	)
 
 	return hdl
