@@ -9,6 +9,10 @@ import (
 	"log/slog"
 )
 
+type OnAfterReplyHook interface {
+	OnAfterReply(ctx context.Context, hc SHC) error // OnAfterReply is called when a handler has replied successfully to a request
+}
+
 type SessionHandler interface {
 	OnBegin(ctx context.Context, h SHC) error
 	OnRequest(ctx context.Context, h SHC, req *proto.Request) error
@@ -112,7 +116,7 @@ func (d *defaultSessionHandler) OnEnd(ctx context.Context, hc SHC) error {
 func (d *defaultSessionHandler) OnRequest(ctx context.Context, hc SHC, req *proto.Request) error {
 	hdl, ok := d.requestHandlers[req.Method]
 	if !ok {
-		return hc.Respond(ctx, req.NotOk(proto.NewError(501, fmt.Sprintf("unknown method: %s", req.Method))))
+		return proto.NewError(501, fmt.Errorf("unknown method: %s", req.Method))
 	}
 
 	return hdl.Handle(ctx, hc, req)

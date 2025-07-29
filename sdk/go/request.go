@@ -7,6 +7,10 @@ import (
 	"github.com/babelforce/rtvbp-go/proto"
 )
 
+type Validation interface {
+	Validate() error
+}
+
 type NamedRequest interface {
 	MethodName() string
 }
@@ -38,19 +42,30 @@ func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *
 		return fmt.Errorf("unmarshal into type: %w", err)
 	}
 
+	if v, ok := any(params).(Validation); ok {
+		if err := v.Validate(); err != nil {
+			return proto.NewBadRequestError(err)
+		}
+	}
+
 	// handle request
-	res, err := t.h(ctx, h, params)
+	res, err := t.h(context.WithValue(ctx, "request", req), h, params)
 	if err != nil {
 		return err
 	}
 
-	// respond to session
-	if err := h.Respond(ctx, req.Ok(res)); err != nil {
-		return err
+	if v, ok := any(res).(Validation); ok {
+		if err := v.Validate(); err != nil {
+			return proto.NewError(proto.ErrInternalServerError, fmt.Errorf("failed to produce valid response: %w", err))
+		}
 	}
 
-	var a any = params
-	if prh, ok := a.(OnAfterReplyHook); ok {
+	// respond to session
+	if err := h.Respond(ctx, req.Ok(res)); err != nil {
+		return fmt.Errorf("failed to respond: %w", err)
+	}
+
+	if prh, ok := any(params).(OnAfterReplyHook); ok {
 		return prh.OnAfterReply(ctx, h)
 	}
 
