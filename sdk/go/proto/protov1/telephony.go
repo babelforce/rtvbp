@@ -3,8 +3,9 @@ package protov1
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto"
 	"sync"
+
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type TelephonyAdapter interface {
