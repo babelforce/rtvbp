@@ -165,30 +165,31 @@ func ping(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 	}
 	h.Log().Info("starting ping", slog.Any("interval", pingInterval))
 
-	var seq = 1
-
 	pingTicker := time.NewTicker(pingInterval)
 	defer pingTicker.Stop()
 
 	for {
 		select {
 		case <-pingTicker.C:
-			ping := &PingRequest{
-				T0: time.Now().UnixMilli(),
-			}
-			seq = seq + 1
+			pingReq := NewPingRequest()
 
-			pong, err := h.Request(ctx, ping)
+			res, err := h.Request(ctx, pingReq)
 			if err != nil {
 				h.Log().Error("failed to send ping", slog.Any("err", err))
 			} else {
-				pr, err := proto.As[PingResponse](pong.Result)
+				pingRes, err := proto.As[PingResponse](res.Result)
 				if err != nil {
 					h.Log().Error("failed to parse ping response", slog.Any("err", err))
 					return
 				}
-				rtt := pr.T0 - ping.T0
-				h.Log().Info("ping response", slog.Any("response", pong), slog.Any("rtt", rtt))
+				receivedAt := time.Now().UnixMilli()
+				rtt := time.Duration(receivedAt-pingReq.T0) * time.Millisecond
+				owd := time.Duration(pingRes.OWD) * time.Millisecond
+				h.Log().Info(
+					"ping response",
+					slog.Duration("owd", owd),
+					slog.Duration("rtt", rtt),
+				)
 
 			}
 		case <-ctx.Done():

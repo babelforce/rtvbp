@@ -140,7 +140,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 					_, _ = h.Request(ctx, &SessionTerminateRequest{})
 				}()
 
-				res, err := h.Request(ctx, NewPingRequest(nil))
+				res, err := h.Request(ctx, NewPingRequest())
 				require.NoError(t, err, "pong response expected")
 				require.NotNil(t, res)
 			},

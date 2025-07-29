@@ -25,10 +25,9 @@ func (r *PingRequest) MethodName() string {
 	return "ping"
 }
 
-func NewPingRequest(data any) *PingRequest {
+func NewPingRequest() *PingRequest {
 	return &PingRequest{
-		T0:   time.Now().UnixMilli(),
-		Data: data,
+		T0: time.Now().UnixMilli(),
 	}
 }
 
