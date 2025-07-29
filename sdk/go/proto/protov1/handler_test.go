@@ -47,14 +47,17 @@ func createTestServerHandler(
 		rtvbp.HandlerConfig{
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
 				go func() {
+
 					// wait until session updated event is received
 					<-updatedCh
+
+					defer func() {
+						done <- struct{}{}
+					}()
 
 					// run the scenario
 					scenario(t, ctx, h, tel)
 
-					// mark scenario as done
-					done <- struct{}{}
 				}()
 				return nil
 			},
@@ -124,12 +127,21 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 
 	var testCases = []tc{
 		{
+			name: "empty",
+			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
+				_, _ = h.Request(ctx, &SessionTerminateRequest{})
+			},
+		},
+		{
 			name: "ping",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				res, err := h.Request(ctx, &PingRequest{Data: "hello"})
-				require.NoError(t, err)
+				defer func() {
+					_, _ = h.Request(ctx, &SessionTerminateRequest{})
+				}()
+
+				res, err := h.Request(ctx, NewPingRequest(nil))
+				require.NoError(t, err, "pong response expected")
 				require.NotNil(t, res)
-				_, _ = h.Request(ctx, &SessionTerminateRequest{})
 			},
 		},
 		{
