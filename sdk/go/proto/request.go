@@ -6,11 +6,10 @@ type IntoRequest interface {
 
 type Request struct {
 	messageBase
-	Version    string `json:"version"`
-	ID         string `json:"id"`
-	Method     string `json:"method"`
-	Params     any    `json:"params,omitempty"`
-	receivedAt int64
+	Version string `json:"version"`
+	ID      string `json:"id"`
+	Method  string `json:"method"`
+	Params  any    `json:"params,omitempty"`
 }
 
 func (r *Request) MessageType() string {

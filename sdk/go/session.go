@@ -21,7 +21,7 @@ type Session struct {
 	mu              sync.Mutex
 	shCtx           *sessionHandlerCtx
 	transport       Transport
-	transportFunc   TransportFunc
+	transportFunc   TransportFactory
 	audio           *DuplexAudio
 	closeOnce       sync.Once
 	closeCh         chan struct{} // closeCh is a channel when closed will trigger shutdown of the session
@@ -201,7 +201,11 @@ func (s *Session) Run(
 				if err != nil {
 					s.logger.Error("parsing message json failed", slog.Any("err", err))
 				} else {
-					msg.SetReceivedAt(p.ReceivedAt)
+					if p.ReceivedAt == 0 {
+						msg.SetReceivedAt(time.Now().UnixMilli())
+					} else {
+						msg.SetReceivedAt(p.ReceivedAt)
+					}
 					go s.handleIncomingMessage(ctx, msg)
 				}
 			}
