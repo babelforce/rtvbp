@@ -2,6 +2,8 @@ package protov1
 
 import (
 	"context"
+	"fmt"
+	"github.com/babelforce/rtvbp-go/proto"
 	"sync"
 )
 
@@ -10,6 +12,8 @@ type TelephonyAdapter interface {
 	Hangup(ctx context.Context, req *CallHangupRequest) (*CallHangupResponse, error)
 	SessionVariablesSet(ctx context.Context, req *SessionSetRequest) error
 	SessionVariablesGet(ctx context.Context, req *SessionGetRequest) (map[string]any, error)
+	RecordingStart(ctx context.Context, req *RecordingStartRequest) (*RecordingStartResponse, error)
+	RecordingStop(ctx context.Context, recordingID string) error
 	// Play(prompt, etc)
 }
 
@@ -18,6 +22,19 @@ type FakeTelephonyAdapter struct {
 	vars   map[string]any
 	moved  *ApplicationMoveRequest
 	hangup bool
+}
+
+func (f *FakeTelephonyAdapter) RecordingStart(ctx context.Context, req *RecordingStartRequest) (*RecordingStartResponse, error) {
+	return &RecordingStartResponse{
+		ID: proto.ID(),
+	}, nil
+}
+
+func (f *FakeTelephonyAdapter) RecordingStop(ctx context.Context, recordingID string) error {
+	if recordingID == "" {
+		return fmt.Errorf("recordingID is required")
+	}
+	return nil
 }
 
 func (f *FakeTelephonyAdapter) SessionVariablesGet(ctx context.Context, req *SessionGetRequest) (map[string]any, error) {
