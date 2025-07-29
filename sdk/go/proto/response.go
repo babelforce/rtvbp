@@ -1,12 +1,18 @@
 package proto
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type Response struct {
 	Version  string         `json:"version,omitempty"`
 	Response string         `json:"response"`
 	Result   any            `json:"result,omitempty"`
 	Error    *ResponseError `json:"error,omitempty"`
+}
+
+func (r *Response) MessageType() string {
+	return "response"
 }
 
 func As[R any](v any) (*R, error) {
@@ -26,3 +32,5 @@ func As[R any](v any) (*R, error) {
 func (r *Response) Ok() bool {
 	return r.Error == nil
 }
+
+var _ Message = &Response{}

@@ -11,6 +11,10 @@ type Event struct {
 	Data    any    `json:"data,omitempty"`
 }
 
+func (e Event) MessageType() string {
+	return "event"
+}
+
 func NewEvent(version string, eventName string, data any) *Event {
 	return &Event{
 		Version: version,
@@ -19,3 +23,5 @@ func NewEvent(version string, eventName string, data any) *Event {
 		Data:    data,
 	}
 }
+
+var _ Message = &Event{}

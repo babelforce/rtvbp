@@ -129,32 +129,18 @@ func (s *Session) handleRequest(ctx context.Context, req *proto.Request) {
 	}
 }
 
-func (s *Session) handleIncoming(ctx context.Context, msg sessionMessage) {
-	s.logger.Debug("handleIncoming", slog.Any("msg", msg))
+func (s *Session) handleIncomingMessage(ctx context.Context, msg proto.Message) {
+	s.logger.Debug("handleIncomingMessage", slog.Any("msg", msg))
 
-	if msg.Event != "" {
-		s.handleEvent(ctx, &proto.Event{
-			Version: msg.Version,
-			ID:      msg.ID,
-			Event:   msg.Event,
-			Data:    msg.Data,
-		})
-	} else if msg.Method != "" {
-		s.handleRequest(ctx, &proto.Request{
-			Version: msg.Version,
-			ID:      msg.ID,
-			Method:  msg.Method,
-			Params:  msg.Params,
-		})
-	} else if msg.Response != "" {
-		s.resolvePendingRequest(&proto.Response{
-			Version:  msg.Version,
-			Response: msg.Response,
-			Result:   msg.Result,
-			Error:    msg.Error,
-		})
-	} else {
-		s.logger.Error("unknown message type", slog.Any("msg", msg))
+	switch m := msg.(type) {
+	case *proto.Event:
+		s.handleEvent(ctx, m)
+	case *proto.Request:
+		s.handleRequest(ctx, m)
+	case *proto.Response:
+		s.resolvePendingRequest(m)
+	default:
+		s.logger.Error("unknown message", slog.Any("msg", msg))
 	}
 }
 
@@ -204,12 +190,11 @@ func (s *Session) Run(
 					return
 				}
 
-				var msg sessionMessage
-				err := json.Unmarshal(data, &msg)
+				msg, err := proto.ParseMessage(data)
 				if err != nil {
 					s.logger.Error("parsing message json failed", slog.Any("err", err))
 				} else {
-					go s.handleIncoming(ctx, msg)
+					go s.handleIncomingMessage(ctx, msg)
 				}
 			}
 		}

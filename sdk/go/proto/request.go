@@ -11,6 +11,10 @@ type Request struct {
 	Params  any    `json:"params,omitempty"`
 }
 
+func (r *Request) MessageType() string {
+	return "request"
+}
+
 func (r *Request) Ok(result any) *Response {
 	return &Response{
 		Version:  r.Version,
@@ -44,3 +48,5 @@ func NewRequest(version string, method string, params any) *Request {
 		Params:  params,
 	}
 }
+
+var _ Message = &Request{}

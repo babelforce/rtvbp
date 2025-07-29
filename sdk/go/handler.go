@@ -40,20 +40,6 @@ type SHC interface {
 	State() SessionState
 }
 
-type RequestHooks interface {
-	// OnAfterReply is called when a handler has replied successfully to a request
-	OnAfterReply(ctx context.Context, hc SHC) error
-}
-
-type RequestHooksAdapter struct {
-}
-
-func (r *RequestHooksAdapter) OnAfterReply(_ context.Context, hc SHC) error {
-	return nil
-}
-
-var _ RequestHooks = &RequestHooksAdapter{}
-
 type sessionHandlerCtx struct {
 	sess *Session
 	ha   HandlerAudio

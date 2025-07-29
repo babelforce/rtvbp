@@ -50,7 +50,7 @@ func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *
 	}
 
 	var a any = params
-	if prh, ok := a.(RequestHooks); ok {
+	if prh, ok := a.(OnAfterReplyHook); ok {
 		return prh.OnAfterReply(ctx, h)
 	}
 
