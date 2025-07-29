@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 var (

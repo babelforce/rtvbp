@@ -1,8 +1,9 @@
 package ws
 
 import (
-	"github.com/gorilla/websocket"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func isControl(frameType int) bool {

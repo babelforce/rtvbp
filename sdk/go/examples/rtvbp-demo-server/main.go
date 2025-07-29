@@ -4,14 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/audio"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
-	"github.com/babelforce/rtvbp-go/transport/ws"
 	"log/slog"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/audio"
+	"github.com/babelforce/rtvbp-go/proto/protov1"
+	"github.com/babelforce/rtvbp-go/transport/ws"
 )
 
 type serverCLI struct {

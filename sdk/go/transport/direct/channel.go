@@ -3,8 +3,9 @@ package direct
 import (
 	"bytes"
 	"context"
-	"github.com/babelforce/rtvbp-go"
 	"sync"
+
+	"github.com/babelforce/rtvbp-go"
 )
 
 type dcc struct {

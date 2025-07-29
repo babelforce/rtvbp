@@ -2,6 +2,13 @@ package main
 
 import (
 	"context"
+	"io"
+	"log/slog"
+	"os"
+	"os/signal"
+	"rtvbp_demo_client/dummyphone"
+	"time"
+
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
@@ -9,12 +16,6 @@ import (
 	audiogo "github.com/codewandler/audio-go"
 	"github.com/google/uuid"
 	"github.com/gordonklaus/portaudio"
-	"io"
-	"log/slog"
-	"os"
-	"os/signal"
-	"rtvbp_demo_client/dummyphone"
-	"time"
 )
 
 func must(err error) {

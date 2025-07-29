@@ -2,14 +2,15 @@ package protov1
 
 import (
 	"context"
+	"log/slog"
+	"testing"
+	"time"
+
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/proto"
 	"github.com/babelforce/rtvbp-go/transport/ws"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"log/slog"
-	"testing"
-	"time"
 )
 
 func createTestClientHandler(tel TelephonyAdapter) rtvbp.SessionHandler {

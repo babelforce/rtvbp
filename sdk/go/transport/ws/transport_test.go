@@ -2,13 +2,14 @@ package ws
 
 import (
 	"context"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
-	"github.com/stretchr/testify/require"
 	"log/slog"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/proto/protov1"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTransport_Close(t *testing.T) {

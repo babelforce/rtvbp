@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/transport/ws"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/babelforce/rtvbp-go/transport/ws"
 )
 
 type cliArgs struct {

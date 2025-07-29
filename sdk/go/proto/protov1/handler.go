@@ -3,11 +3,12 @@ package protov1
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type ClientHandlerConfig struct {

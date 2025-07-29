@@ -3,8 +3,9 @@ package protov1
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
 )
 
 type SessionTerminateRequest struct {

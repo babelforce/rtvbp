@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/gorilla/websocket"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/gorilla/websocket"
 )
 
 func serverUpgradeHandler(

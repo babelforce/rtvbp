@@ -3,9 +3,10 @@ package protov1
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/proto"
-	"time"
 )
 
 type PingRequest struct {

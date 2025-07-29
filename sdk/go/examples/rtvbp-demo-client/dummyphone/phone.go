@@ -3,10 +3,11 @@ package dummyphone
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/babelforce/rtvbp-go/proto/protov1"
 )
 
 type PhoneSystem struct {

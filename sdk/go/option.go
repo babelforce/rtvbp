@@ -1,9 +1,10 @@
 package rtvbp
 
 import (
-	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
 	"time"
+
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type sessionOptions struct {

@@ -3,13 +3,14 @@ package ws
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/gorilla/websocket"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/gorilla/websocket"
 )
 
 type ClientConfig struct {

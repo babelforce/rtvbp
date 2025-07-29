@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto"
 	"io"
 	"log/slog"
+
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type OnAfterReplyHook interface {

@@ -3,14 +3,15 @@ package direct
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
-	"github.com/stretchr/testify/require"
 	"io"
 	"log/slog"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/proto/protov1"
+	"github.com/stretchr/testify/require"
 )
 
 type DummyEvent struct {

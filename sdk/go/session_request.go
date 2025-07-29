@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto"
 	"log/slog"
+
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type pendingRequest struct {

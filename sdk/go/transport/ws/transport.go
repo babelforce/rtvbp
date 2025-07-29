@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/gorilla/websocket"
 	"io"
 	"log/slog"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/gorilla/websocket"
 )
 
 type WebsocketTransport struct {
