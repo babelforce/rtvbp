@@ -11,6 +11,9 @@ import (
 	"github.com/babelforce/rtvbp-go/proto"
 )
 
+type EmptyResponse struct {
+}
+
 type ClientHandlerConfig struct {
 	Call         CallInfo
 	App          AppInfo
@@ -151,6 +154,21 @@ func NewClientHandler(
 				return &AudioBufferClearResponse{
 					Len: n,
 				}, nil
+			},
+		)),
+		rtvbp.Middleware(check, rtvbp.HandleRequest(
+			func(ctx context.Context, shc rtvbp.SHC, req *SessionSetRequest) (*EmptyResponse, error) {
+				err := tel.SessionVariablesSet(ctx, req)
+				if err != nil {
+					return nil, err
+				}
+
+				return &EmptyResponse{}, nil
+			},
+		)),
+		rtvbp.Middleware(check, rtvbp.HandleRequest(
+			func(ctx context.Context, shc rtvbp.SHC, req *SessionGetRequest) (map[string]any, error) {
+				return tel.SessionVariablesGet(ctx, req)
 			},
 		)),
 	)

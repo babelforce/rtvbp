@@ -82,7 +82,7 @@ func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context,
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	tel := &FakeTelephonyAdapter{}
+	tel := newFakeTelephonyAdapter()
 
 	// server
 	srvHdl, done := createTestServerHandler(t, tel, scenario)
@@ -209,6 +209,30 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				require.NotNil(t, res)
 
 				_, _ = h.Request(ctx, &SessionTerminateRequest{})
+			},
+		},
+		{
+			name: "set and get variable",
+			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
+				defer func() {
+					_, _ = h.Request(ctx, &SessionTerminateRequest{})
+				}()
+
+				// set
+				res, err := h.Request(ctx, &SessionSetRequest{Data: map[string]any{"foo": "bar", "bing": 23}})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+
+				// get
+				res, err = h.Request(ctx, &SessionGetRequest{Keys: []string{"foo", "bing", "unknown"}})
+				require.NoError(t, err)
+				require.NotNil(t, res)
+				data, err := proto.As[map[string]any](res.Result)
+				require.NoError(t, err)
+				require.Equal(t, "bar", (*data)["foo"])
+				require.Equal(t, 23.0, (*data)["bing"])
+				require.Nil(t, (*data)["unknown"], "must not be present")
+
 			},
 		},
 	}

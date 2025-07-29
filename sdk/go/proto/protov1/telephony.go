@@ -1,16 +1,47 @@
 package protov1
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 type TelephonyAdapter interface {
 	Move(ctx context.Context, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error)
 	Hangup(ctx context.Context, req *CallHangupRequest) (*CallHangupResponse, error)
+	SessionVariablesSet(ctx context.Context, req *SessionSetRequest) error
+	SessionVariablesGet(ctx context.Context, req *SessionGetRequest) (map[string]any, error)
 	// Play(prompt, etc)
 }
 
 type FakeTelephonyAdapter struct {
+	mu     sync.Mutex
+	vars   map[string]any
 	moved  *ApplicationMoveRequest
 	hangup bool
+}
+
+func (f *FakeTelephonyAdapter) SessionVariablesGet(ctx context.Context, req *SessionGetRequest) (map[string]any, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	var out = make(map[string]any)
+	for _, k := range req.Keys {
+		v, ok := f.vars[k]
+		if ok {
+			out[k] = v
+		}
+	}
+	return out, nil
+}
+
+func (f *FakeTelephonyAdapter) SessionVariablesSet(ctx context.Context, req *SessionSetRequest) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	for k, v := range req.Data {
+		f.vars[k] = v
+	}
+	return nil
 }
 
 func (f *FakeTelephonyAdapter) Move(ctx context.Context, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error) {
@@ -30,3 +61,9 @@ func (f *FakeTelephonyAdapter) Hangup(ctx context.Context, req *CallHangupReques
 }
 
 var _ TelephonyAdapter = &FakeTelephonyAdapter{}
+
+func newFakeTelephonyAdapter() *FakeTelephonyAdapter {
+	return &FakeTelephonyAdapter{
+		vars: make(map[string]any),
+	}
+}
