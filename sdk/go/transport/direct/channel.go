@@ -58,9 +58,9 @@ func (d *directTransport) Control() rtvbp.DataChannel {
 	return d.cc
 }
 
-func newTransports() (rtvbp.Transport, rtvbp.Transport) {
-	aToB := make(chan rtvbp.DataPackage, 32)
-	bToA := make(chan rtvbp.DataPackage, 32)
+func New() (rtvbp.Transport, rtvbp.Transport) {
+	aToB := make(chan rtvbp.DataPackage, 1)
+	bToA := make(chan rtvbp.DataPackage, 1)
 
 	a := &directTransport{
 		cc: &dcc{
@@ -78,4 +78,14 @@ func newTransports() (rtvbp.Transport, rtvbp.Transport) {
 		},
 	}
 	return a, b
+}
+
+func NewTestSessions(h1 rtvbp.SessionHandler, h2 rtvbp.SessionHandler) (*rtvbp.Session, *rtvbp.Session) {
+	var (
+		t1, t2 = New()
+		s1     = rtvbp.NewSession(rtvbp.WithTransport(t1), rtvbp.WithHandler(h1))
+		s2     = rtvbp.NewSession(rtvbp.WithTransport(t2), rtvbp.WithHandler(h2))
+	)
+
+	return s1, s2
 }

@@ -3,7 +3,6 @@ package direct
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 	"sync"
 	"testing"
@@ -27,7 +26,7 @@ var _ rtvbp.NamedEvent = &DummyEvent{}
 func TestDirectTransport(t *testing.T) {
 
 	var (
-		t1, t2 = newTransports()
+		t1, t2 = New()
 		c1     = t1.Control()
 		c2     = t2.Control()
 	)
@@ -64,21 +63,10 @@ func TestSessionWithDirectTransport(t *testing.T) {
 		}),
 	)
 
-	var f = func(t rtvbp.Transport) rtvbp.TransportFunc {
-		return func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
-			return t, nil
-		}
-	}
-
-	var (
-		t1, t2 = newTransports()
-		s1     = rtvbp.NewSession(rtvbp.WithTransport(f(t1)), rtvbp.WithHandler(h))
-		s2     = rtvbp.NewSession(rtvbp.WithTransport(f(t2)), rtvbp.WithHandler(h))
-	)
+	s1, s2 := NewTestSessions(h, h)
 
 	go s1.Run(ctx)
 	go s2.Run(ctx)
 
 	wg.Wait()
-
 }
