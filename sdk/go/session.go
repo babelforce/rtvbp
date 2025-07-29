@@ -205,7 +205,8 @@ func (s *Session) Run(
 				}
 
 				var msg sessionMessage
-				if err := json.Unmarshal(data, &msg); err != nil {
+				err := json.Unmarshal(data, &msg)
+				if err != nil {
 					s.logger.Error("parsing message json failed", slog.Any("err", err))
 				} else {
 					go s.handleIncoming(ctx, msg)
