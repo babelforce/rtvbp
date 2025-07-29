@@ -134,7 +134,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 			},
 		},
 		{
-			name: "pingLoop",
+			name: "ping",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
 				defer func() {
 					_, _ = h.Request(ctx, &SessionTerminateRequest{})

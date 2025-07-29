@@ -111,13 +111,13 @@ func NewClientHandler(
 					return err
 				}
 
-				// periodic application level pingLoop
-				go pingLoop(ctx, config.PingInterval, h)
+				// periodic application level pinger
+				go startPinger(ctx, config.PingInterval, h)
 
 				return nil
 			},
 		},
-		// REQ: pingLoop
+		// REQ: ping
 		NewPingHandler(),
 		// REQ: call.hangup
 		rtvbp.Middleware(check, rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *CallHangupRequest) (*CallHangupResponse, error) {
@@ -188,55 +188,6 @@ func NewClientHandler(
 	)
 
 	return hdl
-}
-
-func ping(ctx context.Context, h rtvbp.SHC) {
-
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	pingReq := NewPingRequest()
-
-	res, err := h.Request(ctx, pingReq)
-	if err != nil {
-		h.Log().Error("failed to send pingLoop", slog.Any("err", err))
-	} else {
-		pingRes, err := proto.As[PingResponse](res.Result)
-		if err != nil {
-			h.Log().Error("failed to parse pingLoop response", slog.Any("err", err))
-			return
-		}
-		receivedAt := time.Now().UnixMilli()
-		rtt := time.Duration(receivedAt-pingReq.T0) * time.Millisecond
-		owd := time.Duration(pingRes.OWD) * time.Millisecond
-		h.Log().Info(
-			"pingLoop response",
-			slog.Duration("owd", owd),
-			slog.Duration("rtt", rtt),
-		)
-
-	}
-}
-
-func pingLoop(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
-
-	if pingInterval == 0 {
-		pingInterval = 10 * time.Second
-	}
-	h.Log().Info("starting pingLoop", slog.Any("interval", pingInterval))
-
-	pingTicker := time.NewTicker(pingInterval)
-	defer pingTicker.Stop()
-
-	for {
-		select {
-		case <-pingTicker.C:
-			ping(ctx, h)
-		case <-ctx.Done():
-			h.Log().Info("pingLoop stopped")
-			return
-		}
-	}
 }
 
 func terminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) error {
