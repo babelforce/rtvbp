@@ -26,6 +26,7 @@ type ClientHandler struct {
 	rtvbp.SessionHandler
 	mu          sync.Mutex
 	initialized bool
+	shc         rtvbp.SHC
 }
 
 func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
@@ -52,11 +53,14 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	// TODO: verify that returned audio codec is supported by the client (is in the list of audio codecs offered)
 
 	ch.initialized = true
+	ch.shc = h
 
 	// notify session.update
 	_ = h.Notify(ctx, &SessionUpdatedEvent{
 		AudioCodec: r2.AudioCodec,
 	})
+
+	println("+++ HANDLER INIT OK +++")
 
 	return r2, nil
 }
@@ -66,11 +70,25 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 // - EVT call.hangup
 // - REQ session.terminate(reason=hangup)
 func (ch *ClientHandler) OnHangup(ctx context.Context, s *rtvbp.Session) error {
-	_ = s.Notify(ctx, &CallHangupEvent{})
+	_ = s.EventDispatch(ctx, &CallHangupEvent{})
 	if _, err := s.Request(ctx, &SessionTerminateRequest{Reason: "hangup"}); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (ch *ClientHandler) Terminate(reason string) error {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	if !ch.initialized {
+		return fmt.Errorf("termination failed: session not initialized")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return sessionTerminateAndClose(ctx, ch.shc, reason)
 }
 
 // NewClientHandler creates the handler which runs as client
@@ -120,8 +138,12 @@ func NewClientHandler(
 		// REQ: ping
 		NewPingHandler(),
 		// REQ: call.hangup
-		rtvbp.Middleware(check, rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *CallHangupRequest) (*CallHangupResponse, error) {
-			return tel.Hangup(ctx, req)
+		rtvbp.Middleware(check, rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *CallHangupRequest) (*EmptyResponse, error) {
+			err := tel.Hangup(ctx, req)
+			if err != nil {
+				return nil, err
+			}
+			return &EmptyResponse{}, nil
 		})),
 		// REQ: application.move
 		rtvbp.Middleware(check, rtvbp.HandleRequest(
@@ -130,20 +152,7 @@ func NewClientHandler(
 			},
 		)),
 		// REQ: session.terminate
-		rtvbp.HandleRequest(
-			func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
-				hc.Log().Info("session terminate request", slog.Any("request", req))
-
-				// Attempt to move the call
-				_, err := tel.Move(ctx, &ApplicationMoveRequest{})
-				if err != nil {
-					return nil, err
-				}
-
-				//
-				return &SessionTerminateResponse{}, nil
-			},
-		),
+		rtvbp.HandleWithError[*SessionTerminateRequest](proto.NotImplemented("session.terminate is not supported. please use application.move or call.hangup instead")),
 		// REQ: audio.buffer.clear
 		rtvbp.Middleware(check, rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *AudioBufferClearRequest) (*AudioBufferClearResponse, error) {
@@ -190,22 +199,19 @@ func NewClientHandler(
 	return hdl
 }
 
-func terminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) error {
+func sessionTerminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) error {
 
-	terminateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	// request to terminate the session
-	_, err := hc.Request(terminateCtx, &SessionTerminateRequest{
-		Reason: reason,
-	})
-	if err != nil {
-		hc.Log().Error("failed to request terminate session", slog.Any("err", err))
-	}
-
-	// close
 	closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	return hc.Close(closeCtx)
 
+	// Close client
+	return hc.Close(closeCtx, func(ctx context.Context, h rtvbp.SHC) error {
+		terminateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		_, err := hc.Request(terminateCtx, &SessionTerminateRequest{
+			Reason: reason,
+		})
+		return err
+	})
 }

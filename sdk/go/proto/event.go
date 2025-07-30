@@ -1,28 +1,62 @@
 package proto
 
+import (
+	"fmt"
+
+	"github.com/babelforce/rtvbp-go/internal/idgen"
+)
+
 type IntoEvent interface {
 	IntoEvent() *Event
 }
 
 type Event struct {
 	messageBase
-	Version string `json:"version"`
-	ID      string `json:"id,omitempty"`
-	Event   string `json:"event"`
-	Data    any    `json:"data,omitempty"`
+	ID    string `json:"id"`
+	Event string `json:"event"`
+	Data  any    `json:"data,omitempty"`
 }
 
-func (e Event) MessageType() string {
+func (e *Event) Validate() error {
+	if err := e.messageBase.validateBase(); err != nil {
+		return err
+	}
+
+	if e.ID == "" {
+		return fmt.Errorf("event ID is required")
+	}
+
+	if e.Event == "" {
+		return fmt.Errorf("event name is required")
+	}
+
+	if e.Data != nil {
+		if v, ok := e.Data.(validatable); ok {
+			if err := v.Validate(); err != nil {
+				return fmt.Errorf("event data is invalid: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (e *Event) GetType() string {
 	return "event"
 }
 
-func NewEvent(version string, eventName string, data any) *Event {
+func newEventWithVersionAndID(version string, id string, eventName string, data any) *Event {
 	return &Event{
-		Version: version,
-		ID:      ID(),
-		Event:   eventName,
-		Data:    data,
+		messageBase: newBase(version),
+		ID:          id,
+		Event:       eventName,
+		Data:        data,
 	}
+}
+
+// NewEvent creates a new event
+func NewEvent(eventName string, data any) *Event {
+	return newEventWithVersionAndID(Version, idgen.ID(), eventName, data)
 }
 
 var _ Message = &Event{}

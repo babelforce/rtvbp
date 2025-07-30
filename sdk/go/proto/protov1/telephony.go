@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp-go/internal/idgen"
 )
 
 type TelephonyAdapter interface {
 	Move(ctx context.Context, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error)
-	Hangup(ctx context.Context, req *CallHangupRequest) (*CallHangupResponse, error)
+	Hangup(ctx context.Context, req *CallHangupRequest) error
 	SessionVariablesSet(ctx context.Context, req *SessionSetRequest) error
 	SessionVariablesGet(ctx context.Context, req *SessionGetRequest) (map[string]any, error)
 	RecordingStart(ctx context.Context, req *RecordingStartRequest) (*RecordingStartResponse, error)
@@ -27,7 +27,7 @@ type FakeTelephonyAdapter struct {
 
 func (f *FakeTelephonyAdapter) RecordingStart(ctx context.Context, req *RecordingStartRequest) (*RecordingStartResponse, error) {
 	return &RecordingStartResponse{
-		ID: proto.ID(),
+		ID: idgen.ID(),
 	}, nil
 }
 
@@ -73,9 +73,9 @@ func (f *FakeTelephonyAdapter) Move(ctx context.Context, req *ApplicationMoveReq
 	}, nil
 }
 
-func (f *FakeTelephonyAdapter) Hangup(ctx context.Context, req *CallHangupRequest) (*CallHangupResponse, error) {
+func (f *FakeTelephonyAdapter) Hangup(ctx context.Context, req *CallHangupRequest) error {
 	f.hangup = true
-	return &CallHangupResponse{}, nil
+	return nil
 }
 
 var _ TelephonyAdapter = &FakeTelephonyAdapter{}

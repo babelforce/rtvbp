@@ -22,7 +22,7 @@ func (m *ApplicationMoveRequest) MethodName() string {
 }
 
 func (m *ApplicationMoveRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
-	return terminateAndClose(ctx, hc, "application.move")
+	return sessionTerminateAndClose(ctx, hc, "application.move")
 }
 
 type ApplicationMoveResponse struct {

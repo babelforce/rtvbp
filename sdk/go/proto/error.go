@@ -8,9 +8,11 @@ import (
 type ErrorCode int
 
 const (
+	ErrUnspecified         ErrorCode = 0
 	ErrUnknown             ErrorCode = -1
 	ErrStatusBadRequest    ErrorCode = 400
 	ErrInternalServerError ErrorCode = 500
+	ErrNotImplemented      ErrorCode = 501
 )
 
 type ResponseError struct {
@@ -18,6 +20,18 @@ type ResponseError struct {
 	Message string    `json:"message"`
 	Data    any       `json:"any,omitempty"`
 	cause   error
+}
+
+func (e *ResponseError) Validate() error {
+	if e.Code == ErrUnspecified {
+		return fmt.Errorf("error code is required")
+	}
+
+	if e.Message == "" {
+		return fmt.Errorf("error message is required")
+	}
+
+	return nil
 }
 
 func (e *ResponseError) Unwrap() error {
@@ -36,7 +50,11 @@ func NewError(code ErrorCode, cause error) *ResponseError {
 	}
 }
 
-func NewBadRequestError(cause error) *ResponseError {
+func NotImplemented(msg string) *ResponseError {
+	return NewError(ErrNotImplemented, errors.New(msg))
+}
+
+func BadRequest(cause error) *ResponseError {
 	return NewError(ErrStatusBadRequest, cause)
 }
 

@@ -5,10 +5,19 @@ import (
 	"fmt"
 )
 
+const (
+	Version = "1"
+)
+
+type validatable interface {
+	Validate() error // Validate validates the message
+}
+
 type Message interface {
-	MessageType() string
-	GetReceivedAt() int64
-	SetReceivedAt(int64)
+	validatable
+	GetType() string      // GetType gets the message type which is either `request`, `response` or `event`
+	GetReceivedAt() int64 // GetReceivedAt gets the timestamp of when the message was received
+	SetReceivedAt(int64)  // SetReceivedAt sets the receival timestamp
 }
 
 type rawMessage struct {
@@ -24,7 +33,20 @@ type rawMessage struct {
 }
 
 type messageBase struct {
+	Version    string `json:"version"`
 	receivedAt int64
+}
+
+func (r *messageBase) validateBase() error {
+	if r.Version == "" {
+		return fmt.Errorf("version is required")
+	}
+
+	if r.Version != Version {
+		return fmt.Errorf("unsupported version: %s - only %s is allowed", r.Version, Version)
+	}
+
+	return nil
 }
 
 func (r *messageBase) SetReceivedAt(receivedAt int64) {
@@ -35,34 +57,42 @@ func (r *messageBase) GetReceivedAt() int64 {
 	return r.receivedAt
 }
 
-func ParseMessage(raw []byte) (Message, error) {
+func newBase(v string) messageBase {
+	return messageBase{
+		Version: v,
+	}
+}
+
+// ParseValidMessage will parse the message and also validate its content
+func ParseValidMessage(raw []byte) (m Message, err error) {
+	// parse
+	m, err = parseMessage(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	// validate
+	err = m.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate `%s` message: %s: %w", m.GetType(), raw, err)
+	}
+
+	return m, nil
+}
+
+func parseMessage(raw []byte) (Message, error) {
 	var msg rawMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		return nil, err
 	}
 
 	if msg.Event != "" {
-		return &Event{
-			Version: msg.Version,
-			ID:      msg.ID,
-			Event:   msg.Event,
-			Data:    msg.Data,
-		}, nil
+		return newEventWithVersionAndID(msg.Version, msg.ID, msg.Event, msg.Data), nil
 	} else if msg.Method != "" {
-		return &Request{
-			Version: msg.Version,
-			ID:      msg.ID,
-			Method:  msg.Method,
-			Params:  msg.Params,
-		}, nil
+		return newRequestWithIdAndVersion(msg.Version, msg.ID, msg.Method, msg.Params), nil
 	} else if msg.Response != "" {
-		return &Response{
-			Version:  msg.Version,
-			Response: msg.Response,
-			Result:   msg.Result,
-			Error:    msg.Error,
-		}, nil
+		return newResponseWithVersion(msg.Version, msg.Response, msg.Result, msg.Error), nil
 	}
 
-	return nil, fmt.Errorf("unknown message type: %s", raw)
+	return nil, fmt.Errorf("failed to parse message: %s", raw)
 }

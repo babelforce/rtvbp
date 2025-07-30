@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createTestClientHandler(tel TelephonyAdapter) rtvbp.SessionHandler {
+func createTestClientHandler(tel TelephonyAdapter) *ClientHandler {
 	return NewClientHandler(
 		tel,
 		&ClientHandlerConfig{
@@ -37,7 +37,7 @@ func createTestClientHandler(tel TelephonyAdapter) rtvbp.SessionHandler {
 	)
 }
 
-func createTestServerHandler(
+func createServerHandler(
 	t *testing.T,
 	tel *FakeTelephonyAdapter,
 	scenario func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter),
@@ -48,13 +48,14 @@ func createTestServerHandler(
 		rtvbp.HandlerConfig{
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
 				go func() {
-
 					// wait until session updated event is received
 					<-updatedCh
 
 					defer func() {
 						done <- struct{}{}
 					}()
+
+					println("+++ START SCENARIO +++")
 
 					// run the scenario
 					scenario(t, ctx, h, tel)
@@ -64,15 +65,16 @@ func createTestServerHandler(
 			},
 		},
 		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
-			defer func() {
-				updatedCh <- struct{}{}
-			}()
 			return &SessionInitializeResponse{
 				AudioCodec: &req.AudioCodecOfferings[0],
 			}, nil
 		}),
-		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*SessionTerminateResponse, error) {
-			return &SessionTerminateResponse{}, nil
+		rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, t *SessionUpdatedEvent) error {
+			updatedCh <- struct{}{}
+			return nil
+		}),
+		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*EmptyResponse, error) {
+			return &EmptyResponse{}, nil
 		}),
 		NewPingHandler(),
 	), done
@@ -85,7 +87,7 @@ func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context,
 	tel := newFakeTelephonyAdapter()
 
 	// server
-	srvHdl, done := createTestServerHandler(t, tel, scenario)
+	srvHdl, srvDoneChan := createServerHandler(t, tel, scenario)
 	srv := ws.NewServer(ws.ServerConfig{
 		Addr: "127.0.0.1:0",
 	}, srvHdl)
@@ -99,23 +101,29 @@ func testScenario(t *testing.T, scenario func(t *testing.T, ctx context.Context,
 	require.NotNil(t, clientHdl)
 	require.NotNil(t, tel)
 	client := srv.NewClientSession(clientHdl)
+	clientDoneChan := client.Run(ctx)
+
+	// wait for server scenario to be done
+	// and then close the client
 	select {
+	case <-srvDoneChan:
+		// server scenario is done, we terminate
+		require.NoError(t, clientHdl.Terminate("end_of_test"))
 	case <-ctx.Done():
 		t.Fatal("timeout", ctx.Err())
-	case err := <-client.Run(ctx):
-		require.NoError(t, err)
 	}
 
-	// wait for scenario to finish
+	// wait for client to shutdown fully
 	select {
 	case <-ctx.Done():
 		t.Fatal("timeout", ctx.Err())
-	case <-done:
+	case err := <-clientDoneChan:
+		require.NoError(t, err)
 	}
 
 }
 
-type tc struct {
+type serverTestCase struct {
 	// name is the name of the test case
 	name string
 
@@ -126,20 +134,16 @@ type tc struct {
 func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 
-	var testCases = []tc{
+	var testCases = []serverTestCase{
 		{
 			name: "empty",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				_, _ = h.Request(ctx, &SessionTerminateRequest{})
+
 			},
 		},
 		{
 			name: "ping",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				defer func() {
-					_, _ = h.Request(ctx, &SessionTerminateRequest{})
-				}()
-
 				res, err := h.Request(ctx, NewPingRequest())
 				require.NoError(t, err, "pong response expected")
 				require.NotNil(t, res)
@@ -148,9 +152,8 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 		{
 			name: "session.terminate",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				res, err := h.Request(ctx, &SessionTerminateRequest{})
-				require.NoError(t, err)
-				require.NotNil(t, res)
+				_, err := h.Request(ctx, &SessionTerminateRequest{Reason: "something"})
+				require.ErrorContains(t, err, "501: session.terminate is not supported.")
 			},
 		},
 		{
@@ -190,15 +193,24 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				require.NotNil(t, tel.moved)
 				require.Equal(t, "", tel.moved.ApplicationID)
 				require.Equal(t, "something", tel.moved.Reason)
+
+				println("+++ MOVE DONE +++")
 			},
 		},
 		{
 			name: "call.hangup",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				res, err := h.Request(ctx, &CallHangupRequest{})
+				res, err := h.Request(ctx, &CallHangupRequest{Reason: "banana"})
 				require.NoError(t, err)
 				require.NotNil(t, res)
 				require.True(t, tel.hangup)
+			},
+		},
+		{
+			name: "call.hangup: no reason",
+			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
+				_, err := h.Request(ctx, &CallHangupRequest{})
+				require.ErrorIs(t, err, rtvbp.ErrRequestValidationFailed)
 			},
 		},
 		{
@@ -207,17 +219,11 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				res, err := h.Request(ctx, &AudioBufferClearRequest{})
 				require.NoError(t, err)
 				require.NotNil(t, res)
-
-				_, _ = h.Request(ctx, &SessionTerminateRequest{})
 			},
 		},
 		{
 			name: "set and get variable",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				defer func() {
-					_, _ = h.Request(ctx, &SessionTerminateRequest{})
-				}()
-
 				// set
 				res, err := h.Request(ctx, &SessionSetRequest{Data: map[string]any{"foo": "bar", "bing": 23}})
 				require.NoError(t, err)
@@ -238,10 +244,6 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 		{
 			name: "start and stop recording",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter) {
-				defer func() {
-					_, _ = h.Request(ctx, &SessionTerminateRequest{})
-				}()
-
 				// start
 				res, err := h.Request(ctx, &RecordingStartRequest{Tags: []string{"foo", "bar"}})
 				require.NoError(t, err)

@@ -17,15 +17,12 @@ func TestPingHandler(t *testing.T) {
 	shc := rtvbp.NewTestingSHC()
 	h := NewPingHandler()
 
-	req := proto.NewRequest("1", "ping", map[string]any{
-		"t0": 1234567890,
-	})
+	req := proto.NewRequest("ping", NewPingRequest())
 	req.SetReceivedAt(time.Now().UnixMilli())
 
 	err := h.Handle(context.Background(), shc, req)
 	require.NoError(t, err)
 	require.Equal(t, req.ID, shc.Response.Response)
-
 }
 
 func TestPinger(t *testing.T) {

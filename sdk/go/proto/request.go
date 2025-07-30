@@ -1,53 +1,82 @@
 package proto
 
+import (
+	"fmt"
+
+	"github.com/babelforce/rtvbp-go/internal/idgen"
+)
+
 type IntoRequest interface {
 	IntoRequest() *Request
 }
 
 type Request struct {
 	messageBase
-	Version string `json:"version"`
-	ID      string `json:"id"`
-	Method  string `json:"method"`
-	Params  any    `json:"params,omitempty"`
+	ID     string `json:"id"`
+	Method string `json:"method"`
+	Params any    `json:"params,omitempty"`
 }
 
-func (r *Request) MessageType() string {
+func (r *Request) Validate() error {
+	if err := r.messageBase.validateBase(); err != nil {
+		return err
+	}
+
+	if r.ID == "" {
+		return fmt.Errorf("request ID is required")
+	}
+
+	if r.Method == "" {
+		return fmt.Errorf("request method is required")
+	}
+
+	if r.Params != nil {
+		if v, ok := r.Params.(validatable); ok {
+			if err := v.Validate(); err != nil {
+				return fmt.Errorf("request.params invalid: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *Request) GetType() string {
 	return "request"
 }
 
+// Ok creates a successful response for a request
 func (r *Request) Ok(result any) *Response {
-	return &Response{
-		Version:  r.Version,
-		Response: r.ID,
-		Result:   result,
-	}
+	return r.newResponse(result, nil)
 }
 
+// NotOk creates a failure response for a request
 func (r *Request) NotOk(err *ResponseError) *Response {
-	return &Response{
-		Version:  r.Version,
-		Response: r.ID,
-		Error:    err,
-	}
+	return r.newResponse(nil, err)
 }
 
-func (r *Request) Respond(res any, err *ResponseError) *Response {
-	return &Response{
-		Version:  r.Version,
-		Response: r.ID,
-		Result:   res,
-		Error:    err,
-	}
+// newResponse creates a Response from a request
+func (r *Request) newResponse(res any, err *ResponseError) *Response {
+	return newResponseWithVersion(r.Version, r.ID, res, err)
 }
 
-func NewRequest(version string, method string, params any) *Request {
+// newRequestWithIdAndVersion creates a new Request
+func newRequestWithIdAndVersion(
+	version string,
+	id string,
+	method string,
+	params any,
+) *Request {
 	return &Request{
-		Version: version,
-		ID:      ID(),
-		Method:  method,
-		Params:  params,
+		messageBase: newBase(version),
+		ID:          id,
+		Method:      method,
+		Params:      params,
 	}
+}
+
+func NewRequest(method string, params any) *Request {
+	return newRequestWithIdAndVersion(Version, idgen.ID(), method, params)
 }
 
 var _ Message = &Request{}

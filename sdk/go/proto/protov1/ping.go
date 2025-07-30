@@ -10,6 +10,7 @@ import (
 	"github.com/babelforce/rtvbp-go/proto"
 )
 
+// PingRequest ping request
 type PingRequest struct {
 	T0   int64 `json:"t0"`             // T0 is the time the sender of the PingRequest provided.
 	RTT  int64 `json:"rtt,omitempty"`  // RTT is the round trip time measured by a previous PingRequest
