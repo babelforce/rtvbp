@@ -45,7 +45,7 @@ func (t *typedRequestHandler[REQ, RES]) Handle(ctx context.Context, h SHC, req *
 
 	if v, ok := any(params).(Validation); ok {
 		if err := v.Validate(); err != nil {
-			return proto.NewBadRequestError(err)
+			return proto.BadRequest(err)
 		}
 	}
 
@@ -79,4 +79,12 @@ func HandleRequest[REQ NamedRequest, RES any](handler func(context.Context, SHC,
 		name: zero.MethodName(),
 		h:    handler,
 	}
+}
+
+func HandleWithError[REQ NamedRequest](err *proto.ResponseError) RequestHandler {
+	return HandleRequest(
+		func(ctx context.Context, hc SHC, req REQ) (any, error) {
+			return nil, err
+		},
+	)
 }

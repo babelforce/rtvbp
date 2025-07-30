@@ -34,7 +34,7 @@ type SHC interface {
 	Respond(ctx context.Context, res *proto.Response) error
 	Notify(ctx context.Context, evt NamedEvent) error
 	AudioStream() HandlerAudio
-	Close(ctx context.Context) error
+	Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error
 	State() SessionState
 }
 
@@ -64,8 +64,8 @@ func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) 
 	return nil
 }
 
-func (shc *sessionHandlerCtx) Close(ctx context.Context) error {
-	return shc.sess.Close(ctx)
+func (shc *sessionHandlerCtx) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error {
+	return shc.sess.Close(ctx, cb)
 }
 
 func (shc *sessionHandlerCtx) SessionID() string {
@@ -81,7 +81,7 @@ func (shc *sessionHandlerCtx) Request(ctx context.Context, req NamedRequest) (*p
 }
 
 func (shc *sessionHandlerCtx) Notify(ctx context.Context, evt NamedEvent) error {
-	return shc.sess.Notify(ctx, evt)
+	return shc.sess.EventDispatch(ctx, evt)
 }
 
 var _ SHC = &sessionHandlerCtx{}
@@ -110,7 +110,7 @@ func (d *defaultSessionHandler) OnEnd(ctx context.Context, hc SHC) error {
 func (d *defaultSessionHandler) OnRequest(ctx context.Context, hc SHC, req *proto.Request) error {
 	hdl, ok := d.requestHandlers[req.Method]
 	if !ok {
-		return proto.NewError(501, fmt.Errorf("unknown method: %s", req.Method))
+		return proto.NotImplemented(fmt.Sprintf("unknown method: %s", req.Method))
 	}
 
 	return hdl.Handle(ctx, hc, req)

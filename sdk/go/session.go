@@ -12,7 +12,10 @@ import (
 )
 
 var (
-	ErrRequestTimeout = fmt.Errorf("request: timeout")
+	ErrRequestTimeout          = fmt.Errorf("request: timeout")
+	ErrRequestFailed           = fmt.Errorf("request: failed")
+	ErrRequestValidationFailed = fmt.Errorf("request: client validation failed")
+	ErrInvalidSessionState     = fmt.Errorf("session: invalid state")
 )
 
 type Session struct {
@@ -33,12 +36,15 @@ type Session struct {
 	requestTimeout  time.Duration
 }
 
-// Notify sends a notification
-func (s *Session) Notify(_ context.Context, payload NamedEvent) error {
-	evt := proto.NewEvent("1", payload.EventName(), payload)
+// EventDispatch dispatches an event
+func (s *Session) EventDispatch(_ context.Context, payload NamedEvent) error {
+	evt := proto.NewEvent(payload.EventName(), payload)
+	if err := evt.Validate(); err != nil {
+		return fmt.Errorf("event validation failed: %w", err)
+	}
 
 	s.logger.Debug(
-		"Session.Notify()",
+		"notify",
 		"event_id", evt.ID,
 		"event", evt.Event,
 		"data", payload,
@@ -52,6 +58,7 @@ func (s *Session) Notify(_ context.Context, payload NamedEvent) error {
 	if err := s.writeMsgData(data); err != nil {
 		return fmt.Errorf("request [event=%s, id=%s]: %w", evt.Event, evt.ID, err)
 	}
+
 	return nil
 }
 
@@ -59,22 +66,25 @@ func (s *Session) writeMsgData(data []byte) error {
 	return s.transport.Control().Write(data)
 }
 
-// CloseWithTimeout closes the client and the underlying transport
-func (s *Session) CloseWithTimeout(timeout time.Duration) error {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+func (s *Session) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) (err error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	return s.Close(ctx)
-}
-
-func (s *Session) Close(ctx context.Context) error {
+	// Check if already closing or closed
 	state := s.State()
 	if state == SessionStateClosed || state == SessionStateClosing {
 		return nil
 	}
 
+	err = nil
+
 	s.closeOnce.Do(func() {
 		s.logger.Info("closing session")
+		if cb != nil {
+			s.logger.Info("calling close callback")
+			err = cb(ctx, s.shCtx)
+		}
 		s.setState(SessionStateClosing)
 		close(s.closeCh)
 	})
@@ -137,7 +147,6 @@ func (s *Session) handleRequest(ctx context.Context, req *proto.Request) {
 }
 
 func (s *Session) handleIncomingMessage(ctx context.Context, msg proto.Message) {
-	s.logger.Debug("handleIncomingMessage", slog.Any("msg", msg))
 
 	switch m := msg.(type) {
 	case *proto.Event:
@@ -157,6 +166,12 @@ func (s *Session) Run(
 	var (
 		done = make(chan error, 1)
 	)
+
+	// exit early without handler
+	if s.handler == nil {
+		done <- fmt.Errorf("no handler set")
+		return done
+	}
 
 	// create transport
 	if trans, err := s.transportFunc(ctx, s.audio.TransportRW()); err != nil {
@@ -197,7 +212,7 @@ func (s *Session) Run(
 					return
 				}
 
-				msg, err := proto.ParseMessage(p.Data)
+				msg, err := proto.ParseValidMessage(p.Data)
 				if err != nil {
 					s.logger.Error("parsing message json failed", slog.Any("err", err))
 				} else {
@@ -212,16 +227,16 @@ func (s *Session) Run(
 		}
 	}()
 
-	if s.handler != nil {
-		go func() {
-			if err := s.handler.OnBegin(ctx, s.shCtx); err != nil {
-				s.setState(SessionStateFailed)
-				done <- fmt.Errorf("handler.OnBegin() failed: %w", err)
-			} else {
-				s.setState(SessionStateActive)
-			}
-		}()
-	}
+	go func() {
+		if err := s.handler.OnBegin(ctx, s.shCtx); err != nil {
+			beginErr := fmt.Errorf("handler.OnBegin() failed: %w", err)
+			s.logger.Error("session init failed", slog.Any("err", beginErr))
+			s.setState(SessionStateFailed)
+			done <- beginErr
+		} else {
+			s.setState(SessionStateActive)
+		}
+	}()
 
 	return done
 }

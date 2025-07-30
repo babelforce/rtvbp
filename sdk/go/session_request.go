@@ -50,7 +50,10 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	ctx, cancel := context.WithTimeout(ctx, s.requestTimeout)
 	defer cancel()
 
-	req := proto.NewRequest("1", payload.MethodName(), payload)
+	req := proto.NewRequest(payload.MethodName(), payload)
+	if err := req.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
+	}
 
 	slog.Debug(
 		"Session.Request()",
@@ -67,7 +70,7 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	pr := s.newPendingRequest(req.ID)
 
 	if err := s.writeMsgData(data); err != nil {
-		return nil, fmt.Errorf("request [method=%s, id=%s]: %w", req.Method, req.ID, err)
+		return nil, fmt.Errorf("request write failed [method=%s, id=%s]: %w", req.Method, req.ID, err)
 	}
 
 	// wait for response
