@@ -3,12 +3,15 @@ package rtvbp
 import (
 	"context"
 	"log/slog"
+	"sync"
 
 	"github.com/babelforce/rtvbp-go/proto"
 )
 
 type TestingSHC struct {
 	Response *proto.Response
+	state    SessionState
+	mu       sync.Mutex
 }
 
 func (t *TestingSHC) SessionID() string {
@@ -41,18 +44,23 @@ func (t *TestingSHC) AudioStream() HandlerAudio {
 	panic("implement me")
 }
 
-func (t *TestingSHC) Close(ctx context.Context) error {
-	//TODO implement me
-	panic("implement me")
+func (t *TestingSHC) Close(ctx context.Context, cb func(context.Context, SHC) error) error {
+	defer func() {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		t.state = SessionStateClosed
+	}()
+	return cb(ctx, t)
 }
 
 func (t *TestingSHC) State() SessionState {
-	//TODO implement me
-	panic("implement me")
+	return t.state
 }
 
 var _ SHC = &TestingSHC{}
 
 func NewTestingSHC() *TestingSHC {
-	return &TestingSHC{}
+	return &TestingSHC{
+		state: SessionStateActive,
+	}
 }

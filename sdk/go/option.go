@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp-go/internal/idgen"
 )
 
 type sessionOptions struct {
@@ -25,7 +25,7 @@ func withDefaults() Option {
 		WithLogger(slog.Default()),
 		WithRequestTimeout(5*time.Second),
 		WithAudioBufferSize(1024*1024),
-		WithID(proto.ID()),
+		WithID(idgen.ID()),
 	)
 }
 
