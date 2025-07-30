@@ -79,7 +79,7 @@ func ping(ctx context.Context, h rtvbp.SHC, lastRTT int64) (int, error) {
 	receivedAt := time.Now().UnixMilli()
 	rtt := time.Duration(receivedAt-pingReq.T0) * time.Millisecond
 	owd := time.Duration(pingRes.OWD) * time.Millisecond
-	h.Log().Info(
+	h.Log().Debug(
 		"ping response",
 		slog.Duration("owd", owd),
 		slog.Duration("rtt", rtt),
@@ -93,7 +93,7 @@ func startPinger(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 	if pingInterval == 0 {
 		pingInterval = 10 * time.Second
 	}
-	h.Log().Info("starting pinger", slog.Any("interval", pingInterval))
+	h.Log().Debug("starting pinger", slog.Any("interval", pingInterval))
 
 	pingTicker := time.NewTicker(pingInterval)
 	defer pingTicker.Stop()

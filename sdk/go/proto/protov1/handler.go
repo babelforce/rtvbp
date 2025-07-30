@@ -60,8 +60,6 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 		AudioCodec: r2.AudioCodec,
 	})
 
-	println("+++ HANDLER INIT OK +++")
-
 	return r2, nil
 }
 

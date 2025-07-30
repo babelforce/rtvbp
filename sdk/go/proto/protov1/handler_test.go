@@ -55,8 +55,6 @@ func createServerHandler(
 						done <- struct{}{}
 					}()
 
-					println("+++ START SCENARIO +++")
-
 					// run the scenario
 					scenario(t, ctx, h, tel)
 
@@ -193,8 +191,6 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				require.NotNil(t, tel.moved)
 				require.Equal(t, "", tel.moved.ApplicationID)
 				require.Equal(t, "something", tel.moved.Reason)
-
-				println("+++ MOVE DONE +++")
 			},
 		},
 		{
