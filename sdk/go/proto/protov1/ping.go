@@ -88,7 +88,7 @@ func ping(ctx context.Context, h rtvbp.SHC, lastRTT int64) (int, error) {
 	return int(rtt.Milliseconds()), nil
 }
 
-func startPinger(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
+func StartPinger(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
 
 	if pingInterval == 0 {
 		pingInterval = 10 * time.Second

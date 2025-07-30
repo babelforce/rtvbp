@@ -33,7 +33,7 @@ func TestPinger(t *testing.T) {
 		h   = rtvbp.NewHandler(
 			rtvbp.HandlerConfig{
 				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-					go startPinger(ctx, 100*time.Millisecond, h)
+					go StartPinger(ctx, 100*time.Millisecond, h)
 					return nil
 				},
 			},

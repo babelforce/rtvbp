@@ -128,7 +128,7 @@ func NewClientHandler(
 				}
 
 				// periodic application level pinger
-				go startPinger(ctx, config.PingInterval, h)
+				go StartPinger(ctx, config.PingInterval, h)
 
 				return nil
 			},
