@@ -27,15 +27,13 @@ func TestDirectTransport(t *testing.T) {
 
 	var (
 		t1, t2 = New()
-		c1     = t1.Control()
-		c2     = t2.Control()
 	)
 
-	_ = c1.Write([]byte("hello"))
-	_ = c2.Write([]byte("world"))
+	_ = t1.Write([]byte("hello"))
+	_ = t2.Write([]byte("world"))
 
-	require.Equal(t, "hello", string((<-c2.ReadChan()).Data))
-	require.Equal(t, "world", string((<-c1.ReadChan()).Data))
+	require.Equal(t, "hello", string((<-t2.ReadChan()).Data))
+	require.Equal(t, "world", string((<-t1.ReadChan()).Data))
 }
 
 func TestSessionWithDirectTransport(t *testing.T) {

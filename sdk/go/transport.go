@@ -10,14 +10,9 @@ type DataPackage struct {
 	ReceivedAt int64
 }
 
-type DataChannel interface {
+type Transport interface {
 	Write(data []byte) error
 	ReadChan() <-chan DataPackage
-}
-
-type Transport interface {
-	Closed() <-chan struct{}
-	Control() DataChannel
 	Close(ctx context.Context) error
 }
 
