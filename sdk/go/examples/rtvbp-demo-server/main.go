@@ -88,8 +88,8 @@ func main() {
 					AudioCodec: &req.AudioCodecOfferings[0],
 				}, nil
 			}),
-			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.SessionTerminateResponse, error) {
-				return &protov1.SessionTerminateResponse{}, nil
+			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.EmptyResponse, error) {
+				return &protov1.EmptyResponse{}, nil
 			}),
 			protov1.NewPingHandler(),
 		),

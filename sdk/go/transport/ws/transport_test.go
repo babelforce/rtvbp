@@ -109,7 +109,7 @@ func TestClientServer(t *testing.T) {
 	require.True(t, srvOnBeginCalled.Load(), "server on begin handler not called")
 
 	// --- closing session ---
-	require.NoError(t, client.CloseWithTimeout(5*time.Second))
+	require.NoError(t, client.Close(context.Background(), nil))
 
 	// server shutdown
 	require.NoError(t, srv.Shutdown(ctx))

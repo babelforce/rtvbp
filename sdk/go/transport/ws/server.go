@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"time"
 
 	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
@@ -68,7 +67,7 @@ func serverUpgradeHandler(
 
 		select {
 		case <-ctx.Done():
-			_ = sess.CloseWithTimeout(5 * time.Second)
+			_ = sess.Close(context.Background(), nil)
 			return
 		case err := <-sess.Run(ctx):
 			if err != nil {
