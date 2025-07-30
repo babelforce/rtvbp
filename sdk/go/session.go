@@ -36,6 +36,10 @@ type Session struct {
 	requestTimeout  time.Duration
 }
 
+func (s *Session) ID() string {
+	return s.id
+}
+
 // EventDispatch dispatches an event
 func (s *Session) EventDispatch(_ context.Context, payload NamedEvent) error {
 	evt := proto.NewEvent(payload.EventName(), payload)
@@ -63,31 +67,32 @@ func (s *Session) EventDispatch(_ context.Context, payload NamedEvent) error {
 }
 
 func (s *Session) writeMsgData(data []byte) error {
-	return s.transport.Control().Write(data)
+	return s.transport.Write(data)
 }
 
-func (s *Session) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) (err error) {
-
+func (s *Session) doClose(ctx context.Context, cb func(ctx context.Context, h SHC) error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	// Check if already closing or closed
 	state := s.State()
 	if state == SessionStateClosed || state == SessionStateClosing {
-		return nil
+		return
 	}
 
-	err = nil
-
 	s.closeOnce.Do(func() {
-		s.logger.Info("closing session")
 		if cb != nil {
-			s.logger.Info("calling close callback")
-			err = cb(ctx, s.shCtx)
+			if e2 := cb(ctx, s.shCtx); e2 != nil {
+				s.logger.Error("session close callback failed", slog.Any("err", e2))
+			}
 		}
-		s.setState(SessionStateClosing)
 		close(s.closeCh)
 	})
+}
+
+func (s *Session) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error {
+
+	s.doClose(ctx, cb)
 
 	// wait until done
 	select {
@@ -102,18 +107,18 @@ func (s *Session) endSession() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	s.setState(SessionStateClosing)
+
 	// close transport
 	if s.transport != nil {
 		if err := s.transport.Close(ctx); err != nil {
 			s.logger.Error("failed to close transport", "err", err)
-		} else {
-			s.logger.Info("transport closed")
 		}
 	}
 
-	s.logger.Info("closed session")
 	s.setState(SessionStateClosed)
 	close(s.doneCh)
+	s.logger.Info("closed session")
 }
 
 func (s *Session) handleEvent(ctx context.Context, evt *proto.Event) {
@@ -199,9 +204,8 @@ func (s *Session) Run(
 
 	// read incoming
 	go func() {
-		ctrlMsgInCh := s.transport.Control().ReadChan()
+		ctrlMsgInCh := s.transport.ReadChan()
 		for {
-
 			select {
 			case <-s.doneCh:
 				return
@@ -209,6 +213,7 @@ func (s *Session) Run(
 				return
 			case p, ok := <-ctrlMsgInCh:
 				if !ok {
+					s.doClose(ctx, nil)
 					return
 				}
 
@@ -227,6 +232,7 @@ func (s *Session) Run(
 		}
 	}()
 
+	// Initialize
 	go func() {
 		if err := s.handler.OnBegin(ctx, s.shCtx); err != nil {
 			beginErr := fmt.Errorf("handler.OnBegin() failed: %w", err)

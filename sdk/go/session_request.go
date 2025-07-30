@@ -55,11 +55,12 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 		return nil, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
 	}
 
-	slog.Debug(
-		"Session.Request()",
-		"request_id", req.ID,
-		"method", req.Method,
-		"params", req.Params,
+	s.logger.Debug(
+		"request",
+		slog.String("id", req.ID),
+		slog.String("method", req.Method),
+		slog.Any("params", req.Params),
+		slog.Duration("timeout", s.requestTimeout),
 	)
 
 	data, err := json.Marshal(req)
