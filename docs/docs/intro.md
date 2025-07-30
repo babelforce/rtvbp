@@ -4,6 +4,12 @@ sidebar_position: 1
 
 # Introduction
 
+**Realtime-Voice-Bridge-Protocol** (`RTVBP`) is a lightweight, event-driven protocol that streams live voice interactions from the babelforce platform to external service endpoints with minimal delay. Designed for extensibility and integration, RTVBP supports a wide range of use cases that depend on real-time access to audio—such as automated language detection, acoustic anomaly monitoring, dynamic tagging, voice-driven workflows, and AI-powered quality assessment.
+
+Built on top of WebSockets secured with TLS, the protocol provides a robust and low-latency transport mechanism. Its design emphasizes ease of implementation, avoiding dependencies on specialized tooling, brokers, or orchestration layers. Developers can focus on the core logic without managing complex infrastructure for stream handling, serialization, or connection balancing.
+
+`RTVBP` streams two types of WebSocket messages: JSON-encoded text messages for metadata and binary messages for the actual audio stream. This separation ensures efficient handling—especially important for voice pipelines—by sidestepping the processing overhead that comes with encoding audio as text. As a result, audio arrives in raw binary format, simplifying integration with systems that perform real-time processing or storage.
+
 ---
 
 ## What is RTVBP ?
