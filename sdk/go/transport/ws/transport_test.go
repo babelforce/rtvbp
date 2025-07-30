@@ -33,9 +33,10 @@ func TestTransport_Close(t *testing.T) {
 	require.NoError(t, trans.Close(closeCtx))
 
 	select {
-	case <-trans.closeCh:
+	case _, ok := <-trans.closeChan:
+		require.False(t, ok, "close channel not closed")
 	default:
-		require.Fail(t, "close channel not closed")
+		require.Fail(t, "not working!")
 	}
 }
 
@@ -55,10 +56,11 @@ func TestTransport_CloseByContext(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, trans)
 
-	<-trans.Closed()
+	<-ctx.Done()
+	<-time.After(100 * time.Millisecond)
 
 	select {
-	case <-trans.closeCh:
+	case <-trans.doneChan:
 	default:
 		require.Fail(t, "close channel not closed")
 	}
@@ -113,4 +115,29 @@ func TestClientServer(t *testing.T) {
 
 	// server shutdown
 	require.NoError(t, srv.Shutdown(ctx))
+}
+
+func TestServerGoesAway(t *testing.T) {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// start server
+	srv := NewServer(ServerConfig{
+		Addr:      "127.0.0.1:0",
+		ChunkSize: 1000,
+	}, rtvbp.NewHandler(rtvbp.HandlerConfig{}))
+	require.NoError(t, srv.Listen())
+
+	// connect client
+	clientConfig := srv.GetClientConfig()
+	clientConfig.PingInterval = 500 * time.Millisecond
+	trans, err := Connect(ctx, clientConfig, nil)
+	require.NoError(t, err)
+	require.NotNil(t, trans)
+
+	// shutdown server
+	require.NoError(t, srv.Shutdown(ctx), "server shutdown failed")
+
+	require.NoError(t, trans.Close(context.Background()))
 }

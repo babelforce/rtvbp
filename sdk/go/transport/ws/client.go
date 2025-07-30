@@ -17,6 +17,7 @@ type ClientConfig struct {
 	Dial         DialConfig
 	PingInterval time.Duration
 	SampleRate   int
+	Debug        bool
 }
 
 func (c *ClientConfig) Validate() error {
@@ -78,6 +79,7 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 
 	dialCtx, cancel := context.WithTimeout(ctx, d.ConnectTimeout)
 	defer cancel()
+
 	return websocket.DefaultDialer.DialContext(dialCtx, u.String(), header)
 }
 
@@ -117,10 +119,9 @@ func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*Websock
 		audio,
 		&TransportConfig{
 			Logger: logger,
+			Debug:  c.Debug,
 		},
 	)
-
-	t.debugMessages = true
 
 	ok := make(chan struct{})
 	go func() {

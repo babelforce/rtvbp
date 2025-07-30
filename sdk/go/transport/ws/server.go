@@ -8,12 +8,15 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/babelforce/rtvbp-go"
 	"github.com/gorilla/websocket"
 )
 
 func serverUpgradeHandler(
+	srv *Server,
 	config *ServerConfig,
 	logger *slog.Logger,
 	handler rtvbp.SessionHandler,
@@ -51,6 +54,7 @@ func serverUpgradeHandler(
 					audio,
 					&TransportConfig{
 						Logger: log,
+						Debug:  config.Debug,
 					},
 				)
 
@@ -65,11 +69,16 @@ func serverUpgradeHandler(
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
+		doneChan := sess.Run(ctx)
+
+		srv.addSession(sess)
+		defer srv.removeSession(sess)
+
 		select {
 		case <-ctx.Done():
 			_ = sess.Close(context.Background(), nil)
 			return
-		case err := <-sess.Run(ctx):
+		case err := <-doneChan:
 			if err != nil {
 				log.Error("session failed", slog.Any("err", err))
 			}
@@ -83,6 +92,7 @@ type ServerConfig struct {
 	Path        string
 	ChunkSize   int
 	AuthHandler func(req *http.Request) error
+	Debug       bool
 }
 
 func (c *ServerConfig) Defaults() {
@@ -103,9 +113,33 @@ type Server struct {
 	addr     *net.TCPAddr
 	http     *http.Server
 	listener net.Listener
+	mu       sync.Mutex
+	sessions map[string]*rtvbp.Session
+}
+
+func (s *Server) addSession(sess *rtvbp.Session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions[sess.ID()] = sess
+	s.logger.Info("session added", slog.String("session", sess.ID()))
+}
+
+func (s *Server) removeSession(sess *rtvbp.Session) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, sess.ID())
+	s.logger.Info("session removed", slog.String("session", sess.ID()))
 }
 
 func (s *Server) Shutdown(ctx context.Context) (err error) {
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, sess := range s.sessions {
+		_ = sess.Close(ctx, nil)
+	}
+
 	err = s.http.Shutdown(ctx)
 	s.logger.Info("shutdown complete", slog.Any("err", err))
 	return err
@@ -120,7 +154,9 @@ func (s *Server) GetClientConfig() ClientConfig {
 		Dial: DialConfig{
 			URL: s.URL(),
 		},
-		SampleRate: 8000,
+		SampleRate:   8000,
+		Debug:        s.config.Debug,
+		PingInterval: 10 * time.Second,
 	}
 }
 
@@ -175,20 +211,24 @@ func NewServer(
 		slog.String("peer", "server"),
 	)
 
+	srv := &Server{
+		logger:   logger,
+		config:   config,
+		sessions: map[string]*rtvbp.Session{},
+	}
+
 	// handler
 	mux := http.NewServeMux()
 	path := config.Path
 	if path == "" {
 		path = "/"
 	}
-	mux.HandleFunc(path, serverUpgradeHandler(&config, logger, handler))
+	mux.HandleFunc(path, serverUpgradeHandler(srv, &config, logger, handler))
 
-	return &Server{
-		logger: logger,
-		config: config,
-		http: &http.Server{
-			Addr:    config.Addr,
-			Handler: mux,
-		},
+	srv.http = &http.Server{
+		Addr:    config.Addr,
+		Handler: mux,
 	}
+
+	return srv
 }

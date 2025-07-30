@@ -16,26 +16,31 @@ import (
 )
 
 type WebsocketTransport struct {
-	connMu        sync.Mutex
-	conn          *websocket.Conn
-	audio         io.ReadWriter
-	config        *TransportConfig
-	cc            *controlChannel
-	msgOutCh      chan wsMessage // msgOutCh holds messages to be send out
-	msgInCh       chan wsMessage // msgInCh holds messages received from the socket
-	wsClosedCh    chan struct{}
-	closeCh       chan struct{}
-	logger        *slog.Logger
-	debugMessages bool
-	closeOnce     sync.Once
+	connMu     sync.Mutex
+	conn       *websocket.Conn
+	audio      io.ReadWriter
+	config     *TransportConfig
+	cc         *controlChannel
+	msgOutChan chan wsMessage // msgOutChan holds messages to be send out
+	msgInChan  chan wsMessage // msgInChan holds messages received from the socket
+	doneChan   chan struct{}  // doneChan gets closed when done
+	closeChan  chan struct{}  // closeChan is closed to trigger teardown
+	closeOnce  sync.Once
+	logger     *slog.Logger
 }
 
-func (w *WebsocketTransport) Closed() <-chan struct{} {
-	return w.wsClosedCh
+func (w *WebsocketTransport) Write(data []byte) error {
+	return w.cc.writeOut(data)
 }
 
-func (w *WebsocketTransport) Control() rtvbp.DataChannel {
-	return w.cc
+func (w *WebsocketTransport) ReadChan() <-chan rtvbp.DataPackage {
+	return w.cc.readChan()
+}
+
+func (w *WebsocketTransport) doClose() {
+	w.closeOnce.Do(func() {
+		close(w.closeChan)
+	})
 }
 
 // Close closes the websocket transport
@@ -43,39 +48,50 @@ func (w *WebsocketTransport) Control() rtvbp.DataChannel {
 // and wait for the connection to be closed
 func (w *WebsocketTransport) Close(ctx context.Context) error {
 
+	// check if we are already done
 	select {
-	case <-w.wsClosedCh:
+	case <-w.doneChan:
 		return nil
 	default:
 	}
 
-	w.closeOnce.Do(func() {
-		close(w.closeCh)
-	})
+	// teardown
+	w.doClose()
 
-	w.drainOut()
-
-	w.msgOutCh <- wsMessage{
+	// graceful sending out messages
+	w.drainOutgoingMessages()
+	w.msgOutChan <- wsMessage{
 		mt:   websocket.CloseMessage,
 		data: websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Closed"),
 	}
 
+	// wait until done
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("close failed: %w", ctx.Err())
-	case <-w.wsClosedCh:
+	case <-w.doneChan:
 		return nil
 	}
 }
 
-func (w *WebsocketTransport) drainOut() {
-	w.logger.Debug("drain outgoing messages", slog.Int("len", len(w.msgOutCh)))
+func (w *WebsocketTransport) drainOutgoingMessages() {
+	w.logger.Debug("drain outgoing messages", slog.Int("len", len(w.msgOutChan)))
 	for {
 		select {
-		case msg := <-w.msgOutCh:
+		case msg, ok := <-w.msgOutChan:
+			if !ok {
+				return
+			}
+
 			err := w.sendMessage(msg)
+			if errors.Is(err, websocket.ErrCloseSent) {
+				return
+			}
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			if err != nil {
-				w.logger.Error("drainOut: failed to send message", slog.Any("err", err))
+				w.logger.Error("drainOutgoingMessages: failed to send message", slog.Any("err", err))
 			}
 		default:
 			w.logger.Debug("drained outgoing messages")
@@ -84,7 +100,7 @@ func (w *WebsocketTransport) drainOut() {
 	}
 }
 
-func (w *WebsocketTransport) closeWithTimeout(timeout time.Duration) error {
+func (w *WebsocketTransport) closeIn(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	return w.Close(ctx)
@@ -93,29 +109,30 @@ func (w *WebsocketTransport) closeWithTimeout(timeout time.Duration) error {
 func (w *WebsocketTransport) process(ctx context.Context) {
 	// cleanup
 	defer func() {
-		_ = w.conn.Close()
+		_ = w.conn.Close() // close connection
+		w.cc.close()       // close channels
+		close(w.doneChan)  // signal transport ended
 	}()
 
 	// Read all messages from connection and store them in msgInCh channel
 	go func() {
+		defer w.doClose()
 		for {
 			mt, data, err := w.conn.ReadMessage()
 
-			// on error: return
 			if err != nil {
-
 				var e *websocket.CloseError
 				if errors.As(err, &e) {
-					close(w.wsClosedCh)
 					return
 				}
-
+				if errors.Is(err, net.ErrClosed) {
+					return
+				}
 				w.logger.Error("read failed", slog.Any("err", err))
-
 				return
 			}
 
-			w.msgInCh <- wsMessage{mt: mt, data: data}
+			w.msgInChan <- wsMessage{mt: mt, data: data}
 		}
 	}()
 
@@ -137,11 +154,12 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 			copy(data, buf[:n])
 
 			select {
-			case <-w.closeCh:
+			case <-w.doneChan:
 				return
-			case w.msgOutCh <- wsMessage{mt: websocket.BinaryMessage, data: data}:
+			case <-w.closeChan:
+				return
+			case w.msgOutChan <- wsMessage{mt: websocket.BinaryMessage, data: data}:
 			}
-
 		}
 	}()
 
@@ -151,23 +169,26 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 	go func() {
 		for {
 			select {
-			case <-w.wsClosedCh:
+			case <-w.doneChan:
 				return
 			case <-ctx.Done():
 				return
-			case msg, ok := <-w.msgInCh:
+			case msg, ok := <-w.msgInChan:
 				if !ok {
 					return
 				}
 				switch msg.mt {
 				case websocket.TextMessage:
-					if w.debugMessages {
+					if w.config.Debug {
 						fmt.Printf("MSG(in) <--\n%s\n", prettyJson(msg.data))
 					}
-					w.cc.input <- rtvbp.DataPackage{Data: msg.data, ReceivedAt: time.Now().UnixMilli()}
+					if err := w.cc.writeIn(rtvbp.DataPackage{Data: msg.data, ReceivedAt: time.Now().UnixMilli()}); err != nil {
+						w.logger.Error("writeIn failed", slog.Any("err", err))
+						return
+					}
 				case websocket.BinaryMessage:
 					if _, err := w.audio.Write(msg.data); err != nil {
-						w.logger.Error("write audio from socket to buffer failed", slog.Any("err", err))
+						w.logger.Error("writeOut audio from socket to buffer failed", slog.Any("err", err))
 						return
 					}
 				}
@@ -178,16 +199,24 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 	// outgoing messages
 	go func() {
 		pingTicker := time.NewTicker(5 * time.Second)
+		defer pingTicker.Stop()
+
 		for {
 			select {
+			case <-ctx.Done():
+				_ = w.closeIn(5 * time.Second)
+				return
 
-			case <-w.wsClosedCh:
+			case <-w.doneChan:
 				return
 
 			case <-pingTicker.C:
-				w.msgOutCh <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
+				w.msgOutChan <- wsMessage{mt: websocket.PingMessage, data: []byte{}, timeout: 1 * time.Second}
 
-			case msg := <-w.msgOutCh:
+			case msg, ok := <-w.msgOutChan:
+				if !ok {
+					return
+				}
 				err := w.sendMessage(msg)
 				if err != nil {
 					w.logger.Error("failed to send message", slog.Any("err", err))
@@ -197,37 +226,35 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 		}
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			_ = w.closeWithTimeout(5 * time.Second)
-			return
-
-		case <-w.wsClosedCh:
-			return
-		}
+	select {
+	case <-ctx.Done():
+	case <-w.doneChan:
+	case <-w.closeChan:
 	}
 }
 
 func (w *WebsocketTransport) sendMessage(msg wsMessage) error {
 	w.connMu.Lock()
 	defer w.connMu.Unlock()
+
+	_ = w.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+
 	if isControl(msg.mt) {
 		w.logger.Debug("send control", slog.Int("mt", msg.mt))
 		if err := w.conn.WriteControl(msg.mt, msg.data, time.Now().Add(msg.controlTimeout())); err != nil {
-			return fmt.Errorf("write control failed: %w", err)
+			return fmt.Errorf("control: %w", err)
 		}
 	} else if msg.mt == websocket.TextMessage {
 		w.logger.Debug("send text", slog.String("data", string(msg.data)))
-		if w.debugMessages {
+		if w.config.Debug {
 			fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
 		}
 		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
-			return fmt.Errorf("write text failed: %w", err)
+			return fmt.Errorf("text: %w", err)
 		}
 	} else if msg.mt == websocket.BinaryMessage {
 		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
-			return fmt.Errorf("write binary failed: %w", err)
+			return fmt.Errorf("binary: %w", err)
 		} else {
 			//w.logger.Debug("sent", slog.Int("len", len(msg.data)))
 		}
@@ -258,8 +285,6 @@ func newTransport(
 		logger = slog.Default()
 	}
 
-	logger = logger.With()
-
 	logger.Debug(
 		"new transport",
 	)
@@ -267,7 +292,7 @@ func newTransport(
 	conn.SetPingHandler(func(message string) error {
 		logger.Debug("received ping")
 		err := conn.WriteControl(websocket.PongMessage, []byte(message), time.Now().Add(1*time.Second))
-		if err == websocket.ErrCloseSent {
+		if errors.Is(err, websocket.ErrCloseSent) {
 			return nil
 		} else if e, ok := err.(net.Error); ok && e.Temporary() {
 			return nil
@@ -284,15 +309,14 @@ func newTransport(
 	msgOutCh := make(chan wsMessage, 16)
 
 	return &WebsocketTransport{
-		conn:          conn,
-		audio:         audio,
-		config:        config,
-		cc:            newControlChannel(msgOutCh),
-		msgOutCh:      msgOutCh,
-		msgInCh:       make(chan wsMessage, 16),
-		closeCh:       make(chan struct{}),
-		logger:        logger,
-		wsClosedCh:    wsClosedCh,
-		debugMessages: false,
+		conn:       conn,
+		audio:      audio,
+		config:     config,
+		cc:         newControlChannel(msgOutCh),
+		msgOutChan: msgOutCh,
+		msgInChan:  make(chan wsMessage, 16),
+		closeChan:  make(chan struct{}),
+		logger:     logger,
+		doneChan:   wsClosedCh,
 	}
 }
