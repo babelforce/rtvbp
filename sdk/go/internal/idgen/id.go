@@ -1,4 +1,4 @@
-package proto
+package idgen
 
 import gonanoid "github.com/matoous/go-nanoid/v2"
 
