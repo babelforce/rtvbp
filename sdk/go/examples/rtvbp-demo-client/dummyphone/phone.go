@@ -18,6 +18,26 @@ type PhoneSystem struct {
 	onHangupFunc func()
 }
 
+func (d *PhoneSystem) SessionVariablesSet(ctx context.Context, req *protov1.SessionSetRequest) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *PhoneSystem) SessionVariablesGet(ctx context.Context, req *protov1.SessionGetRequest) (map[string]any, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *PhoneSystem) RecordingStart(ctx context.Context, req *protov1.RecordingStartRequest) (*protov1.RecordingStartResponse, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (d *PhoneSystem) RecordingStop(ctx context.Context, recordingID string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (d *PhoneSystem) OnHangup(f func()) {
 	d.onHangupFunc = f
 }
@@ -42,21 +62,22 @@ func (d *PhoneSystem) SimulateUserHangup() error {
 	return nil
 }
 
-func endWith[R any](d *PhoneSystem, r *R) (*R, error) {
-	if err := d.SimulateUserHangup(); err != nil {
-		return nil, err
-	}
-	return r, nil
-}
-
-func (d *PhoneSystem) Hangup(_ context.Context, req *protov1.CallHangupRequest) (*protov1.CallHangupResponse, error) {
+func (d *PhoneSystem) Hangup(_ context.Context, req *protov1.CallHangupRequest) error {
 	d.log.Info("hangup", slog.Any("req", req))
-	return endWith(d, &protov1.CallHangupResponse{})
+	err := d.SimulateUserHangup()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *PhoneSystem) Move(_ context.Context, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
 	d.log.Info("move", slog.Any("req", req))
-	return endWith(d, &protov1.ApplicationMoveResponse{})
+	err := d.SimulateUserHangup()
+	if err != nil {
+		return nil, err
+	}
+	return &protov1.ApplicationMoveResponse{}, nil
 }
 
 func New(log *slog.Logger) (*PhoneSystem, context.Context) {
