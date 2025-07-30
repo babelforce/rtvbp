@@ -8,7 +8,12 @@
 
 **General**
 
-- ping: include previous rtt in next ping message
+- [x] ping: include previous rtt in next ping message
+
+**Reliability / Failure Handling**
+
+- If ping requests are not answered consider connection to be dead? -> terminate session, reconnect ?
+- Session Re-establishment (due to websocket connection loss, or unanswered ping requests)
 
 **Transport**
 
@@ -19,10 +24,6 @@
 
 - [ ] client session must end if server dies or closes the connection
 
-**Server**
-
-- configure general timeout per client session
-- create example server handler
 
 ---
 
