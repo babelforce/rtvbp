@@ -20,22 +20,31 @@ and the handler must respond with a chosen codec.
 ```json
 {
   "version": "1",
-  "id": "pL9rAwkq2vD9ec7UyGifd",
+  "id": "pD37CkLRXs6iMnBMBzwh2",
   "method": "session.initialize",
   "params": {
+    "application": {
+      "id": "90e4301109094031b61e354553c09efa"
+    },
     "audio_codec_offerings": [
       {
         "id": "L16/8000/1",
-        "bit_depth": 16,
-        "channels": 1,        
         "name": "L16",
-        "sample_rate": 8000
+        "sample_rate": 8000,
+        "bit_depth": 16,
+        "channels": 1
       }
     ],
+    "call": {
+      "id": "1b4e147aa667472bacc613f97379d0f4",
+      "session_id": "4ee4ae74f35b4cff81262c0a2bd05492",
+      "from": "491704184334",
+      "to": "493091734928"
+    },
     "metadata": {
-      
+      "recording_consent": "yeah"
     }
-  }  
+  }
 }
 ```
 
@@ -46,17 +55,17 @@ that you chose one of the offered audio codec.
 
 ```json
 {
-  "version": "1",
-  "response": "pL9rAwkq2vD9ec7UyGifd",
+  "response": "pD37CkLRXs6iMnBMBzwh2",
   "result": {
     "audio_codec": {
-      "bit_depth": 16,
-      "channels": 1,
       "id": "L16/8000/1",
       "name": "L16",
-      "sample_rate": 8000
+      "sample_rate": 8000,
+      "bit_depth": 16,
+      "channels": 1
     }
-  }
+  },
+  "version": "1"
 }
 ```
 
