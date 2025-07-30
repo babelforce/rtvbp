@@ -34,6 +34,7 @@ func serverUpgradeHandler(
 		// if auth function is specified validate here
 		if config.AuthHandler != nil {
 			if err := config.AuthHandler(r); err != nil {
+				log.Warn("authorization failed", slog.Any("err", err))
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
