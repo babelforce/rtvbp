@@ -22,6 +22,7 @@ type cliArgs struct {
 	sampleRate         int
 	phone              bool
 	hangupAfterSeconds int
+	debug              bool
 }
 
 func (a *cliArgs) config() ws.ClientConfig {
@@ -32,6 +33,7 @@ func (a *cliArgs) config() ws.ClientConfig {
 			ConnectTimeout: 5 * time.Second,
 			Headers:        a.httpHeader(),
 		},
+		Debug: a.debug,
 	}
 }
 
@@ -86,6 +88,7 @@ func initCLI() (*cliArgs, *slog.Logger) {
 		authJWT:            false,
 		sampleRate:         24_000,
 		hangupAfterSeconds: 0,
+		debug:              false,
 	}
 	flag.StringVar(&args.url, "url", args.url, "websocket url")
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "log level")
@@ -97,6 +100,7 @@ func initCLI() (*cliArgs, *slog.Logger) {
 	flag.IntVar(&args.hangupAfterSeconds, "hangup", args.hangupAfterSeconds, "hangup after x seconds")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")
 	flag.BoolVar(&args.phone, "phone", args.phone, "set 8khz sample rate and enable audio")
+	flag.BoolVar(&args.debug, "debug", args.debug, "enable debug logging for transport messages")
 	flag.Parse()
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{

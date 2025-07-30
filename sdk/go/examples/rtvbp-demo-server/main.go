@@ -19,17 +19,37 @@ type serverCLI struct {
 	moveAfterSeconds      int
 	hangupAfterSeconds    int
 	terminateAfterSeconds int
+	debug                 bool
+	logLevel              string
+}
+
+func (s *serverCLI) level() slog.Level {
+	switch s.logLevel {
+	case "debug":
+		return slog.LevelDebug
+	case "error":
+		return slog.LevelError
+	case "warn":
+		return slog.LevelWarn
+	case "info":
+		return slog.LevelInfo
+	default:
+		return slog.LevelInfo
+	}
 }
 
 func main() {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
 
 	args := serverCLI{}
 
 	flag.IntVar(&args.moveAfterSeconds, "move", args.moveAfterSeconds, "move application after x")
 	flag.IntVar(&args.hangupAfterSeconds, "hangup", args.hangupAfterSeconds, "hangup after x seconds")
 	flag.IntVar(&args.terminateAfterSeconds, "terminate", args.terminateAfterSeconds, "terminate after x seconds")
+	flag.BoolVar(&args.debug, "debug", args.debug, "transport debug messages")
+	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "set log level")
 	flag.Parse()
+
+	slog.SetLogLoggerLevel(args.level())
 
 	slog.Info("starting server", slog.Any("args", args))
 
@@ -38,11 +58,11 @@ func main() {
 		ws.ServerConfig{
 			Addr:      "0.0.0.0:8080",
 			ChunkSize: 160,
+			Debug:     args.debug,
 		},
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{
 				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-					fmt.Printf("%s> -- server begin handler ---", h.SessionID())
 
 					if args.moveAfterSeconds != 0 {
 						go func() {

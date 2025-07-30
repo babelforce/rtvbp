@@ -88,6 +88,7 @@ func main() {
 	sess := rtvbp.NewSession(
 		ws.Client(args.config()),
 		rtvbp.WithHandler(handler),
+		rtvbp.WithRequestTimeout(2*time.Second),
 	)
 
 	phone.OnHangup(func() {
