@@ -1,8 +1,9 @@
 package rtvbp
 
 import (
-	"github.com/smallnest/ringbuffer"
 	"io"
+
+	"github.com/smallnest/ringbuffer"
 )
 
 type AudioChannelSide struct {

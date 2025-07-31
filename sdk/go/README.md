@@ -250,3 +250,33 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 *Built with ❤️ for real-time voice communication*
+
+## GitHub Actions
+
+This repository includes a GitHub Action workflow that automatically:
+
+1. **Runs tests** when you push a tag (format: `v*`)
+2. **Creates a release** with auto-generated changelog
+3. **Publishes the library** for Go module consumption
+
+### Usage
+
+To trigger a release:
+
+```bash
+# Create and push a new tag
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow will:
+- Run `go test -v ./...`
+- Run `go test -race -v ./...` 
+- Run `go vet ./...`
+- Verify `go mod tidy`
+- Create a GitHub release with changelog
+- Make the module available via `go get github.com/babelforce/rtvbp-go@v1.0.0`
+
+### Workflow Configuration
+
+The workflow is defined in `.github/workflows/release.yml` and triggers on tags matching `v*` pattern.

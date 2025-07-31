@@ -1,11 +1,12 @@
 package rtvbp
 
 import (
-	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 func TestAudio(t *testing.T) {

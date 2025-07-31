@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/transport/ws"
-	"go.uber.org/goleak"
 	"io"
 	"sync"
 	"time"
+
+	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp-go/transport/ws"
+	"go.uber.org/goleak"
 )
 
 type T struct {

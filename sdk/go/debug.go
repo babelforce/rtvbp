@@ -3,8 +3,9 @@ package rtvbp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/babelforce/rtvbp-go/proto"
 	"strings"
+
+	"github.com/babelforce/rtvbp-go/proto"
 )
 
 func debugMessage(sessionID string, m proto.Message, direction string) {
