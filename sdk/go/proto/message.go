@@ -80,6 +80,19 @@ func ParseValidMessage(raw []byte) (m Message, err error) {
 	return m, nil
 }
 
+type ParseError struct {
+	Raw   []byte
+	Cause error
+}
+
+func (e *ParseError) Error() string {
+	return fmt.Sprintf("failed to parse message: %s", e.Cause)
+}
+
+func (e *ParseError) Unwrap() error {
+	return e.Cause
+}
+
 func parseMessage(raw []byte) (Message, error) {
 	var msg rawMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
@@ -94,5 +107,8 @@ func parseMessage(raw []byte) (Message, error) {
 		return newResponseWithVersion(msg.Version, msg.Response, msg.Result, msg.Error), nil
 	}
 
-	return nil, fmt.Errorf("failed to parse message: %s", raw)
+	return nil, &ParseError{
+		Raw:   raw,
+		Cause: fmt.Errorf("message is invalid: %s", string(raw)),
+	}
 }
