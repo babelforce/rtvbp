@@ -22,8 +22,7 @@ type SessionHandler interface {
 
 type HandlerAudio interface {
 	io.ReadWriter
-	ClearBuffer() (int, error)
-	Len() int
+	ClearReadBuffer() (int, error) // ClearReadBuffer clears the read buffer
 }
 
 // SHC - Session Handler Context

@@ -16,4 +16,5 @@ type Transport interface {
 	Close(ctx context.Context) error
 }
 
+// TransportFactory creates a transport
 type TransportFactory func(ctx context.Context, audio io.ReadWriter) (Transport, error)

@@ -145,6 +145,9 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 		for {
 			n, err := w.audio.Read(buf)
 			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return
+				}
 				w.logger.Error("read audio from buffer failed", slog.Any("err", err))
 				return
 			}
@@ -219,6 +222,9 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				}
 				err := w.sendMessage(msg)
 				if err != nil {
+					if isErrOk(err) {
+						return
+					}
 					w.logger.Error("failed to send message", slog.Any("err", err))
 					return
 				}
@@ -231,6 +237,19 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 	case <-w.doneChan:
 	case <-w.closeChan:
 	}
+}
+
+func isErrOk(err error) bool {
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, websocket.ErrCloseSent) {
+		return true
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	return false
 }
 
 func (w *WebsocketTransport) sendMessage(msg wsMessage) error {

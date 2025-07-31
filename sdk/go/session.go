@@ -3,6 +3,7 @@ package rtvbp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -18,22 +19,29 @@ var (
 	ErrInvalidSessionState     = fmt.Errorf("session: invalid state")
 )
 
+type CloseHandler func(ctx context.Context) error
+
 type Session struct {
-	id              string
-	state           SessionState
-	mu              sync.Mutex
-	shCtx           *sessionHandlerCtx
-	transport       Transport
-	transportFunc   TransportFactory
-	audio           *DuplexAudio
-	closeOnce       sync.Once
-	closeCh         chan struct{} // closeCh is a channel when closed will trigger shutdown of the session
-	doneCh          chan struct{} // doneCh is a channel which will be closed whenever the connection fails on reading
-	handler         SessionHandler
-	pendingRequests map[string]*pendingRequest
-	muPending       sync.Mutex
-	logger          *slog.Logger
-	requestTimeout  time.Duration
+	id            string
+	state         SessionState
+	mu            sync.Mutex
+	shCtx         *sessionHandlerCtx
+	transport     Transport
+	transportFunc TransportFactory
+
+	// transportAudio is the audio channel side which is used to read audio from the transport
+	// read: from transport
+	// write: to session
+	transportAudio   *AudioChannelSide
+	closeOnce        sync.Once
+	triggerCloseChan chan struct{} // triggerCloseChan is a channel when closed will trigger shutdown of the session
+	finalizedChan    chan struct{} // finalizedChan is a channel which will be closed whenever the connection fails on reading
+	handler          SessionHandler
+	pendingRequests  map[string]*pendingRequest
+	muPending        sync.Mutex
+	logger           *slog.Logger
+	requestTimeout   time.Duration
+	onCloseHandlers  []CloseHandler
 }
 
 func (s *Session) ID() string {
@@ -86,10 +94,11 @@ func (s *Session) doClose(ctx context.Context, cb func(ctx context.Context, h SH
 				s.logger.Error("session close callback failed", slog.Any("err", e2))
 			}
 		}
-		close(s.closeCh)
+		close(s.triggerCloseChan)
 	})
 }
 
+// Close triggers a shutdown of the session and waits until done
 func (s *Session) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error {
 
 	s.doClose(ctx, cb)
@@ -97,28 +106,27 @@ func (s *Session) Close(ctx context.Context, cb func(ctx context.Context, h SHC)
 	// wait until done
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("session close failed due to timeout: %w", ctx.Err())
-	case <-s.doneCh:
+		return fmt.Errorf("closing session failed: %w", ctx.Err())
+	case <-s.finalizedChan:
 		return nil
 	}
 }
 
-func (s *Session) endSession() {
+func (s *Session) finalize() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	s.setState(SessionStateClosing)
 
-	// close transport
-	if s.transport != nil {
-		if err := s.transport.Close(ctx); err != nil {
-			s.logger.Error("failed to close transport", "err", err)
+	for _, ch := range s.onCloseHandlers {
+		if err := ch(ctx); err != nil {
+			s.logger.Error("session close handler failed", slog.Any("err", err))
 		}
 	}
 
 	s.setState(SessionStateClosed)
-	close(s.doneCh)
 	s.logger.Info("closed session")
+	close(s.finalizedChan)
 }
 
 func (s *Session) handleEvent(ctx context.Context, evt *proto.Event) {
@@ -168,9 +176,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, msg proto.Message) 
 func (s *Session) Run(
 	ctx context.Context,
 ) <-chan error {
-	var (
-		done = make(chan error, 1)
-	)
+	var done = make(chan error, 1)
 
 	// exit early without handler
 	if s.handler == nil {
@@ -179,27 +185,30 @@ func (s *Session) Run(
 	}
 
 	// create transport
-	if trans, err := s.transportFunc(ctx, s.audio.TransportRW()); err != nil {
+	if trans, err := s.transportFunc(ctx, s.transportAudio); err != nil {
 		done <- err
 		return done
 	} else {
 		s.transport = trans
 	}
+	s.OnClose(s.transport.Close)
 
+	// background listener which waits for
+	// signal to shutdown or for context to cancel
+	// will trigger finalizers
 	go func() {
 		defer func() {
-			s.endSession()
+			s.finalize()
 			done <- nil
 		}()
 		for {
 			select {
-			case <-s.closeCh:
+			case <-s.triggerCloseChan:
 				return
 			case <-ctx.Done():
 				return
 			}
 		}
-
 	}()
 
 	// read incoming
@@ -207,7 +216,7 @@ func (s *Session) Run(
 		ctrlMsgInCh := s.transport.ReadChan()
 		for {
 			select {
-			case <-s.doneCh:
+			case <-s.finalizedChan:
 				return
 			case <-ctx.Done():
 				return
@@ -247,6 +256,12 @@ func (s *Session) Run(
 	return done
 }
 
+// OnClose registers CloseHandler
+// CloseHandler are called when the session terminates
+func (s *Session) OnClose(cb CloseHandler) {
+	s.onCloseHandlers = append(s.onCloseHandlers, cb)
+}
+
 // NewSession creates a new peer session
 func NewSession(
 	opts ...Option,
@@ -262,23 +277,30 @@ func NewSession(
 		slog.String("session", options.id),
 	)
 
+	sessionAudio, transportAudio := NewAudioChannel(options.audioBufferSize)
+
 	session := &Session{
-		id:              options.id,
-		state:           SessionStateInactive,
-		transportFunc:   options.transport,
-		closeCh:         make(chan struct{}),
-		doneCh:          make(chan struct{}),
-		pendingRequests: map[string]*pendingRequest{},
-		handler:         options.handler,
-		logger:          logger,
-		audio:           NewSessionAudio(options.audioBufferSize),
-		requestTimeout:  options.requestTimeout,
+		id:               options.id,
+		state:            SessionStateInactive,
+		transportFunc:    options.transport,
+		triggerCloseChan: make(chan struct{}),
+		finalizedChan:    make(chan struct{}),
+		pendingRequests:  map[string]*pendingRequest{},
+		handler:          options.handler,
+		logger:           logger,
+		transportAudio:   transportAudio,
+		requestTimeout:   options.requestTimeout,
+		onCloseHandlers:  make([]CloseHandler, 0),
 	}
 
 	session.shCtx = &sessionHandlerCtx{
 		sess: session,
-		ha:   session.audio.toHandlerAudio(),
+		ha:   sessionAudio,
 	}
+
+	session.OnClose(func(ctx context.Context) error {
+		return errors.Join(sessionAudio.Close(), transportAudio.Close())
+	})
 
 	return session
 }

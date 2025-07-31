@@ -1,60 +1,51 @@
 package rtvbp
 
 import (
-	"io"
-
 	"github.com/smallnest/ringbuffer"
+	"io"
 )
 
-type readWriter struct {
-	io.Reader
-	io.Writer
+type AudioChannelSide struct {
+	reader *ringbuffer.RingBuffer
+	writer *ringbuffer.RingBuffer
 }
 
-type handlerAudio struct {
-	io.ReadWriter
-	buf *ringbuffer.RingBuffer
+// Close closes the reader and writer
+func (s *AudioChannelSide) Close() error {
+	s.writer.CloseWithError(io.EOF)
+	s.reader.CloseWithError(io.EOF)
+	return nil
 }
 
-func (s *handlerAudio) ClearBuffer() (int, error) {
-	n := s.buf.Length()
-	s.buf.Reset()
+func (s *AudioChannelSide) Read(p []byte) (n int, err error) {
+	return s.reader.Read(p)
+}
+
+func (s *AudioChannelSide) Write(p []byte) (n int, err error) {
+	return s.writer.Write(p)
+}
+
+func (s *AudioChannelSide) ClearReadBuffer() (int, error) {
+	n := s.reader.Length()
+	s.reader.Reset()
 	return n, nil
 }
 
-func (s *handlerAudio) Len() int {
-	return s.buf.Length()
-}
+func NewAudioChannel(audioBufferSize int) (*AudioChannelSide, *AudioChannelSide) {
+	transportBuffer := ringbuffer.New(audioBufferSize).SetBlocking(true)
+	sessionBuffer := ringbuffer.New(audioBufferSize).SetBlocking(true)
 
-type DuplexAudio struct {
-	toTransportBuffer *ringbuffer.RingBuffer
-	toSessionBuffer   *ringbuffer.RingBuffer
-}
+	// TODO: with cancel
 
-func (s *DuplexAudio) toHandlerAudio() HandlerAudio {
-	return &handlerAudio{
-		ReadWriter: s.SessionRW(),
-		buf:        s.toSessionBuffer,
+	transportRW := &AudioChannelSide{
+		reader: transportBuffer,
+		writer: sessionBuffer,
 	}
-}
 
-func (s *DuplexAudio) TransportRW() io.ReadWriter {
-	return &readWriter{
-		Reader: s.toTransportBuffer,
-		Writer: s.toSessionBuffer,
+	sessionRw := &AudioChannelSide{
+		reader: sessionBuffer,
+		writer: transportBuffer,
 	}
-}
 
-func (s *DuplexAudio) SessionRW() io.ReadWriter {
-	return &readWriter{
-		Reader: s.toSessionBuffer,
-		Writer: s.toTransportBuffer,
-	}
-}
-
-func NewSessionAudio(audioBufferSize int) *DuplexAudio {
-	return &DuplexAudio{
-		toTransportBuffer: ringbuffer.New(audioBufferSize).SetBlocking(true),
-		toSessionBuffer:   ringbuffer.New(audioBufferSize).SetBlocking(true),
-	}
+	return sessionRw, transportRW
 }

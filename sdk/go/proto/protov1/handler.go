@@ -154,7 +154,7 @@ func NewClientHandler(
 		// REQ: audio.buffer.clear
 		rtvbp.Middleware(check, rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *AudioBufferClearRequest) (*AudioBufferClearResponse, error) {
-				n, err := hc.AudioStream().ClearBuffer()
+				n, err := hc.AudioStream().ClearReadBuffer()
 				if err != nil {
 					return nil, err
 				}
@@ -204,9 +204,8 @@ func sessionTerminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) 
 
 	// Close client
 	return hc.Close(closeCtx, func(ctx context.Context, h rtvbp.SHC) error {
-		terminateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-
+		terminateCtx, terminateCancel := context.WithTimeout(ctx, 5*time.Second)
+		defer terminateCancel()
 		_, err := hc.Request(terminateCtx, &SessionTerminateRequest{
 			Reason: reason,
 		})
