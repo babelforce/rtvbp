@@ -89,6 +89,7 @@ func main() {
 		ws.Client(args.config()),
 		rtvbp.WithHandler(handler),
 		rtvbp.WithRequestTimeout(2*time.Second),
+		rtvbp.WithDebug(args.debug),
 	)
 
 	phone.OnHangup(func() {

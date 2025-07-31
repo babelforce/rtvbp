@@ -33,7 +33,6 @@ func (a *cliArgs) config() ws.ClientConfig {
 			ConnectTimeout: 5 * time.Second,
 			Headers:        a.httpHeader(),
 		},
-		Debug: a.debug,
 	}
 }
 
