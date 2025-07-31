@@ -2,10 +2,7 @@ package rtvbp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
-
 	"github.com/babelforce/rtvbp-go/proto"
 )
 
@@ -51,27 +48,10 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	defer cancel()
 
 	req := proto.NewRequest(payload.MethodName(), payload)
-	if err := req.Validate(); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
-	}
-
-	s.logger.Debug(
-		"request",
-		slog.String("id", req.ID),
-		slog.String("method", req.Method),
-		slog.Any("params", req.Params),
-		slog.Duration("timeout", s.requestTimeout),
-	)
-
-	data, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
 	pr := s.newPendingRequest(req.ID)
 
-	if err := s.writeMsgData(data); err != nil {
-		return nil, fmt.Errorf("request write failed [method=%s, id=%s]: %w", req.Method, req.ID, err)
+	if err := s.sendMessage(req); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
 	}
 
 	// wait for response

@@ -42,6 +42,7 @@ type Session struct {
 	logger           *slog.Logger
 	requestTimeout   time.Duration
 	onCloseHandlers  []CloseHandler
+	debug            bool
 }
 
 func (s *Session) ID() string {
@@ -50,31 +51,23 @@ func (s *Session) ID() string {
 
 // EventDispatch dispatches an event
 func (s *Session) EventDispatch(_ context.Context, payload NamedEvent) error {
-	evt := proto.NewEvent(payload.EventName(), payload)
-	if err := evt.Validate(); err != nil {
-		return fmt.Errorf("event validation failed: %w", err)
-	}
-
-	s.logger.Debug(
-		"notify",
-		"event_id", evt.ID,
-		"event", evt.Event,
-		"data", payload,
-	)
-
-	data, err := json.Marshal(evt)
-	if err != nil {
-		return err
-	}
-
-	if err := s.writeMsgData(data); err != nil {
-		return fmt.Errorf("request [event=%s, id=%s]: %w", evt.Event, evt.ID, err)
-	}
-
-	return nil
+	return s.sendMessage(proto.NewEvent(payload.EventName(), payload))
 }
 
-func (s *Session) writeMsgData(data []byte) error {
+func (s *Session) sendMessage(msg proto.Message) error {
+	if err := msg.Validate(); err != nil {
+		return fmt.Errorf("sending message failed: %w", err)
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("sending message failed: %w", err)
+	}
+
+	if s.debug {
+		debugMessage(s.id, msg, "out")
+	}
+
 	return s.transport.Write(data)
 }
 
@@ -228,12 +221,19 @@ func (s *Session) Run(
 
 				msg, err := proto.ParseValidMessage(p.Data)
 				if err != nil {
+					var pe *proto.ParseError
+					if errors.As(err, &pe) {
+						println("MSG(in|ERROR) <--\n", string(p.Data), "\n")
+					}
 					s.logger.Error("parsing message json failed", slog.Any("err", err))
 				} else {
 					if p.ReceivedAt == 0 {
 						msg.SetReceivedAt(time.Now().UnixMilli())
 					} else {
 						msg.SetReceivedAt(p.ReceivedAt)
+					}
+					if s.debug {
+						debugMessage(s.id, msg, "in")
 					}
 					go s.handleIncomingMessage(ctx, msg)
 				}
@@ -291,6 +291,7 @@ func NewSession(
 		transportAudio:   transportAudio,
 		requestTimeout:   options.requestTimeout,
 		onCloseHandlers:  make([]CloseHandler, 0),
+		debug:            options.debug,
 	}
 
 	session.shCtx = &sessionHandlerCtx{

@@ -2,7 +2,6 @@ package rtvbp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -51,16 +50,7 @@ func (shc *sessionHandlerCtx) AudioStream() HandlerAudio {
 }
 
 func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) error {
-	data, err := json.Marshal(res)
-	if err != nil {
-		return fmt.Errorf("marshal response: %w", err)
-	}
-
-	if err := shc.sess.writeMsgData(data); err != nil {
-		return fmt.Errorf("write response: %w", err)
-	}
-
-	return nil
+	return shc.sess.sendMessage(res)
 }
 
 func (shc *sessionHandlerCtx) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error {

@@ -16,6 +16,7 @@ type sessionOptions struct {
 	handler         SessionHandler
 	audioBufferSize int
 	requestTimeout  time.Duration
+	debug           bool
 }
 
 type Option func(opts *sessionOptions)
@@ -72,6 +73,12 @@ func WithTransport(t Transport) Option {
 func WithHandler(h SessionHandler) Option {
 	return func(opts *sessionOptions) {
 		opts.handler = h
+	}
+}
+
+func WithDebug(debug bool) Option {
+	return func(opts *sessionOptions) {
+		opts.debug = debug
 	}
 }
 
