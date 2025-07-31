@@ -17,7 +17,6 @@ type ClientConfig struct {
 	Dial         DialConfig
 	PingInterval time.Duration
 	SampleRate   int
-	Debug        bool
 }
 
 func (c *ClientConfig) Validate() error {
@@ -119,7 +118,6 @@ func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*Websock
 		audio,
 		&TransportConfig{
 			Logger: logger,
-			Debug:  c.Debug,
 		},
 	)
 

@@ -6,5 +6,4 @@ import (
 
 type TransportConfig struct {
 	Logger *slog.Logger
-	Debug  bool
 }

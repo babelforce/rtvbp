@@ -2,7 +2,6 @@ package ws
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -182,15 +181,15 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				}
 				switch msg.mt {
 				case websocket.TextMessage:
-					if w.config.Debug {
-						fmt.Printf("MSG(in) <--\n%s\n", prettyJson(msg.data))
-					}
 					if err := w.cc.writeIn(rtvbp.DataPackage{Data: msg.data, ReceivedAt: time.Now().UnixMilli()}); err != nil {
 						w.logger.Error("writeIn failed", slog.Any("err", err))
 						return
 					}
 				case websocket.BinaryMessage:
 					if _, err := w.audio.Write(msg.data); err != nil {
+						if isErrOk(err) {
+							return
+						}
 						w.logger.Error("writeOut audio from socket to buffer failed", slog.Any("err", err))
 						return
 					}
@@ -249,6 +248,9 @@ func isErrOk(err error) bool {
 	if errors.Is(err, net.ErrClosed) {
 		return true
 	}
+	if errors.Is(err, io.ErrClosedPipe) {
+		return true
+	}
 	return false
 }
 
@@ -265,9 +267,6 @@ func (w *WebsocketTransport) sendMessage(msg wsMessage) error {
 		}
 	} else if msg.mt == websocket.TextMessage {
 		w.logger.Debug("send text", slog.String("data", string(msg.data)))
-		if w.config.Debug {
-			fmt.Printf("MSG(out) -->\n%s\n", prettyJson(msg.data))
-		}
 		if err := w.conn.WriteMessage(msg.mt, msg.data); err != nil {
 			return fmt.Errorf("text: %w", err)
 		}
@@ -280,15 +279,6 @@ func (w *WebsocketTransport) sendMessage(msg wsMessage) error {
 	}
 
 	return nil
-}
-
-func prettyJson(data []byte) string {
-	var d map[string]any
-	if err := json.Unmarshal(data, &d); err != nil {
-		return string(data)
-	}
-	x, _ := json.MarshalIndent(d, "", "  ")
-	return string(x)
 }
 
 var _ rtvbp.Transport = &WebsocketTransport{}

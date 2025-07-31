@@ -55,7 +55,6 @@ func serverUpgradeHandler(
 					audio,
 					&TransportConfig{
 						Logger: log,
-						Debug:  config.Debug,
 					},
 				)
 
@@ -64,6 +63,7 @@ func serverUpgradeHandler(
 			}),
 			rtvbp.WithHandler(handler),
 			rtvbp.WithLogger(log),
+			rtvbp.WithDebug(srv.config.Debug),
 		)
 
 		// run session
@@ -156,7 +156,6 @@ func (s *Server) GetClientConfig() ClientConfig {
 			URL: s.URL(),
 		},
 		SampleRate:   8000,
-		Debug:        s.config.Debug,
 		PingInterval: 10 * time.Second,
 	}
 }
