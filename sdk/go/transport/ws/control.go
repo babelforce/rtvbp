@@ -2,6 +2,7 @@ package ws
 
 import (
 	"fmt"
+	"io"
 	"sync"
 
 	"github.com/babelforce/rtvbp-go"
@@ -20,7 +21,7 @@ func (cc *controlChannel) writeIn(p rtvbp.DataPackage) error {
 	cc.mu.Lock()
 	defer cc.mu.Unlock()
 	if cc.closed {
-		return fmt.Errorf("control channel is closed")
+		return fmt.Errorf("control channel is closed: %w", io.ErrClosedPipe)
 	}
 	cc.input <- p
 	return nil
@@ -31,7 +32,7 @@ func (cc *controlChannel) writeOut(data []byte) error {
 	defer cc.mu.Unlock()
 
 	if cc.closed {
-		return fmt.Errorf("control channel is closed")
+		return fmt.Errorf("control channel is closed: %w", io.ErrClosedPipe)
 	}
 	cc.output <- wsMessage{mt: websocket.TextMessage, data: data}
 	return nil

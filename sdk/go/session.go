@@ -16,7 +16,6 @@ var (
 	ErrRequestTimeout          = fmt.Errorf("request: timeout")
 	ErrRequestFailed           = fmt.Errorf("request: failed")
 	ErrRequestValidationFailed = fmt.Errorf("request: client validation failed")
-	ErrInvalidSessionState     = fmt.Errorf("session: invalid state")
 )
 
 type CloseHandler func(ctx context.Context) error
@@ -56,7 +55,7 @@ func (s *Session) EventDispatch(_ context.Context, payload NamedEvent) error {
 
 func (s *Session) sendMessage(msg proto.Message) error {
 	if err := msg.Validate(); err != nil {
-		return fmt.Errorf("sending message failed: %w", err)
+		return fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
 	}
 
 	data, err := json.Marshal(msg)

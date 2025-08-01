@@ -52,7 +52,7 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Res
 	pr := s.newPendingRequest(req.ID)
 
 	if err := s.sendMessage(req); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
+		return nil, fmt.Errorf("%w: %w", ErrRequestFailed, err)
 	}
 
 	// wait for response

@@ -182,6 +182,9 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				switch msg.mt {
 				case websocket.TextMessage:
 					if err := w.cc.writeIn(rtvbp.DataPackage{Data: msg.data, ReceivedAt: time.Now().UnixMilli()}); err != nil {
+						if isErrOk(err) {
+							return
+						}
 						w.logger.Error("writeIn failed", slog.Any("err", err))
 						return
 					}
