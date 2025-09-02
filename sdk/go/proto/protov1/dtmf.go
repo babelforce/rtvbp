@@ -5,7 +5,7 @@ import "fmt"
 // DTMFEvent dispatched by telephony when the user releases a DTMF key.
 type DTMFEvent struct {
 	// Seq is the sequence number of the DTMF event. Seq is incremented for each DTMF event within the same session.
-	Seq int `json:"seq,omitempty"`
+	Seq int `json:"seq"`
 
 	// PressedAt is the time the DTMF key was pressed in milliseconds since the epoch.
 	PressedAt int64 `json:"pressed_at"`
