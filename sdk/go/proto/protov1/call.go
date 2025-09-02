@@ -10,6 +10,10 @@ import (
 type CallHangupEvent struct {
 }
 
+func (e *CallHangupEvent) String() string {
+	return "call.hangup"
+}
+
 func (e *CallHangupEvent) EventName() string {
 	return "call.hangup"
 }

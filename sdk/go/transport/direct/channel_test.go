@@ -21,6 +21,10 @@ func (e *DummyEvent) EventName() string {
 	return "dummy"
 }
 
+func (e *DummyEvent) String() string {
+	return "DummyEvent"
+}
+
 var _ rtvbp.NamedEvent = &DummyEvent{}
 
 func TestDirectTransport(t *testing.T) {

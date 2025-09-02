@@ -60,3 +60,7 @@ type SessionUpdatedEvent struct {
 func (e *SessionUpdatedEvent) EventName() string {
 	return "session.updated"
 }
+
+func (e *SessionUpdatedEvent) String() string {
+	return "SessionInitializeRequest"
+}

@@ -10,6 +10,7 @@ import (
 
 type NamedEvent interface {
 	EventName() string
+	String() string
 }
 
 type EventHandler interface {
