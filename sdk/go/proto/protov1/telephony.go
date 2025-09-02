@@ -4,18 +4,39 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/babelforce/rtvbp-go"
 	"github.com/babelforce/rtvbp-go/internal/idgen"
 )
 
+type onDtmfHandler func(dtmf *DTMFEvent)
+type onHangupHandler func(hangup *CallHangupEvent)
+
 type TelephonyAdapter interface {
+	// Move moves the call to another application
 	Move(ctx context.Context, req *ApplicationMoveRequest) (*ApplicationMoveResponse, error)
+
+	// Hangup hangs up the call
 	Hangup(ctx context.Context, req *CallHangupRequest) error
+
+	// SessionVariablesSet sets session variables
 	SessionVariablesSet(ctx context.Context, req *SessionSetRequest) error
+
+	// SessionVariablesGet gets session variables
 	SessionVariablesGet(ctx context.Context, req *SessionGetRequest) (map[string]any, error)
+
+	// RecordingStart starts recording
 	RecordingStart(ctx context.Context, req *RecordingStartRequest) (*RecordingStartResponse, error)
+
+	// RecordingStop stops recording
 	RecordingStop(ctx context.Context, recordingID string) error
-	// Play(prompt, etc)
+
+	// OnDTMF sets the callback for DTMF events
+	OnDTMF(onDtmf onDtmfHandler) error
+
+	// OnHangup sets the callback for hangup events
+	OnHangup(onHangup onHangupHandler) error
 }
 
 type FakeTelephonyAdapter struct {
@@ -23,6 +44,66 @@ type FakeTelephonyAdapter struct {
 	vars   map[string]any
 	moved  *ApplicationMoveRequest
 	hangup bool
+	events chan rtvbp.NamedEvent
+	// event handlers
+	dtmfHandler   onDtmfHandler
+	hangupHandler onHangupHandler
+}
+
+// Run starts the fake telephony adapter
+func (f *FakeTelephonyAdapter) Run(ctx context.Context) {
+	// start goroutine to process faked events
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case d := <-f.events:
+				switch e := d.(type) {
+				case *DTMFEvent:
+					f.dtmfHandler(e)
+				case *CallHangupEvent:
+					f.hangupHandler(e)
+				}
+			}
+		}
+	}()
+}
+
+// fakeSendDTMF simulates a DTMF digit being pressed
+// Note: calling this function equals to releasing the DTMF button
+func (f *FakeTelephonyAdapter) fakeSendDTMF(digit rune, duration time.Duration) {
+	println("fakeSendDTMF>", string(digit), duration.String())
+	now := time.Now()
+	f.events <- &DTMFEvent{
+		Digit:      string(digit),
+		PressedAt:  now.Add(-duration).UnixMilli(),
+		ReleasedAt: now.UnixMilli(),
+	}
+}
+
+func (f *FakeTelephonyAdapter) fakeHangup() {
+	f.events <- &CallHangupEvent{}
+}
+
+func (f *FakeTelephonyAdapter) OnDTMF(cb onDtmfHandler) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.dtmfHandler != nil {
+		return fmt.Errorf("dtmf event handler already set")
+	}
+	f.dtmfHandler = cb
+	return nil
+}
+
+func (f *FakeTelephonyAdapter) OnHangup(cb onHangupHandler) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.hangupHandler != nil {
+		return fmt.Errorf("hangup event handler already set")
+	}
+	f.hangupHandler = cb
+	return nil
 }
 
 func (f *FakeTelephonyAdapter) RecordingStart(ctx context.Context, req *RecordingStartRequest) (*RecordingStartResponse, error) {
@@ -82,6 +163,7 @@ var _ TelephonyAdapter = &FakeTelephonyAdapter{}
 
 func newFakeTelephonyAdapter() *FakeTelephonyAdapter {
 	return &FakeTelephonyAdapter{
-		vars: make(map[string]any),
+		vars:   make(map[string]any),
+		events: make(chan rtvbp.NamedEvent, 1),
 	}
 }
