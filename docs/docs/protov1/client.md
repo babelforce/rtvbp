@@ -2,12 +2,14 @@
 sidebar_position: 3
 ---
 
-# Client
+# Session Owner
 
 ---
 
 ## Requests
 
+When implementing a session handler you *MUST* implement request handlers for at least
+[session.initialize](#sessioninitialize) and [session.terminate](#sessionterminate) requests. 
 
 ### session.initialize
 
@@ -108,4 +110,21 @@ begins and the [session.updated](#sessionupdated) event is being dispatched
 }
 ```
 
-### session.terminated
+### dtmf
+
+When the session owner telephony system receives DTMF by the remote peer the
+`dtmf` event is being dispatched.
+
+```json
+{
+  "version": "1",
+  "id": "atjPj9BSH4xtLkPcXqa2z",  
+  "event": "dtmf",
+  "data": {
+    "digit": "1",
+    "seq": 0,
+    "pressed_at": 1753857115250,
+    "released_at": 1753857116250,    
+  }
+}
+```
