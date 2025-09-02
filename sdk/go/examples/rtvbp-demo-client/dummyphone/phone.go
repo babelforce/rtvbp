@@ -72,7 +72,7 @@ func (d *PhoneSystem) EmulateDTMF(digit string) {
 	}
 }
 
-func (d *PhoneSystem) EmulateHangup() error {
+func (d *PhoneSystem) EmulateHangup(reason string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -84,7 +84,7 @@ func (d *PhoneSystem) EmulateHangup() error {
 	<-time.After(100 * time.Millisecond)
 
 	if d.onHangup != nil {
-		d.onHangup(&protov1.CallHangupEvent{})
+		d.onHangup(&protov1.CallHangupEvent{Reason: reason})
 	}
 	<-time.After(1 * time.Second)
 	d.cancel()
@@ -94,7 +94,7 @@ func (d *PhoneSystem) EmulateHangup() error {
 
 func (d *PhoneSystem) Hangup(_ context.Context, req *protov1.CallHangupRequest) error {
 	d.log.Info("hangup", slog.Any("req", req))
-	err := d.EmulateHangup()
+	err := d.EmulateHangup(req.Reason)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (d *PhoneSystem) Hangup(_ context.Context, req *protov1.CallHangupRequest) 
 
 func (d *PhoneSystem) Move(_ context.Context, req *protov1.ApplicationMoveRequest) (*protov1.ApplicationMoveResponse, error) {
 	d.log.Info("move", slog.Any("req", req))
-	err := d.EmulateHangup()
+	err := d.EmulateHangup(req.MethodName())
 	if err != nil {
 		return nil, err
 	}

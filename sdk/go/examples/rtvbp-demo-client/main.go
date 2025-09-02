@@ -96,7 +96,7 @@ func main() {
 		go func() {
 			<-time.After(time.Duration(args.hangupAfterSeconds) * time.Second)
 			log.Info("simulating hangup", slog.Int("hangup_after_seconds", args.hangupAfterSeconds))
-			_ = phone.EmulateHangup()
+			_ = phone.EmulateHangup("timeout")
 		}()
 	}
 
@@ -117,7 +117,7 @@ func main() {
 	for {
 		select {
 		case <-ctrlC:
-			_ = phone.EmulateHangup()
+			_ = phone.EmulateHangup("ctrl-c")
 		case err := <-sessDoneCh:
 			if err != nil {
 				log.Error("session ended with error", slog.Any("err", err))
