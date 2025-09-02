@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/babelforce/rtvbp-go"
@@ -27,6 +28,7 @@ type ClientHandler struct {
 	mu          sync.Mutex
 	initialized bool
 	shc         rtvbp.SHC
+	dtmfSeq     atomic.Int64
 }
 
 func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
@@ -125,6 +127,25 @@ func NewClientHandler(
 				// start audio streaming
 				if err := onAudio(ctx, h); err != nil {
 					return err
+				}
+
+				// wire DTMF events
+				if err := tel.OnDTMF(func(e *DTMFEvent) {
+					e.Seq = int(hdl.dtmfSeq.Add(1) - 1)
+					if err := h.Notify(ctx, e); err != nil {
+						h.Log().Error("failed to notify DTMF", slog.Any("err", err))
+					}
+				}); err != nil {
+					return fmt.Errorf("failed to setup DTMF: %w", err)
+				}
+
+				// wire call.hangup event
+				if err := tel.OnHangup(func(e *CallHangupEvent) {
+					if err := h.Notify(ctx, e); err != nil {
+						h.Log().Error("failed to notify hangup", slog.Any("err", err))
+					}
+				}); err != nil {
+					return fmt.Errorf("failed to setup hangup event: %w", err)
 				}
 
 				// periodic application level pinger
