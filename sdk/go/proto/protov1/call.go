@@ -8,6 +8,7 @@ import (
 )
 
 type CallHangupEvent struct {
+	Reason string `json:"reason,omitempty"`
 }
 
 func (e *CallHangupEvent) String() string {
