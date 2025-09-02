@@ -10,8 +10,8 @@ import (
 	"github.com/babelforce/rtvbp-go/internal/idgen"
 )
 
-type onDtmfHandler func(dtmf *DTMFEvent)
-type onHangupHandler func(hangup *CallHangupEvent)
+type TelephonyDtmfHandler func(dtmf *DTMFEvent)
+type TelephonyHangupHandler func(hangup *CallHangupEvent)
 
 type TelephonyAdapter interface {
 	// Move moves the call to another application
@@ -33,10 +33,10 @@ type TelephonyAdapter interface {
 	RecordingStop(ctx context.Context, recordingID string) error
 
 	// OnDTMF sets the callback for DTMF events
-	OnDTMF(onDtmf onDtmfHandler) error
+	OnDTMF(onDtmf TelephonyDtmfHandler) error
 
 	// OnHangup sets the callback for hangup events
-	OnHangup(onHangup onHangupHandler) error
+	OnHangup(onHangup TelephonyHangupHandler) error
 }
 
 type FakeTelephonyAdapter struct {
@@ -46,8 +46,8 @@ type FakeTelephonyAdapter struct {
 	hangup bool
 	events chan rtvbp.NamedEvent
 	// event handlers
-	dtmfHandler   onDtmfHandler
-	hangupHandler onHangupHandler
+	dtmfHandler   TelephonyDtmfHandler
+	hangupHandler TelephonyHangupHandler
 }
 
 // Run starts the fake telephony adapter
@@ -86,7 +86,7 @@ func (f *FakeTelephonyAdapter) fakeHangup() {
 	f.events <- &CallHangupEvent{}
 }
 
-func (f *FakeTelephonyAdapter) OnDTMF(cb onDtmfHandler) error {
+func (f *FakeTelephonyAdapter) OnDTMF(cb TelephonyDtmfHandler) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.dtmfHandler != nil {
@@ -96,7 +96,7 @@ func (f *FakeTelephonyAdapter) OnDTMF(cb onDtmfHandler) error {
 	return nil
 }
 
-func (f *FakeTelephonyAdapter) OnHangup(cb onHangupHandler) error {
+func (f *FakeTelephonyAdapter) OnHangup(cb TelephonyHangupHandler) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.hangupHandler != nil {

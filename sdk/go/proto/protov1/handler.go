@@ -65,18 +65,6 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	return r2, nil
 }
 
-// OnHangup is called when the call is hung up by the remote party
-// Triggers the following sequence
-// - EVT call.hangup
-// - REQ session.terminate(reason=hangup)
-func (ch *ClientHandler) OnHangup(ctx context.Context, s *rtvbp.Session) error {
-	_ = s.EventDispatch(ctx, &CallHangupEvent{})
-	if _, err := s.Request(ctx, &SessionTerminateRequest{Reason: "hangup"}); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (ch *ClientHandler) Terminate(reason string) error {
 	ch.mu.Lock()
 	defer ch.mu.Unlock()
@@ -141,8 +129,10 @@ func NewClientHandler(
 
 				// wire call.hangup event
 				if err := tel.OnHangup(func(e *CallHangupEvent) {
-					if err := h.Notify(ctx, e); err != nil {
-						h.Log().Error("failed to notify hangup", slog.Any("err", err))
+					_ = h.Notify(ctx, e)
+					_, err := h.Request(ctx, &SessionTerminateRequest{Reason: "hangup"})
+					if err != nil {
+						h.Log().Error("failed to terminate session on call.hangup event", slog.Any("err", err))
 					}
 				}); err != nil {
 					return fmt.Errorf("failed to setup hangup event: %w", err)

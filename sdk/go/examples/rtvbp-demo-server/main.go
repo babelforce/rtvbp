@@ -111,6 +111,10 @@ func main() {
 			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.EmptyResponse, error) {
 				return &protov1.EmptyResponse{}, nil
 			}),
+			rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, evt *protov1.DTMFEvent) error {
+				println("DTMF>:", evt.Digit, ":", evt.String())
+				return nil
+			}),
 			protov1.NewPingHandler(),
 		),
 	)

@@ -23,6 +23,8 @@ type cliArgs struct {
 	phone              bool
 	hangupAfterSeconds int
 	debug              bool
+	dtmf               string // dtmf sequence to send
+	dtmfDelaySeconds   int    // dtmf sequence to send after x seconds
 }
 
 func (a *cliArgs) config() ws.ClientConfig {
@@ -95,6 +97,8 @@ func initCLI() (*cliArgs, *slog.Logger) {
 	flag.BoolVar(&args.authJWT, "auth-jwt", args.authJWT, "use asymmetric JWT auth")
 	flag.StringVar(&args.proxyToken, "proxy-token", args.proxyToken, "set header for rtvbp proxy (x-proxy-token)")
 	flag.StringVar(&args.proxyURL, "proxy-url", args.proxyURL, "set proxy url for websocket proxy")
+	flag.StringVar(&args.dtmf, "dtmf", args.dtmf, "send DTMF sequence")
+	flag.IntVar(&args.dtmfDelaySeconds, "dtmf-delay", args.dtmfDelaySeconds, "send DTMF sequence after x seconds")
 	flag.IntVar(&args.sampleRate, "sample-rate", args.sampleRate, "sample rate to send out")
 	flag.IntVar(&args.hangupAfterSeconds, "hangup", args.hangupAfterSeconds, "hangup after x seconds")
 	flag.BoolVar(&args.audio, "audio", args.audio, "enable audio")

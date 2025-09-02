@@ -92,17 +92,20 @@ func main() {
 		rtvbp.WithDebug(args.debug),
 	)
 
-	phone.OnHangup(func() {
-		if err := handler.OnHangup(ctx, sess); err != nil {
-			log.Error("failed to emulate hangup", slog.Any("err", err))
-		}
-	})
-
 	if args.hangupAfterSeconds > 0 {
 		go func() {
 			<-time.After(time.Duration(args.hangupAfterSeconds) * time.Second)
 			log.Info("simulating hangup", slog.Int("hangup_after_seconds", args.hangupAfterSeconds))
-			_ = phone.SimulateUserHangup()
+			_ = phone.EmulateHangup()
+		}()
+	}
+
+	if args.dtmf != "" {
+		go func() {
+			if args.dtmfDelaySeconds > 0 {
+				<-time.After(time.Duration(args.dtmfDelaySeconds) * time.Second)
+			}
+			phone.EmulateDTMF(args.dtmf)
 		}()
 	}
 
@@ -114,7 +117,7 @@ func main() {
 	for {
 		select {
 		case <-ctrlC:
-			_ = phone.SimulateUserHangup()
+			_ = phone.EmulateHangup()
 		case err := <-sessDoneCh:
 			if err != nil {
 				log.Error("session ended with error", slog.Any("err", err))
