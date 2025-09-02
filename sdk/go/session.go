@@ -157,7 +157,7 @@ func (s *Session) handleIncomingMessage(ctx context.Context, msg proto.Message) 
 	case *proto.Event:
 		s.handleEvent(ctx, m)
 	case *proto.Request:
-		s.handleRequest(ctx, m)
+		go s.handleRequest(ctx, m)
 	case *proto.Response:
 		s.resolvePendingRequest(m)
 	default:
@@ -234,7 +234,7 @@ func (s *Session) Run(
 					if s.debug {
 						debugMessage(s.id, msg, "in")
 					}
-					go s.handleIncomingMessage(ctx, msg)
+					s.handleIncomingMessage(ctx, msg)
 				}
 			}
 		}
