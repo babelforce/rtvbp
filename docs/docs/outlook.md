@@ -16,3 +16,19 @@ In future developments of **RTVBP** we have a few things in mind:
 - **Session-Store** Allow to read and write session data to make it available within other parts of the babelforce ecosystem
 - **Outbound Calls** Allow to be the initiator of the session. Allow to create outbound calls from your end and control them.
 
+## Low-Level Requests and Events
+
+The following low-level requests will be supported in the future:
+
+- `session.set`: Set session variables
+- `session.get`: Get session variables
+- `recording.start`: Start recording
+- `recording.stop`: Stop recording
+- `playback.start`: Start playback
+- `playback.stop`: Stop playback
+
+The following events will be supported in the future:
+
+- `dtmf`: Send DTMF events
+- `audio.transcript`: Receive audio transcripts
+

@@ -143,6 +143,8 @@ Note: Transport level Keep-alive
 
 ## Keep-Alive
 
+Besides Transport level keep-alive (`TCP` and `WebSocket`) we also provide a **ping** method to measure application and network timing.
+
 The `ping` method allows either peer to measure **latency**, **one-way delay**, and **clock alignment** by exchanging timestamps through the application layer.
 
 This is in addition to the low-level WebSocket ping/pong mechanism, and provides fine-grained insights into application and network timing.

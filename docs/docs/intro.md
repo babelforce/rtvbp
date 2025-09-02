@@ -21,15 +21,37 @@ telephony services.
 
 ### v1
 
-**Supported Actions**
+#### Requests
 
+**Handler**
+
+The following requests can be send by your session handler
+and are handled on the babelforce platform (session owner).
+
+- `ping`
 - `application.move`
-- `application.hangup`
+- `call.hangup`
+- `audio.buffer.clear`
+- **upcoming:** `session.set`
+- **upcoming:** `session.get`
+- **upcoming:** `recording.start`
+- **upcoming:** `recording.stop`
 
-**Supported Events**
+**Session Owner**
+
+The following requests will be send by the session owner and
+must be handled by your session handler.
+
+- `session.initialize`
+- `session.terminate`
+
+#### Events
+
+**Session Owner**
 
 - `session.updated`
-- `session.terminated`
+- `call.hangup`
+- `dtmf`
 
 **Audio Formats**
 
