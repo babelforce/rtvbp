@@ -75,11 +75,13 @@ func (f *FakeTelephonyAdapter) Run(ctx context.Context) {
 func (f *FakeTelephonyAdapter) fakeSendDTMF(digit rune, duration time.Duration) {
 	println("fakeSendDTMF>", string(digit), duration.String())
 	now := time.Now()
-	f.events <- &DTMFEvent{
-		Digit:      string(digit),
-		PressedAt:  now.Add(-duration).UnixMilli(),
-		ReleasedAt: now.UnixMilli(),
+	evt := &DTMFEvent{
+		Digit:     string(digit),
+		PressedAt: now.UnixMilli(),
 	}
+	<-time.After(duration)
+	evt.ReleasedAt = now.UnixMilli()
+	f.events <- evt
 }
 
 func (f *FakeTelephonyAdapter) fakeHangup() {
