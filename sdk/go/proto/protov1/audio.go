@@ -24,3 +24,7 @@ type AudioSpeechStartedEvent struct {
 func (e *AudioSpeechStartedEvent) EventName() string {
 	return "audio.speech.started"
 }
+
+func (e *AudioSpeechStartedEvent) String() string {
+	return "AudioSpeechStartedEvent"
+}
