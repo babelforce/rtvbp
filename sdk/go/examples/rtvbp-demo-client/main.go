@@ -90,6 +90,7 @@ func main() {
 		rtvbp.WithHandler(handler),
 		rtvbp.WithRequestTimeout(2*time.Second),
 		rtvbp.WithDebug(args.debug),
+		rtvbp.WithStreamObserver(handler.Observe(ctx)),
 	)
 
 	if args.hangupAfterSeconds > 0 {

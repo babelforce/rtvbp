@@ -65,6 +65,12 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	return r2, nil
 }
 
+func (ch *ClientHandler) Observe(ctx context.Context) rtvbp.AudioStreamObserver {
+	at := &audioInfoTracker{ch: ch}
+	at.Start(ctx, 1*time.Second)
+	return at.asObserver()
+}
+
 func (ch *ClientHandler) Terminate(reason string) error {
 	ch.mu.Lock()
 	defer ch.mu.Unlock()

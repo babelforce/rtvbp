@@ -293,9 +293,20 @@ func NewSession(
 		debug:            options.debug,
 	}
 
-	session.shCtx = &sessionHandlerCtx{
-		sess: session,
-		ha:   sessionAudio,
+	if options.streamObserver == nil {
+		session.shCtx = &sessionHandlerCtx{
+			sess: session,
+			ha:   sessionAudio,
+		}
+	} else {
+		session.shCtx = &sessionHandlerCtx{
+			sess: session,
+			ha: &ObservableAudio{
+				s:  session,
+				ha: sessionAudio,
+				o:  *options.streamObserver,
+			},
+		}
 	}
 
 	session.OnClose(func(ctx context.Context) error {

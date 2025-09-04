@@ -17,6 +17,7 @@ type sessionOptions struct {
 	audioBufferSize int
 	requestTimeout  time.Duration
 	debug           bool
+	streamObserver  *AudioStreamObserver
 }
 
 type Option func(opts *sessionOptions)
@@ -35,6 +36,12 @@ func withOptions(os ...Option) Option {
 		for _, o := range os {
 			o(opts)
 		}
+	}
+}
+
+func WithStreamObserver(o AudioStreamObserver) Option {
+	return func(opts *sessionOptions) {
+		opts.streamObserver = &o
 	}
 }
 
