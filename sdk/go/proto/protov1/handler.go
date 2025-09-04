@@ -65,9 +65,9 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	return r2, nil
 }
 
-func (ch *ClientHandler) Observe(ctx context.Context) rtvbp.AudioStreamObserver {
+func (ch *ClientHandler) Observe(ctx context.Context, interval time.Duration) rtvbp.AudioStreamObserver {
 	at := &audioInfoTracker{ch: ch}
-	at.Start(ctx, 1*time.Second)
+	at.Start(ctx, interval)
 	return at.asObserver()
 }
 

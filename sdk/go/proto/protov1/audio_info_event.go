@@ -10,14 +10,14 @@ import (
 )
 
 type audioInfoItem struct {
-	Bytes          int64   `json:"bytes"`
-	BytesPerSecond float64 `json:"bytes_per_second"`
-	BytesTotal     int64   `json:"bytes_total"`
+	Bytes          int64   `json:"bytes"`            // Bytes is the number of bytes read or written within the last interval
+	BytesPerSecond float64 `json:"bytes_per_second"` // BytesPerSecond is the number of bytes read or written per second within the last interval
+	BytesTotal     int64   `json:"bytes_total"`      // BytesTotal is the total number of bytes read or written since the session started
 }
 
 type AudioInfoEvent struct {
-	Read  audioInfoItem `json:"read"`
-	Write audioInfoItem `json:"write"`
+	Read  audioInfoItem `json:"read"`  // Read describes how much audio data has been read from the telephony stream
+	Write audioInfoItem `json:"write"` // Write describes how much audio data has been written to the telephony stream
 }
 
 func (e *AudioInfoEvent) EventName() string {
