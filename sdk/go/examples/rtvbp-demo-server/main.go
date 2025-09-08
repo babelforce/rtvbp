@@ -13,6 +13,8 @@ import (
 	"github.com/babelforce/rtvbp-go/audio"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
 	"github.com/babelforce/rtvbp-go/transport/ws"
+	audiogo "github.com/codewandler/audio-go"
+	"github.com/gordonklaus/portaudio"
 )
 
 type serverCLI struct {
@@ -21,6 +23,8 @@ type serverCLI struct {
 	terminateAfterSeconds int
 	debug                 bool
 	logLevel              string
+	audio                 string
+	audioSampleRate       int
 }
 
 func (s *serverCLI) level() slog.Level {
@@ -40,18 +44,34 @@ func (s *serverCLI) level() slog.Level {
 
 func main() {
 
-	args := serverCLI{}
+	args := serverCLI{
+		moveAfterSeconds:      0,
+		hangupAfterSeconds:    0,
+		terminateAfterSeconds: 0,
+		debug:                 false,
+		logLevel:              "info",
+		audio:                 "loopback",
+		audioSampleRate:       8_000,
+	}
 
 	flag.IntVar(&args.moveAfterSeconds, "move", args.moveAfterSeconds, "move application after x")
 	flag.IntVar(&args.hangupAfterSeconds, "hangup", args.hangupAfterSeconds, "hangup after x seconds")
 	flag.IntVar(&args.terminateAfterSeconds, "terminate", args.terminateAfterSeconds, "terminate after x seconds")
 	flag.BoolVar(&args.debug, "debug", args.debug, "transport debug messages")
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "set log level")
+	flag.StringVar(&args.audio, "audio", args.audio, "set audio processing")
+	flag.IntVar(&args.audioSampleRate, "audio-sample-rate", args.audioSampleRate, "audio sample rate when audio is set to device")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(args.level())
-
 	slog.Info("starting server", slog.Any("args", args))
+
+	if args.audio == "device" {
+		if err := portaudio.Initialize(); err != nil {
+			panic(err)
+		}
+		defer portaudio.Terminate()
+	}
 
 	// start server
 	srv := ws.NewServer(
@@ -101,8 +121,20 @@ func main() {
 				}
 
 				// start audio
-				lb := audio.NewLoopback()
-				audio.DuplexCopy(lb, 3200, hc.AudioStream(), 3200)
+				if args.audio == "loopback" {
+					lb := audio.NewLoopback()
+					audio.DuplexCopy(lb, 3200, hc.AudioStream(), 3200)
+				} else if args.audio == "device" {
+					audioDev, err := audiogo.NewDevice(args.audioSampleRate, 1)
+					if err != nil {
+						return nil, fmt.Errorf("failed to setup server audio: %w", err)
+					}
+					lat := 20 * time.Millisecond
+					s := int(float64(args.audioSampleRate) * 2 * lat.Seconds())
+					audio.DuplexCopy(hc.AudioStream(), s, audioDev, s)
+				} else if args.audio == "file" {
+					// TODO:
+				}
 
 				return &protov1.SessionInitializeResponse{
 					AudioCodec: &req.AudioCodecOfferings[0],
