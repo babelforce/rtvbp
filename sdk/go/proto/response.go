@@ -61,18 +61,19 @@ func newResponse(requestID string, result any, err *ResponseError) *Response {
 	return newResponseWithVersion(Version, requestID, result, err)
 }
 
-func As[R any](v any) (*R, error) {
+func As[R any](v any) (R, error) {
+	var zv = *new(R)
 	data, err := json.Marshal(v)
 	if err != nil {
-		return nil, err
+		return zv, err
 	}
 
 	var r R
 	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, err
+		return zv, err
 	}
 
-	return &r, nil
+	return r, nil
 }
 
 var _ Message = &Response{}

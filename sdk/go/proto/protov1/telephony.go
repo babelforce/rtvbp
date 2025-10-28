@@ -3,6 +3,7 @@ package protov1
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -126,12 +127,18 @@ func (f *FakeTelephonyAdapter) SessionVariablesGet(ctx context.Context, req *Ses
 	defer f.mu.Unlock()
 
 	var out = make(map[string]any)
-	for _, k := range req.Keys {
-		v, ok := f.vars[k]
-		if ok {
-			out[k] = v
+
+	if len(req.Keys) == 0 {
+		maps.Copy(out, f.vars)
+	} else {
+		for _, k := range req.Keys {
+			v, ok := f.vars[k]
+			if ok {
+				out[k] = v
+			}
 		}
 	}
+
 	return out, nil
 }
 

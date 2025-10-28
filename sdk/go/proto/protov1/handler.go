@@ -43,7 +43,7 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	if err != nil {
 		return nil, err
 	}
-	r2, err := proto.As[SessionInitializeResponse](r1.Result)
+	r2, err := proto.As[*SessionInitializeResponse](r1.Result)
 	if err != nil {
 		return nil, err
 	}

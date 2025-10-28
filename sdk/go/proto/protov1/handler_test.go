@@ -2,6 +2,7 @@ package protov1
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"testing"
@@ -242,20 +243,37 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 			name: "set and get variable",
 			fn: func(t *testing.T, ctx context.Context, h rtvbp.SHC, tel *FakeTelephonyAdapter, events chan rtvbp.NamedEvent) {
 				// set
-				res, err := h.Request(ctx, &SessionSetRequest{Data: map[string]any{"foo": "bar", "bing": 23}})
-				require.NoError(t, err)
-				require.NotNil(t, res)
+				t.Run("set", func(t *testing.T) {
+					res, err := h.Request(ctx, &SessionSetRequest{Data: map[string]any{"foo": "bar", "bing": 23}})
+					require.NoError(t, err)
+					require.NotNil(t, res)
+				})
 
 				// get
-				res, err = h.Request(ctx, &SessionGetRequest{Keys: []string{"foo", "bing", "unknown"}})
-				require.NoError(t, err)
-				require.NotNil(t, res)
-				data, err := proto.As[map[string]any](res.Result)
-				require.NoError(t, err)
-				require.Equal(t, "bar", (*data)["foo"])
-				require.Equal(t, 23.0, (*data)["bing"])
-				require.Nil(t, (*data)["unknown"], "must not be present")
+				t.Run("get", func(t *testing.T) {
+					res, err := h.Request(ctx, &SessionGetRequest{Keys: []string{"foo", "bing", "unknown"}})
+					require.NoError(t, err)
+					require.NotNil(t, res)
+					data, err := proto.As[map[string]any](res.Result)
+					require.NoError(t, err)
+					require.Equal(t, "bar", data["foo"])
+					require.Equal(t, 23.0, data["bing"])
+					require.Nil(t, data["unknown"], "must not be present")
+				})
 
+				t.Run("get all", func(t *testing.T) {
+					// get all
+					res, err := h.Request(ctx, &SessionGetRequest{})
+					require.NoError(t, err)
+					require.NotNil(t, res)
+					data, err := proto.As[map[string]any](res.Result)
+					require.NoError(t, err)
+					fmt.Printf("ALL %+v\n", data)
+					require.Equal(t, map[string]any{
+						"foo":  "bar",
+						"bing": 23.0,
+					}, data)
+				})
 			},
 		},
 		{
