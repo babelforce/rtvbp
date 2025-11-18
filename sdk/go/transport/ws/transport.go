@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/babelforce/rtvbp-go"
@@ -127,7 +128,12 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				if errors.Is(err, net.ErrClosed) {
 					return
 				}
+				if errors.Is(err, syscall.ECONNRESET) {
+					return
+				}
+
 				w.logger.Error("read failed", slog.Any("err", err))
+				
 				return
 			}
 
