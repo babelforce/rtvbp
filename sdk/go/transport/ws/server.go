@@ -200,16 +200,8 @@ func (s *Server) Listen() error {
 	}
 }
 
-func NewServer(
-	config ServerConfig,
-	handler rtvbp.SessionHandler,
-) *Server {
+func NewServerWithLogger(logger *slog.Logger, config ServerConfig, handler rtvbp.SessionHandler) *Server {
 	config.Defaults()
-
-	logger := slog.Default().With(
-		slog.String("transport", "websocket"),
-		slog.String("peer", "server"),
-	)
 
 	srv := &Server{
 		logger:   logger,
@@ -231,4 +223,18 @@ func NewServer(
 	}
 
 	return srv
+}
+
+func NewServer(
+	config ServerConfig,
+	handler rtvbp.SessionHandler,
+) *Server {
+	return NewServerWithLogger(
+		slog.Default().With(
+			slog.String("transport", "websocket"),
+			slog.String("peer", "server"),
+		),
+		config,
+		handler,
+	)
 }
