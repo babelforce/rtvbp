@@ -1,41 +1,31 @@
-# Website
+# RTVBP docs
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Start here to find anything inside the repository. These are the internal contributor docs: vision,
+roadmap, story status, design records, and notes. Work is tracked with the **track** framework — see
+[AGENTS.md](../AGENTS.md) → **"Start here"** for the working loop.
 
-## Installation
+> **Two doc trees.** This directory is the *contributor* documentation. The **published protocol
+> documentation** is the Docusaurus site in [`../website/`](../website) (served at
+> <https://babelforce.github.io/rtvbp/>); its protocol reference pages under
+> `website/docs/reference/` are **generated** from the spec and must not be hand-edited.
 
-```bash
-yarn
-```
+## Map
 
-## Local Development
+| If you want… | Read |
+|---|---|
+| Why the project exists; the principles | [vision.md](vision.md) |
+| Status + what's next; the epics | [roadmap.md](roadmap.md) |
+| **What to work on right now** | [stories/README.md](stories/README.md) — the backlog/status board |
+| The detail of a specific story | `stories/<ID>-<slug>.md` |
+| Design records for non-trivial work | [designs/](designs/) |
+| The layer model and how it all fits | [designs/architecture.md](designs/architecture.md) |
+| Finished / superseded material | [archive/](archive/) |
+| Released history | [../CHANGELOG.md](../CHANGELOG.md) |
 
-```bash
-yarn start
-```
+## Working here
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
-
-```bash
-yarn build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-## Deployment
-
-Using SSH:
-
-```bash
-USE_SSH=true yarn deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> yarn deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+Every contributor — human or agent — starts at [AGENTS.md](../AGENTS.md) → **"Start here"**: open the
+[board](stories/README.md), take the top `ready` story by priority, follow the loop, keep the gate
+green. New or unscoped work? Create a story first (`/track:story`) so the next agent inherits the
+context. After any change to a story's status/priority/title/epic/note, run `/track:board`. Optional
+story `areas` are query-only subsystem tags for selection, e.g. `/track:next spec`.
