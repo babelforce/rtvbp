@@ -16,3 +16,5 @@ All notable changes to this project are documented here. The format is based on
 
 - The track backlog framework: [vision](docs/vision.md), [roadmap](docs/roadmap.md), the
   [board](docs/stories/README.md), and the design records for the spec-first re-implementation.
+- Frozen `babelforce.v1` golden wire fixtures captured from `rtvbp-go v0.40.0`, with a disposable
+  capture tool and byte-exact regression tests.

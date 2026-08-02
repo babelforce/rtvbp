@@ -9,7 +9,8 @@ the stories, not the generated region. New work? Copy [`_TEMPLATE.md`](_TEMPLATE
 
 ## Status
 
-Milestone 1 — **spec + generator + a Go SDK at wire parity** — is planned and not yet started. The
+Milestone 1 — **spec + generator + a Go SDK at wire parity** — is underway. R-1 has frozen the
+`babelforce.v1` wire fixtures; R-2 is next. The
 sixteen stories below are ordered as a pipeline; **R-1 and R-2 are independent and can run in
 parallel**, everything after them is sequenced by its `note:`. As each story lands, promote its
 successor from `backlog` to `ready`.
@@ -30,10 +31,6 @@ No gate exists yet — establishing it is R-16.
 _None._
 
 ## Next (ready — take the top one unless the user named a story)
-
-### conformance vectors, interop, and acceptance
-_"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-1 — Capture frozen golden wire fixtures from rtvbp-go](R-1-capture-golden-wire-fixtures.md) · Proof · the authority for every later byte-identity check — capture before the spec is written
 
 ### the spec crate and the generator core
 _Before anything can be generated there must be a source of truth that is provably equal to the_
@@ -74,5 +71,8 @@ _Before anything can be generated there must be a source of truth that is provab
 - [R-5 — Generator skeleton and manifest emitter](R-5-generator-skeleton-manifest.md) · Generator · blocked on R-3; the cheapest emitter, chosen to force the model to be complete
 
 ## Done
-_None yet._
+
+### conformance vectors, interop, and acceptance
+_"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
+- [R-1 — Capture frozen golden wire fixtures from rtvbp-go](R-1-capture-golden-wire-fixtures.md) · Proof · the authority for every later byte-identity check — capture before the spec is written
 <!-- END track:board -->

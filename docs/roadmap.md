@@ -7,11 +7,12 @@ document is the hand-written narrative around it.
 ## Status
 
 _As of 2026-08-02:_ the repository is being converted from a documentation site into the **home of
-the protocol** — spec, generator, and SDKs. Nothing is implemented yet; the backlog below is the
-plan. The Docusaurus site has moved from `docs/` to [`website/`](../website) so `docs/` can hold the
-contributor docs and this backlog, and the GitHub Pages workflow was updated to match. The
-architecture is settled and recorded in [designs/architecture.md](designs/architecture.md); no gate
-(tests / lint / format) exists yet — establishing it is part of R-16.
+the protocol** — spec, generator, and SDKs. R-1 has frozen the `babelforce.v1` wire bytes captured
+from `rtvbp-go v0.40.0`; R-2, the monorepo scaffold, is next. The Docusaurus site has moved from
+`docs/` to [`website/`](../website) so `docs/` can hold the contributor docs and this backlog, and the
+GitHub Pages workflow was updated to match. The architecture is settled and recorded in
+[designs/architecture.md](designs/architecture.md); no repository-wide gate exists yet —
+establishing it is part of R-16.
 
 ## Delivered
 
