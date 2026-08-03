@@ -70,12 +70,15 @@ func TestClientServer(t *testing.T) {
 
 	var (
 		srvOnBeginCalled atomic.Bool
+		srvOnBeginErr    = make(chan error, 1)
 	)
 
 	handler := rtvbp.NewHandler(rtvbp.HandlerConfig{
 		OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
+			err := h.AcceptAudio(ctx)
+			srvOnBeginErr <- err
 			srvOnBeginCalled.Store(true)
-			return nil
+			return err
 		},
 	})
 
@@ -91,12 +94,13 @@ func TestClientServer(t *testing.T) {
 	// Connect client transport
 	client := srv.NewClientSession(rtvbp.NewHandler(rtvbp.HandlerConfig{
 		OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-			return nil
+			return h.OpenAudio(ctx, defaultAudioFormat())
 		},
 	}))
 	done := client.Run(ctx)
 	require.Eventually(t, srvOnBeginCalled.Load, time.Second, 10*time.Millisecond,
 		"server on begin handler not called")
+	require.NoError(t, <-srvOnBeginErr)
 
 	// --- closing session ---
 	require.NoError(t, client.Close(context.Background()))

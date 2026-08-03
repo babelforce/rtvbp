@@ -118,28 +118,38 @@ func main() {
 				if req.AudioCodecOfferings == nil || len(req.AudioCodecOfferings) == 0 {
 					return nil, fmt.Errorf("no audio codec offerings")
 				}
+				selected := &req.AudioCodecOfferings[0]
+				format, err := protov1.MediaFormat(selected, protov1.DefaultPTime)
+				if err != nil {
+					return nil, err
+				}
+				if err := hc.OpenAudio(ctx, format); err != nil {
+					return nil, err
+				}
+				frameBytes, err := format.FrameBytes()
+				if err != nil {
+					return nil, err
+				}
 
 				// start audio
 				if args.audio == "loopback" {
 					lb := audio.NewLoopback()
-					audio.DuplexCopy(lb, 3200, hc.AudioStream(), 3200)
+					audio.DuplexCopy(lb, frameBytes*10, hc.AudioStream(), frameBytes*10)
 				} else if args.audio == "device" {
 					audioDev, err := audiogo.NewDevice(args.audioSampleRate, 1)
 					if err != nil {
 						return nil, fmt.Errorf("failed to setup server audio: %w", err)
 					}
-					lat := 20 * time.Millisecond
-					s := int(float64(args.audioSampleRate) * 2 * lat.Seconds())
-					audio.DuplexCopy(hc.AudioStream(), s, audioDev, s)
+					audio.DuplexCopy(hc.AudioStream(), frameBytes, audioDev, frameBytes)
 				} else if args.audio == "file" {
 					// TODO:
 				}
 
 				return &protov1.SessionInitializeResponse{
-					AudioCodec: &req.AudioCodecOfferings[0],
+					AudioCodec: selected,
 				}, nil
 			}),
-			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.EmptyResponse, error) {
+			rtvbp.HandleTerminalRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.EmptyResponse, error) {
 				return &protov1.EmptyResponse{}, nil
 			}),
 			rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, evt *protov1.DTMFEvent) error {

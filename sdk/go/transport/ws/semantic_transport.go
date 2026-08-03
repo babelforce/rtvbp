@@ -50,9 +50,15 @@ type Transport struct {
 
 // NewTransport starts a semantic transport over an already upgraded WebSocket.
 func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportConfig) *Transport {
+	resolvedConfig := TransportConfig{}
+	if config != nil {
+		resolvedConfig = *config
+	}
+	resolvedConfig.Defaults()
+
 	logger := slog.Default()
-	if config != nil && config.Logger != nil {
-		logger = config.Logger
+	if resolvedConfig.Logger != nil {
+		logger = resolvedConfig.Logger
 	}
 	transportCtx, cancel := context.WithCancel(context.Background())
 	t := &Transport{
@@ -69,6 +75,7 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 	}
 	t.control = &semanticControlChannel{transport: t, incoming: newInbox[rtvbp.Received]()}
 	t.media = &staticMediaChannel{transport: t, incoming: newInbox[rtvbp.MediaFrame]()}
+	_ = t.media.configure(resolvedConfig.AudioFormat)
 	conn.SetPongHandler(func(payload string) error {
 		select {
 		case t.pongs <- payload:

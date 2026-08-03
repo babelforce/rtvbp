@@ -14,13 +14,17 @@ import (
 )
 
 type ClientConfig struct {
-	Dial DialConfig
+	Dial        DialConfig
+	AudioFormat rtvbp.MediaFormat
 	// Subprotocols lists RTVBP profiles in preference order. Nil defaults to rtvbp.v1;
 	// an explicitly empty slice sends no subprotocol header for legacy peers.
 	Subprotocols []string
 }
 
 func (c *ClientConfig) Validate() error {
+	if _, err := c.AudioFormat.FrameBytes(); err != nil {
+		return fmt.Errorf("invalid audio format: %w", err)
+	}
 	if c.Dial.Headers.Get("Sec-WebSocket-Protocol") != "" {
 		return errors.New("configure WebSocket subprotocols through ClientConfig.Subprotocols")
 	}
@@ -28,6 +32,9 @@ func (c *ClientConfig) Validate() error {
 }
 
 func (c *ClientConfig) Defaults() {
+	if c.AudioFormat == (rtvbp.MediaFormat{}) {
+		c.AudioFormat = defaultAudioFormat()
+	}
 	c.Subprotocols = defaultSubprotocols(c.Subprotocols)
 	c.Dial.Defaults()
 }
@@ -89,7 +96,7 @@ func Dial(ctx context.Context, c ClientConfig) (*Transport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewTransport(ctx, conn, &TransportConfig{Logger: logger}), nil
+	return NewTransport(ctx, conn, &TransportConfig{Logger: logger, AudioFormat: c.AudioFormat}), nil
 }
 
 func dialConnection(ctx context.Context, c ClientConfig) (*websocket.Conn, *slog.Logger, error) {

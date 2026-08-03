@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 )
 
@@ -27,8 +28,15 @@ type cliArgs struct {
 	dtmfDelaySeconds   int    // dtmf sequence to send after x seconds
 }
 
-func (a *cliArgs) config() ws.ClientConfig {
+func (a *cliArgs) config(sampleRate int) ws.ClientConfig {
 	return ws.ClientConfig{
+		AudioFormat: rtvbp.MediaFormat{
+			Encoding:   "L16",
+			SampleRate: sampleRate,
+			BitDepth:   16,
+			Channels:   1,
+			PTime:      20 * time.Millisecond,
+		},
 		Dial: ws.DialConfig{
 			URL:            a.connectURL(),
 			ConnectTimeout: 5 * time.Second,

@@ -50,12 +50,7 @@ func TestSemanticControlRoundTripAndCancellation(t *testing.T) {
 
 func TestSemanticStaticAudioRoundTrip(t *testing.T) {
 	transport, peer := semanticPair(t)
-	format := rtvbp.MediaFormat{
-		Encoding:   "L16",
-		SampleRate: 16000,
-		Channels:   1,
-		PTime:      20 * time.Millisecond,
-	}
+	format := defaultAudioFormat()
 	media, err := transport.OpenMedia(context.Background(), "audio", format)
 	if err != nil {
 		t.Fatalf("OpenMedia() error = %v", err)
@@ -89,6 +84,17 @@ func TestSemanticStaticAudioRoundTrip(t *testing.T) {
 	}
 	if string(received.Data) != string([]byte{5, 6}) || received.Timed || received.PTS != 0 {
 		t.Fatalf("ReadFrame() = %#v", received)
+	}
+}
+
+func TestTransportConfigDefaultsStaticAudioBeforeAccept(t *testing.T) {
+	transport, _ := semanticPair(t)
+	media, err := transport.AcceptMedia(context.Background())
+	if err != nil {
+		t.Fatalf("AcceptMedia() error = %v", err)
+	}
+	if got, want := media.Format(), defaultAudioFormat(); got != want {
+		t.Fatalf("Format() = %#v, want %#v", got, want)
 	}
 }
 

@@ -72,11 +72,19 @@ func main() {
 			Metadata: map[string]any{
 				"recording_consent": true,
 			},
-			SampleRate: sr,
+			AudioFormat: rtvbp.MediaFormat{
+				Encoding:   "L16",
+				SampleRate: sr,
+				BitDepth:   16,
+				Channels:   1,
+				PTime:      protov1.DefaultPTime,
+			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
-			lat := 20 * time.Millisecond
-			s := int(float64(args.sampleRate) * 2 * lat.Seconds())
+			s, err := h.AudioStream().Format().FrameBytes()
+			if err != nil {
+				return err
+			}
 			audio.DuplexCopy(h.AudioStream(), s, audioSink, s)
 
 			return nil
@@ -85,10 +93,10 @@ func main() {
 
 	// create and run the session
 	log.Info("starting client", slog.Any("url", args.connectURL()))
-	log.Debug("config", slog.Any("config", args.config()))
+	log.Debug("config", slog.Any("config", args.config(sr)))
 	sess := rtvbp.NewSession(
 		v1classic.Envelope{},
-		ws.Client(args.config()),
+		ws.Client(args.config(sr)),
 		rtvbp.WithHandler(handler),
 		rtvbp.WithRequestTimeout(2*time.Second),
 		rtvbp.WithDebug(args.debug),
