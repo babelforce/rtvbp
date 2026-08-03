@@ -171,17 +171,20 @@ func (q *dispatchQueue) push(frame ControlFrame) bool {
 
 func (q *dispatchQueue) pop(ctx context.Context) (ControlFrame, error) {
 	for {
+		if err := ctx.Err(); err != nil {
+			return ControlFrame{}, err
+		}
 		q.mu.Lock()
+		if q.closed {
+			q.mu.Unlock()
+			return ControlFrame{}, io.EOF
+		}
 		if len(q.frames) != 0 {
 			frame := q.frames[0]
 			q.frames[0] = ControlFrame{}
 			q.frames = q.frames[1:]
 			q.mu.Unlock()
 			return frame, nil
-		}
-		if q.closed {
-			q.mu.Unlock()
-			return ControlFrame{}, io.EOF
 		}
 		ready := q.ready
 		q.mu.Unlock()
@@ -196,6 +199,8 @@ func (q *dispatchQueue) pop(ctx context.Context) (ControlFrame, error) {
 func (q *dispatchQueue) close() {
 	q.mu.Lock()
 	q.closed = true
+	clear(q.frames)
+	q.frames = nil
 	q.mu.Unlock()
 	signalQueue(q.ready)
 }

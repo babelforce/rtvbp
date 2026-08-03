@@ -78,7 +78,13 @@ func (h *sessionHandlerCtx) AcceptAudio(ctx context.Context) error {
 	return h.sess.AcceptAudio(ctx)
 }
 
-func (h *sessionHandlerCtx) Close(ctx context.Context) error { return h.sess.Close(ctx) }
+// Close requests graceful shutdown without waiting. Handler callbacks execute on
+// session-owned workers, so waiting for finalization here would deadlock teardown
+// on the worker making the request. External callers use Session.Close to wait.
+func (h *sessionHandlerCtx) Close(context.Context) error {
+	h.sess.requestStop(nil, false)
+	return nil
+}
 
 func (h *sessionHandlerCtx) Respond(ctx context.Context, response Response) error {
 	return h.respond(ctx, response, false)

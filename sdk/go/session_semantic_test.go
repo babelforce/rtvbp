@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -120,6 +121,32 @@ func TestNestedRequestFromRequestHandlerDoesNotDeadlock(t *testing.T) {
 	}
 }
 
+func TestOnBeginCanIssueRequest(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, right := memory.NewPair()
+	rightSession, rightDone := runSession(t, right, rtvbp.NewHandler(rtvbp.HandlerConfig{}, rtvbp.HandleRequest(func(context.Context, rtvbp.SHC, *innerRequest) (*emptyResponse, error) {
+		return &emptyResponse{}, nil
+	})))
+	onBegin := make(chan error, 1)
+	leftHandler := rtvbp.NewHandler(rtvbp.HandlerConfig{OnBegin: func(ctx context.Context, handler rtvbp.SHC) error {
+		_, err := handler.Request(ctx, &innerRequest{})
+		onBegin <- err
+		return err
+	}})
+	leftSession, leftDone := runSession(t, left, leftHandler)
+	if err := receive(t, onBegin); err != nil {
+		t.Fatalf("OnBegin Request() error = %v", err)
+	}
+	closeSession(t, leftSession, leftDone)
+	if err := awaitDone(t, rightDone); err != nil {
+		t.Fatalf("peer Run() error = %v", err)
+	}
+	if rightSession.State() != rtvbp.SessionStateClosed {
+		t.Fatalf("peer state = %s, want closed", rightSession.State())
+	}
+}
+
 type outerRequest struct{}
 
 func (*outerRequest) MethodName() string { return "outer" }
@@ -212,6 +239,27 @@ func TestDeferredResponseReleasesDispatcherAndIsOneShot(t *testing.T) {
 	closeSession(t, session, done)
 }
 
+func TestDeferredResponseAfterSessionCloseReturnsSessionClosed(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, peer := memory.NewPair()
+	handle := make(chan rtvbp.DeferredResponse, 1)
+	handler := rtvbp.NewHandler(rtvbp.HandlerConfig{}, rtvbp.HandleRequest(func(_ context.Context, handler rtvbp.SHC, _ *deferredRequest) (*emptyResponse, error) {
+		deferred, err := handler.DeferResponse()
+		if err == nil {
+			handle <- deferred
+		}
+		return nil, err
+	}))
+	session, done := runSession(t, left, handler)
+	sendFrame(t, peer, rtvbp.ControlFrame{Kind: rtvbp.KindRequest, ID: "deferred-close", Method: "deferred", Payload: json.RawMessage(`{}`)})
+	deferred := receive(t, handle)
+	closeSession(t, session, done)
+	if err := deferred.Respond(context.Background(), rtvbp.Response{}); !errors.Is(err, rtvbp.ErrSessionClosed) {
+		t.Fatalf("Respond() after close error = %v, want ErrSessionClosed", err)
+	}
+}
+
 type deferredRequest struct{}
 
 func (*deferredRequest) MethodName() string { return "deferred" }
@@ -287,6 +335,84 @@ func TestLifecycleConnectingActiveClosingClosed(t *testing.T) {
 	closeSession(t, session, done)
 }
 
+func TestHandlerCloseFromOnBeginIsNonBlockingAndGraceful(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, _ := memory.NewPair()
+	closeReturned := make(chan error, 1)
+	session := rtvbp.NewSession(
+		v1classic.Envelope{},
+		rtvbp.WithTransport(left),
+		rtvbp.WithCloseTimeout(200*time.Millisecond),
+		rtvbp.WithHandler(rtvbp.NewHandler(rtvbp.HandlerConfig{OnBegin: func(ctx context.Context, handler rtvbp.SHC) error {
+			closeReturned <- handler.Close(ctx)
+			return nil
+		}})),
+	)
+	done := session.Run(context.Background())
+	if err := receive(t, closeReturned); err != nil {
+		t.Fatalf("SHC.Close() error = %v", err)
+	}
+	if err := awaitDone(t, done); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if session.State() != rtvbp.SessionStateClosed {
+		t.Fatalf("state = %s, want closed", session.State())
+	}
+}
+
+func TestCloseDiscardsQueuedDispatchBeforeBlockingTransportClose(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, peer := memory.NewPair()
+	closeStarted := make(chan struct{})
+	releaseTransport := make(chan struct{})
+	transport := &blockingCloseTransport{Transport: left, started: closeStarted, release: releaseTransport}
+	firstEntered := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	firstReturned := make(chan struct{})
+	extraDispatched := make(chan struct{}, 1)
+	handler := rtvbp.NewHandler(rtvbp.HandlerConfig{}, rtvbp.HandleEvent(func(_ context.Context, _ rtvbp.SHC, event *sequenceEvent) error {
+		if event.Seq == 0 {
+			close(firstEntered)
+			<-releaseFirst
+			close(firstReturned)
+		} else {
+			select {
+			case extraDispatched <- struct{}{}:
+			default:
+			}
+		}
+		return nil
+	}))
+	session, done := runSession(t, transport, handler)
+	sendFrame(t, peer, rtvbp.ControlFrame{Kind: rtvbp.KindEvent, ID: "first", Method: "dtmf", Payload: json.RawMessage(`{"seq":0}`)})
+	receiveSignal(t, firstEntered)
+	for index := 1; index <= 32; index++ {
+		sendFrame(t, peer, rtvbp.ControlFrame{Kind: rtvbp.KindEvent, ID: fmt.Sprintf("queued-%d", index), Method: "dtmf", Payload: json.RawMessage(fmt.Sprintf(`{"seq":%d}`, index))})
+	}
+	closeResult := make(chan error, 1)
+	go func() { closeResult <- session.Close(testContext(t)) }()
+	receiveSignal(t, closeStarted)
+	close(releaseFirst)
+	receiveSignal(t, firstReturned)
+	select {
+	case <-extraDispatched:
+		t.Fatal("queued event dispatched after shutdown began")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(releaseTransport)
+	if err := receive(t, closeResult); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := awaitDone(t, done); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if session.State() != rtvbp.SessionStateClosed {
+		t.Fatalf("state = %s, want closed", session.State())
+	}
+}
+
 func TestCloseCancelsTransportFactoryWhileConnecting(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -314,6 +440,142 @@ func TestCloseCancelsTransportFactoryWhileConnecting(t *testing.T) {
 	if session.State() != rtvbp.SessionStateClosed {
 		t.Fatalf("state = %s, want closed", session.State())
 	}
+}
+
+func TestCanceledTransportFactoryClosesLateTransportBeforeSessionCompletes(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, _ := memory.NewPair()
+	closed := make(chan struct{})
+	transport := &trackingCloseTransport{Transport: left, closed: closed}
+	session := rtvbp.NewSession(
+		v1classic.Envelope{},
+		rtvbp.WithCloseTimeout(time.Second),
+		rtvbp.WithTransportFactory(func(ctx context.Context, _ rtvbp.Envelope) (rtvbp.Transport, error) {
+			<-ctx.Done()
+			return transport, ctx.Err()
+		}),
+		rtvbp.WithHandler(rtvbp.NewHandler(rtvbp.HandlerConfig{})),
+	)
+	done := session.Run(context.Background())
+	if err := session.Close(testContext(t)); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	receiveSignal(t, closed)
+	if err := awaitDone(t, done); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+}
+
+func TestTransportFactoryErrorClosesPartialTransport(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	want := errors.New("dial failed")
+	left, _ := memory.NewPair()
+	closed := make(chan struct{})
+	transport := &trackingCloseTransport{Transport: left, closed: closed}
+	session := rtvbp.NewSession(
+		v1classic.Envelope{},
+		rtvbp.WithTransportFactory(func(context.Context, rtvbp.Envelope) (rtvbp.Transport, error) {
+			return transport, want
+		}),
+		rtvbp.WithHandler(rtvbp.NewHandler(rtvbp.HandlerConfig{})),
+	)
+	done := session.Run(context.Background())
+	if err := awaitDone(t, done); !errors.Is(err, want) {
+		t.Fatalf("Run() error = %v, want %v", err, want)
+	}
+	receiveSignal(t, closed)
+	if session.State() != rtvbp.SessionStateFailed {
+		t.Fatalf("state = %s, want failed", session.State())
+	}
+}
+
+func TestLiveControlReaderCancellationFailsSession(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, _ := memory.NewPair()
+	transport := &controlOverrideTransport{Transport: left, control: canceledControlChannel{}}
+	session := rtvbp.NewSession(
+		v1classic.Envelope{},
+		rtvbp.WithTransport(transport),
+		rtvbp.WithHandler(rtvbp.NewHandler(rtvbp.HandlerConfig{})),
+	)
+	done := session.Run(context.Background())
+	if err := awaitDone(t, done); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+	if session.State() != rtvbp.SessionStateFailed {
+		t.Fatalf("state = %s, want failed", session.State())
+	}
+}
+
+func TestLiveKeepaliveMonitorNilReturnFailsSession(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	left, _ := memory.NewPair()
+	transport := stoppedKeepaliveTransport{Transport: left}
+	session := rtvbp.NewSession(
+		v1classic.Envelope{},
+		rtvbp.WithTransport(transport),
+		rtvbp.WithKeepalivePolicy(rtvbp.KeepalivePolicy{Interval: time.Second, Timeout: time.Second, MaxMisses: 1}),
+		rtvbp.WithHandler(rtvbp.NewHandler(rtvbp.HandlerConfig{})),
+	)
+	done := session.Run(context.Background())
+	if err := awaitDone(t, done); err == nil {
+		t.Fatal("Run() error = nil, want keepalive monitor failure")
+	}
+	if session.State() != rtvbp.SessionStateFailed {
+		t.Fatalf("state = %s, want failed", session.State())
+	}
+}
+
+type blockingCloseTransport struct {
+	rtvbp.Transport
+	started chan struct{}
+	release <-chan struct{}
+	once    sync.Once
+}
+
+func (t *blockingCloseTransport) Close(ctx context.Context) error {
+	t.once.Do(func() { close(t.started) })
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.release:
+		return t.Transport.Close(ctx)
+	}
+}
+
+type trackingCloseTransport struct {
+	rtvbp.Transport
+	closed chan struct{}
+	once   sync.Once
+}
+
+func (t *trackingCloseTransport) Close(ctx context.Context) error {
+	t.once.Do(func() { close(t.closed) })
+	return t.Transport.Close(ctx)
+}
+
+type controlOverrideTransport struct {
+	rtvbp.Transport
+	control rtvbp.ControlChannel
+}
+
+func (t *controlOverrideTransport) Control() rtvbp.ControlChannel { return t.control }
+
+type canceledControlChannel struct{}
+
+func (canceledControlChannel) Send(context.Context, []byte) error { return nil }
+func (canceledControlChannel) Recv(context.Context) (rtvbp.Received, error) {
+	return rtvbp.Received{}, context.Canceled
+}
+
+type stoppedKeepaliveTransport struct{ rtvbp.Transport }
+
+func (stoppedKeepaliveTransport) MonitorKeepalive(context.Context, rtvbp.KeepalivePolicy) error {
+	return nil
 }
 
 func runSession(t *testing.T, transport rtvbp.Transport, handler rtvbp.SessionHandler) (*rtvbp.Session, <-chan error) {

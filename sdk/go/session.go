@@ -163,7 +163,11 @@ func (s *Session) supervise(parent context.Context) {
 	workers.Add(2)
 	go func() {
 		defer workers.Done()
-		if err := s.readControl(taskCtx); err != nil && !errors.Is(err, context.Canceled) {
+		err := s.readControl(taskCtx)
+		if taskCtx.Err() == nil {
+			if err == nil {
+				err = errors.New("rtvbp: control reader stopped without an error")
+			}
 			workerResult <- stopFromTransport(err)
 		}
 	}()
@@ -176,7 +180,10 @@ func (s *Session) supervise(parent context.Context) {
 		go func() {
 			defer workers.Done()
 			err := monitor.MonitorKeepalive(taskCtx, s.keepalive)
-			if err != nil && !errors.Is(err, context.Canceled) {
+			if taskCtx.Err() == nil {
+				if err == nil {
+					err = errors.New("rtvbp: keepalive monitor stopped without an error")
+				}
 				workerResult <- stopRequest{cause: err, failed: true}
 			}
 		}()
@@ -211,10 +218,10 @@ func (s *Session) supervise(parent context.Context) {
 		}
 	}
 
-	terminal = s.shutdown(terminal, transport)
+	terminal = s.beginShutdown(terminal)
 	cancelTasks()
 	s.dispatch.close()
-	_ = s.audio.Close()
+	terminal = s.closeResources(terminal, transport)
 
 	workersDone := make(chan struct{})
 	go func() {
@@ -233,6 +240,12 @@ func (s *Session) supervise(parent context.Context) {
 }
 
 func (s *Session) shutdown(terminal stopRequest, transport Transport) stopRequest {
+	terminal = s.beginShutdown(terminal)
+	s.dispatch.close()
+	return s.closeResources(terminal, transport)
+}
+
+func (s *Session) beginShutdown(terminal stopRequest) stopRequest {
 	s.closing.Store(true)
 	if s.State() != SessionStateClosing {
 		s.setState(SessionStateClosing)
@@ -244,17 +257,17 @@ func (s *Session) shutdown(terminal stopRequest, transport Transport) stopReques
 	}
 	s.failPending(pendingError)
 	_ = s.audio.Close()
+	return terminal
+}
+
+func (s *Session) closeResources(terminal stopRequest, transport Transport) stopRequest {
 	if err := s.closeAudioMedia(); err != nil {
 		terminal.cause = errors.Join(terminal.cause, fmt.Errorf("close audio media: %w", err))
 		terminal.failed = true
 	}
 
 	if transport != nil {
-		timeout := s.teardownTimeout()
-		ctx, cancel := context.WithTimeout(context.Background(), timeout)
-		err := transport.Close(ctx)
-		cancel()
-		if err != nil {
+		if err := s.closeTransport(transport); err != nil {
 			terminal.cause = errors.Join(terminal.cause, fmt.Errorf("close transport: %w", err))
 			terminal.failed = true
 		}
@@ -282,15 +295,16 @@ type transportResult struct {
 func (s *Session) createTransport(parent context.Context) (Transport, stopRequest) {
 	ctx, cancel := context.WithCancel(parent)
 	result := make(chan transportResult)
+	abandoned := make(chan struct{})
 	go func() {
 		transport, err := s.factory(ctx, s.envelope)
 		select {
 		case result <- transportResult{transport: transport, err: err}:
-		case <-ctx.Done():
+		case <-abandoned:
 			if transport != nil {
-				closeCtx, closeCancel := context.WithTimeout(context.Background(), s.teardownTimeout())
-				_ = transport.Close(closeCtx)
-				closeCancel()
+				if closeErr := s.closeTransport(transport); closeErr != nil {
+					s.logger.Error("close late transport factory result", slog.Any("err", closeErr))
+				}
 			}
 		}
 	}()
@@ -298,23 +312,66 @@ func (s *Session) createTransport(parent context.Context) (Transport, stopReques
 	select {
 	case created := <-result:
 		cancel()
-		if created.err != nil {
-			if parent.Err() != nil && errors.Is(created.err, parent.Err()) {
-				return nil, stopRequest{}
-			}
-			return nil, stopRequest{cause: fmt.Errorf("create transport: %w", created.err), failed: true}
-		}
-		if created.transport == nil {
-			return nil, stopRequest{cause: errors.New("rtvbp: transport factory returned nil"), failed: true}
-		}
-		return created.transport, stopRequest{}
+		return s.acceptTransportResult(created, parent)
 	case terminal := <-s.stop:
 		cancel()
-		return nil, terminal
+		return nil, s.joinCanceledTransportFactory(ctx, result, abandoned, terminal)
 	case <-parent.Done():
 		cancel()
-		return nil, stopRequest{}
+		return nil, s.joinCanceledTransportFactory(ctx, result, abandoned, stopRequest{})
 	}
+}
+
+func (s *Session) acceptTransportResult(created transportResult, parent context.Context) (Transport, stopRequest) {
+	if created.err == nil && created.transport != nil {
+		return created.transport, stopRequest{}
+	}
+	terminal := stopRequest{}
+	if created.err != nil {
+		if parent.Err() == nil || !errors.Is(created.err, parent.Err()) {
+			terminal.cause = fmt.Errorf("create transport: %w", created.err)
+			terminal.failed = true
+		}
+	} else {
+		terminal.cause = errors.New("rtvbp: transport factory returned nil")
+		terminal.failed = true
+	}
+	if created.transport != nil {
+		if err := s.closeTransport(created.transport); err != nil {
+			terminal.cause = errors.Join(terminal.cause, fmt.Errorf("close partial transport: %w", err))
+			terminal.failed = true
+		}
+	}
+	return nil, terminal
+}
+
+func (s *Session) joinCanceledTransportFactory(ctx context.Context, result <-chan transportResult, abandoned chan struct{}, terminal stopRequest) stopRequest {
+	timer := time.NewTimer(s.teardownTimeout())
+	defer timer.Stop()
+	select {
+	case created := <-result:
+		if created.transport != nil {
+			if err := s.closeTransport(created.transport); err != nil {
+				terminal.cause = errors.Join(terminal.cause, fmt.Errorf("close canceled transport: %w", err))
+				terminal.failed = true
+			}
+		}
+		if created.err != nil && (ctx.Err() == nil || !errors.Is(created.err, ctx.Err())) {
+			terminal.cause = errors.Join(terminal.cause, fmt.Errorf("create transport during cancellation: %w", created.err))
+			terminal.failed = true
+		}
+	case <-timer.C:
+		close(abandoned)
+		terminal.cause = errors.Join(terminal.cause, errors.New("rtvbp: transport factory did not stop"))
+		terminal.failed = true
+	}
+	return terminal
+}
+
+func (s *Session) closeTransport(transport Transport) error {
+	ctx, cancel := context.WithTimeout(context.Background(), s.teardownTimeout())
+	defer cancel()
+	return transport.Close(ctx)
 }
 
 func (s *Session) teardownTimeout() time.Duration {
