@@ -24,6 +24,9 @@ type Transport struct {
 	conn   *websocket.Conn
 	logger *slog.Logger
 
+	wireSubprotocol      string
+	effectiveSubprotocol string
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	done   chan struct{}
@@ -50,13 +53,15 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 	}
 	transportCtx, cancel := context.WithCancel(context.Background())
 	t := &Transport{
-		conn:     conn,
-		logger:   logger,
-		ctx:      transportCtx,
-		cancel:   cancel,
-		done:     make(chan struct{}),
-		outgoing: newOutboundQueue(),
-		closeAck: make(chan error, 1),
+		conn:                 conn,
+		logger:               logger,
+		wireSubprotocol:      conn.Subprotocol(),
+		effectiveSubprotocol: effectiveSubprotocol(conn.Subprotocol()),
+		ctx:                  transportCtx,
+		cancel:               cancel,
+		done:                 make(chan struct{}),
+		outgoing:             newOutboundQueue(),
+		closeAck:             make(chan error, 1),
 	}
 	t.control = &semanticControlChannel{transport: t, incoming: newInbox[rtvbp.Received]()}
 	t.media = &staticMediaChannel{transport: t, incoming: newInbox[rtvbp.MediaFrame]()}
@@ -71,6 +76,17 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 		}
 	}()
 	return t
+}
+
+// Subprotocol returns the effective RTVBP profile. A peer that selects no
+// wire subprotocol uses the backward-compatible rtvbp.v1 profile.
+func (t *Transport) Subprotocol() string {
+	return t.effectiveSubprotocol
+}
+
+// WireSubprotocol returns the value selected by the WebSocket handshake.
+func (t *Transport) WireSubprotocol() string {
+	return t.wireSubprotocol
 }
 
 // Control returns the text-message control channel.

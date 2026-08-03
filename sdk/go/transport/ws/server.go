@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
-	"github.com/gorilla/websocket"
 )
 
 func serverUpgradeHandler(
@@ -21,8 +20,6 @@ func serverUpgradeHandler(
 	logger *slog.Logger,
 	handler rtvbp.SessionHandler,
 ) func(http.ResponseWriter, *http.Request) {
-	var upgrader = websocket.Upgrader{}
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		// init logger
 		log := logger.With(
@@ -41,7 +38,7 @@ func serverUpgradeHandler(
 		}
 
 		// upgrade connection
-		conn, err := upgrader.Upgrade(w, r, nil)
+		conn, err := upgradeWebSocket(w, r, config.Subprotocols)
 		if err != nil {
 			log.Error("upgrade failed", slog.Any("err", err))
 			return
@@ -94,6 +91,9 @@ type ServerConfig struct {
 	ChunkSize   int
 	AuthHandler func(req *http.Request) error
 	Debug       bool
+	// Subprotocols lists supported RTVBP profiles in server preference order.
+	// Nil defaults to rtvbp.v1; clients that send no offer use that profile implicitly.
+	Subprotocols []string
 }
 
 func (c *ServerConfig) Defaults() {
@@ -106,6 +106,7 @@ func (c *ServerConfig) Defaults() {
 	if c.ChunkSize == 0 {
 		c.ChunkSize = 160
 	}
+	c.Subprotocols = defaultSubprotocols(c.Subprotocols)
 }
 
 type Server struct {
@@ -157,6 +158,7 @@ func (s *Server) GetClientConfig() ClientConfig {
 		},
 		SampleRate:   8000,
 		PingInterval: 10 * time.Second,
+		Subprotocols: append([]string(nil), s.config.Subprotocols...),
 	}
 }
 

@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,11 +18,17 @@ type ClientConfig struct {
 	Dial         DialConfig
 	PingInterval time.Duration
 	SampleRate   int
+	// Subprotocols lists RTVBP profiles in preference order. Nil defaults to rtvbp.v1;
+	// an explicitly empty slice sends no subprotocol header for legacy peers.
+	Subprotocols []string
 }
 
 func (c *ClientConfig) Validate() error {
 	if c.SampleRate <= 0 {
 		return fmt.Errorf("invalid sample rate: %d", c.SampleRate)
+	}
+	if c.Dial.Headers.Get("Sec-WebSocket-Protocol") != "" {
+		return errors.New("configure WebSocket subprotocols through ClientConfig.Subprotocols")
 	}
 	return nil
 }
@@ -30,6 +37,7 @@ func (c *ClientConfig) Defaults() {
 	if c.PingInterval == 0 {
 		c.PingInterval = 10 * time.Second
 	}
+	c.Subprotocols = defaultSubprotocols(c.Subprotocols)
 	c.Dial.Defaults()
 }
 
@@ -47,7 +55,7 @@ func (d *DialConfig) Defaults() {
 	}
 }
 
-func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Response, error) {
+func (d *DialConfig) doDial(ctx context.Context, subprotocols []string) (*websocket.Conn, *http.Response, error) {
 	d.Defaults()
 
 	u, err := url.Parse(d.URL)
@@ -79,7 +87,9 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 	dialCtx, cancel := context.WithTimeout(ctx, d.ConnectTimeout)
 	defer cancel()
 
-	return websocket.DefaultDialer.DialContext(dialCtx, u.String(), header)
+	dialer := *websocket.DefaultDialer
+	dialer.Subprotocols = append([]string(nil), subprotocols...)
+	return dialer.DialContext(dialCtx, u.String(), header)
 }
 
 // Connect connects to the websocket endpoint
@@ -133,7 +143,7 @@ func dialConnection(ctx context.Context, c ClientConfig) (*websocket.Conn, *slog
 	logger.Debug("Connecting to websocket endpoint", slog.Any("config", c))
 
 	// Websocket upgrade
-	conn, resp, err := c.Dial.doDial(ctx)
+	conn, resp, err := c.Dial.doDial(ctx, c.Subprotocols)
 	if err != nil {
 		return nil, nil, err
 	}
