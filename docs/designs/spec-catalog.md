@@ -1,6 +1,6 @@
 # Design: Spec crate and generator core
 
-**Status:** accepted · **Pillar:** Spec · **Stories:** R-1, R-2, R-3, R-4, R-5
+**Status:** accepted · **Pillar:** Spec · **Stories:** R-2, R-3, R-4, R-5, R-18
 
 ## Why
 
@@ -85,6 +85,24 @@ Envelope `classic.v1` (an `EnvelopeSpec`, not a catalog concern): flat JSON, con
 `version:"1"`, structural discrimination in the order **event → method → response**, responses carry
 no id of their own (correlation via `response`), and `error.data` serializes under the key
 **`"any"`** — a wire-visible typo that is now contract.
+
+### Byte-parity findings
+
+R-4's bidirectional proof covers all 29 frozen fixtures and pinned these emitter requirements:
+
+- Struct declaration order is wire order. Open maps remain bare (notably `session.get`) and their
+  canonical keys follow Go's lexical map-key ordering.
+- `SessionInitializeRequest.metadata`, `SessionInitializeResponse.audio_codec`, and
+  `SessionUpdatedEvent.audio_codec` are required nullable fields; `Option<T>` fields are omitted.
+- Go serializes an integral `float64` such as `AudioInfoItem.bytes_per_second == 0` as `0`, not
+  serde's default `0.0`; the spec carries a Go-compatible serializer for that field.
+- The five native Go `int` fields carry `x-go-type: int`; timestamp and counter fields that are
+  actually `int64` do not.
+- `classic.v1` omits nil request params, correlates responses only through `response`, and keeps the
+  event → method → response precedence and `error.data` → `"any"` override described above.
+
+The only byte mismatch uncovered while establishing the proof was fixed in the spec's float
+serialization; no frozen fixture was changed.
 
 ### Generator skeleton
 

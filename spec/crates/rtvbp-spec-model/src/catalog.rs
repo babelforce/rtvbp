@@ -152,6 +152,7 @@ pub struct TypeRef {
     pub name: String,
     pub schema: Schema,
     round_trip: fn(&Value) -> serde_json::Result<Value>,
+    round_trip_bytes: fn(&[u8]) -> serde_json::Result<Vec<u8>>,
 }
 
 impl TypeRef {
@@ -164,12 +165,18 @@ impl TypeRef {
             name: T::schema_name().into_owned(),
             schema: schema_for!(T),
             round_trip: round_trip::<T>,
+            round_trip_bytes: round_trip_bytes::<T>,
         }
     }
 
     /// Deserialize and reserialize a JSON value through the concrete payload type.
     pub fn round_trip(&self, value: &Value) -> serde_json::Result<Value> {
         (self.round_trip)(value)
+    }
+
+    /// Deserialize and reserialize bytes through the concrete payload type.
+    pub fn round_trip_bytes(&self, bytes: &[u8]) -> serde_json::Result<Vec<u8>> {
+        (self.round_trip_bytes)(bytes)
     }
 }
 
@@ -401,6 +408,13 @@ where
     T: DeserializeOwned + Serialize,
 {
     serde_json::from_value::<T>(value.clone()).and_then(serde_json::to_value)
+}
+
+fn round_trip_bytes<T>(bytes: &[u8]) -> serde_json::Result<Vec<u8>>
+where
+    T: DeserializeOwned + Serialize,
+{
+    serde_json::from_slice::<T>(bytes).and_then(|value| serde_json::to_vec(&value))
 }
 
 fn validate_item_metadata<'a>(
