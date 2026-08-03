@@ -191,18 +191,7 @@ func (*VoiceHandler) Ping(
 	_ rtvbp.SHC,
 	request *babelforcev1.PingRequest,
 ) (*babelforcev1.PingResponse, error) {
-	inbound, ok := rtvbp.InboundRequest(ctx)
-	if !ok {
-		return nil, fmt.Errorf("failed to extract original request from context")
-	}
-	t2 := time.Now().UnixMilli()
-	return &babelforcev1.PingResponse{
-		T0:   request.T0,
-		T1:   inbound.ReceivedAt.UnixMilli(),
-		T2:   t2,
-		OWD:  t2 - request.T0,
-		Data: request.Data,
-	}, nil
+	return pingResponse(ctx, request)
 }
 
 func (handler *VoiceHandler) ApplicationMove(

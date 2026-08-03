@@ -251,6 +251,17 @@ observation remain a small handwritten `babelforce.v1` voice bridge built on the
 These are runtime or integration policies that the catalog does not describe. The nested demos move
 to that bridge and generated types as part of the same cutover.
 
+#### R-15 acceptance finding
+
+The `rtvbp-openai` port exposed one convenience regression: a closure-oriented application can
+register individual generated handlers, but without implementing the full role interface it had to
+repeat the babelforce.v1 ping timestamp policy that `protov1.NewPingHandler` previously supplied.
+The handwritten bridge now exposes `NewPingHandler`, backed by the same timing function as its voice
+handler. Explicit `OpenAudio` after codec selection is intentional: media binding is runtime policy,
+not catalog-derived behavior. With that helper restored, the consumer migration remains imports,
+generated identifier changes, handler constructors, and the deliberate media/termination lifecycle
+calls; no service structure changes are required.
+
 #### Compatibility and failing-first sequence
 
 The generated types already pin bytes; R-10 preserves behavior around those bytes. Structured

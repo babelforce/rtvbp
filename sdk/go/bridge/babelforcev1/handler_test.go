@@ -2,6 +2,7 @@ package babelforcev1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -500,6 +501,37 @@ func TestGeneratedVoiceHandlerOwnsPingTiming(t *testing.T) {
 		rtvbp.Request{Method: "ping", Payload: payload, ReceivedAt: receivedAt},
 	); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNewPingHandlerPreservesCatalogPingConvenience(t *testing.T) {
+	handler := NewPingHandler()
+	if handler.MethodName() != babelforcev1.MethodPing {
+		t.Fatalf("method = %q", handler.MethodName())
+	}
+	receivedAt := time.UnixMilli(1_700_000_000_010)
+	shc := rtvbp.NewTestingSHC()
+	if err := handler.Handle(
+		t.Context(),
+		shc,
+		rtvbp.Request{
+			Method:     babelforcev1.MethodPing,
+			Payload:    []byte(`{"t0":1700000000000,"data":{"probe":"acceptance"}}`),
+			ReceivedAt: receivedAt,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	var response babelforcev1.PingResponse
+	if err := json.Unmarshal(shc.Response.Payload, &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.T0 != 1_700_000_000_000 || response.T1 != receivedAt.UnixMilli() || response.T2 < response.T1 {
+		t.Fatalf("response = %#v", response)
+	}
+	data, ok := response.Data.(map[string]any)
+	if !ok || data["probe"] != "acceptance" {
+		t.Fatalf("data = %#v", response.Data)
 	}
 }
 
