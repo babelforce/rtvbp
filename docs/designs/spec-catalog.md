@@ -104,6 +104,14 @@ R-4's bidirectional proof covers all 29 frozen fixtures and pinned these emitter
 The only byte mismatch uncovered while establishing the proof was fixed in the spec's float
 serialization; no frozen fixture was changed.
 
+R-17 expanded the authority set without changing those original bytes: four additive Rust event
+payloads and thirteen Go-derived presence/format variants bring the inventory to 46. This exposed
+two additional requirements. `classic.v1` must preserve an explicitly present `result:null` rather
+than normalizing it to an absent result, and `serde_json` must enable `float_roundtrip` so parsing
+and re-emitting Go's fractional `float64` spelling is exact. The full inventory now pins every
+optional payload field absent, request params present, errors without `any`, and the deployed -1,
+400, 500, and 501 code spellings.
+
 ### Generator skeleton
 
 CLI `rtvbp-spec-gen --emit=<manifest|go|docs|vectors> --out=<dir>`, plus a `--check` mode used by CI.

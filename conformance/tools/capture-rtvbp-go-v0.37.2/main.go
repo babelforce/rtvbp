@@ -1,7 +1,8 @@
-// Command capture-rtvbp-go-v0.40.0 records the deployed protocol's JSON bytes.
+// Command capture-rtvbp-go-v0.37.2 records the common v0.37.2 protocol JSON bytes.
 //
 // This command is intentionally disposable. It depends on the old rtvbp-go
-// module and is not part of any repository-wide build.
+// module and exists only to compare its common wire surface with the frozen
+// v0.40.0 authority.
 package main
 
 import (
@@ -11,7 +12,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/babelforce/rtvbp-go/proto"
 	"github.com/babelforce/rtvbp-go/proto/protov1"
@@ -23,8 +23,12 @@ type fixture struct {
 }
 
 func main() {
-	out := flag.String("out", defaultOutputRoot(), "golden fixture output directory")
+	out := flag.String("out", "", "output directory (required)")
 	flag.Parse()
+	if *out == "" {
+		flag.Usage()
+		os.Exit(2)
+	}
 
 	if err := capture(*out); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -67,7 +71,10 @@ func fixtures() []fixture {
 
 	requestFrame := proto.NewRequest("session.get", nil)
 	requestFrame.ID = "request-1"
-	requestWithParamsFrame := proto.NewRequest("session.terminate", &protov1.SessionTerminateRequest{Reason: "completed"})
+	requestWithParamsFrame := proto.NewRequest(
+		"session.terminate",
+		&protov1.SessionTerminateRequest{Reason: "completed"},
+	)
 	requestWithParamsFrame.ID = "request-terminate-1"
 
 	okFrame := requestFrame.Ok(&protov1.EmptyResponse{})
@@ -82,12 +89,17 @@ func fixtures() []fixture {
 			"retryable": false,
 		},
 	})
-	unknownErrorFrame := requestFrame.NotOk(proto.NewError(proto.ErrUnknown, errors.New("unknown failure")))
-	internalErrorFrame := requestFrame.NotOk(proto.ToResponseError(errors.New("internal failure")))
-	notImplementedFrame := requestWithParamsFrame.NotOk(proto.NotImplemented("session.terminate is not supported. please use application.move or call.hangup instead"))
+	unknownErrorFrame := requestFrame.NotOk(
+		proto.NewError(proto.ErrUnknown, errors.New("unknown failure")),
+	)
+	internalErrorFrame := requestFrame.NotOk(
+		proto.ToResponseError(errors.New("internal failure")),
+	)
+	notImplementedFrame := requestWithParamsFrame.NotOk(proto.NotImplemented(
+		"session.terminate is not supported. please use application.move or call.hangup instead",
+	))
 	eventFrame := proto.NewEvent("dtmf", dtmf)
 	eventFrame.ID = "event-1"
-	audioInfoNonzero := mustJSON[protov1.AudioInfoEvent](`{"read":{"bytes":1280,"bytes_per_second":12800,"bytes_total":6400},"write":{"bytes":32,"bytes_per_second":106.66666666666667,"bytes_total":96}}`)
 
 	return []fixture{
 		{path: "payloads/application.move.request.json", value: &protov1.ApplicationMoveRequest{Reason: "handoff", ApplicationID: "app-2"}},
@@ -116,17 +128,16 @@ func fixtures() []fixture {
 		{path: "payloads/session.terminate.request.json", value: &protov1.SessionTerminateRequest{Reason: "completed"}},
 		{path: "payloads/session.terminate.response.json", value: &protov1.EmptyResponse{}},
 
-		{path: "events/audio.info.json", value: &protov1.AudioInfoEvent{}},
 		{path: "events/audio.speech.started.json", value: &protov1.AudioSpeechStartedEvent{Origin: "sender"}},
 		{path: "events/call.hangup.json", value: &protov1.CallHangupEvent{Reason: "caller"}},
 		{path: "events/dtmf.json", value: dtmf},
 		{path: "events/session.updated.json", value: &protov1.SessionUpdatedEvent{AudioCodec: &codec}},
+
 		{path: "variants/payloads/application.move.request-empty.json", value: &protov1.ApplicationMoveRequest{}},
 		{path: "variants/payloads/application.move.response-no-next.json", value: &protov1.ApplicationMoveResponse{}},
 		{path: "variants/payloads/ping.request-no-optionals.json", value: &protov1.PingRequest{T0: 1_700_000_000_000}},
 		{path: "variants/payloads/ping.response-no-data.json", value: &protov1.PingResponse{T0: 1_700_000_000_000, T1: 1_700_000_000_010, T2: 1_700_000_000_012, OWD: 5}},
 		{path: "variants/payloads/recording.start.request-no-tags.json", value: &protov1.RecordingStartRequest{}},
-		{path: "variants/events/audio.info-nonzero.json", value: audioInfoNonzero},
 		{path: "variants/events/call.hangup-no-reason.json", value: &protov1.CallHangupEvent{}},
 
 		{path: "envelope/classic.v1/request.json", value: requestFrame},
@@ -140,20 +151,4 @@ func fixtures() []fixture {
 		{path: "envelope/classic.v1/response-error-not-implemented.json", value: notImplementedFrame},
 		{path: "envelope/classic.v1/event.json", value: eventFrame},
 	}
-}
-
-func mustJSON[T any](raw string) *T {
-	var value T
-	if err := json.Unmarshal([]byte(raw), &value); err != nil {
-		panic(err)
-	}
-	return &value
-}
-
-func defaultOutputRoot() string {
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("cannot locate capture source")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "babelforce.v1", "golden"))
 }

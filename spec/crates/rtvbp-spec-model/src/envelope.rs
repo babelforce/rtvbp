@@ -337,10 +337,7 @@ fn serialize_optional<M: SerializeMap>(
 }
 
 fn optional_value(object: &serde_json::Map<String, Value>, field: &FieldSpec) -> Option<Value> {
-    object
-        .get(&field.name)
-        .filter(|value| !value.is_null())
-        .cloned()
+    object.get(&field.name).cloned()
 }
 
 fn required_frame_id(

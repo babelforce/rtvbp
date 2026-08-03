@@ -1,0 +1,1 @@
+{"version":"1","response":"request-terminate-1","error":{"code":501,"message":"session.terminate is not supported. please use application.move or call.hangup instead"}}

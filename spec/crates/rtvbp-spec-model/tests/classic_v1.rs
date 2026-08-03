@@ -11,8 +11,8 @@ fn golden(name: &str) -> Vec<u8> {
     fs::read(path).unwrap()
 }
 
-fn cases() -> [(&'static str, ControlFrame); 4] {
-    [
+fn cases() -> Vec<(&'static str, ControlFrame)> {
+    vec![
         (
             "request.json",
             ControlFrame::Request {
@@ -22,10 +22,34 @@ fn cases() -> [(&'static str, ControlFrame); 4] {
             },
         ),
         (
+            "request-with-params.json",
+            ControlFrame::Request {
+                id: "request-terminate-1".into(),
+                method: "session.terminate".into(),
+                params: Some(json!({"reason": "completed"})),
+            },
+        ),
+        (
             "response-ok.json",
             ControlFrame::Response {
                 correlation_id: "request-1".into(),
                 result: Some(json!({})),
+                error: None,
+            },
+        ),
+        (
+            "response-ok-no-result.json",
+            ControlFrame::Response {
+                correlation_id: "request-1".into(),
+                result: None,
+                error: None,
+            },
+        ),
+        (
+            "response-ok-null-result.json",
+            ControlFrame::Response {
+                correlation_id: "request-1".into(),
+                result: Some(serde_json::Value::Null),
                 error: None,
             },
         ),
@@ -38,6 +62,42 @@ fn cases() -> [(&'static str, ControlFrame); 4] {
                     code: 400,
                     message: "invalid request".into(),
                     data: Some(json!({"field": "reason", "retryable": false})),
+                }),
+            },
+        ),
+        (
+            "response-error-unknown.json",
+            ControlFrame::Response {
+                correlation_id: "request-1".into(),
+                result: None,
+                error: Some(WireError {
+                    code: -1,
+                    message: "unknown failure".into(),
+                    data: None,
+                }),
+            },
+        ),
+        (
+            "response-error-internal.json",
+            ControlFrame::Response {
+                correlation_id: "request-1".into(),
+                result: None,
+                error: Some(WireError {
+                    code: 500,
+                    message: "internal failure".into(),
+                    data: None,
+                }),
+            },
+        ),
+        (
+            "response-error-not-implemented.json",
+            ControlFrame::Response {
+                correlation_id: "request-terminate-1".into(),
+                result: None,
+                error: Some(WireError {
+                    code: 501,
+                    message: "session.terminate is not supported. please use application.move or call.hangup instead".into(),
+                    data: None,
                 }),
             },
         ),

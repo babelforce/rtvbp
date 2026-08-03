@@ -16,13 +16,15 @@ working against anything we ship.
 
 ### Golden fixtures — the authority (R-1)
 
-A one-shot capture program, pinned to `rtvbp-go v0.40.0`, marshals canonical instances of
-every payload and every envelope frame shape (request, response-ok, response-error including the
-`"any"` key, event) and writes the exact bytes to `conformance/babelforce.v1/golden/`. Committed
-**frozen**: changes require deliberate review, because a change here means a wire change.
+A capture program pinned to `rtvbp-go v0.40.0` marshals canonical instances and presence/format
+variants through the deployed production types into `conformance/babelforce.v1/golden/`. A second
+capture pinned to the released Rust implementation owns the four additive browser events absent
+from Go. Source-specific inventories keep that provenance explicit. Committed **frozen**: changing
+an existing byte requires deliberate review, because a change here means a wire change.
 
-This is captured **before the spec is written**, so the spec is authored against observed bytes
-rather than remembered semantics.
+The original Go set was captured **before the spec was written**, so the spec was authored against
+observed bytes rather than remembered semantics. R-17 later hardened the set to 46 fixtures while
+leaving all original bytes unchanged.
 
 ### Generated vectors (R-11)
 
@@ -65,10 +67,11 @@ path — no vendoring, no copies to drift.
 ### Interop (R-12)
 
 Separate from vectors, because vectors only prove self-consistency: stand up the new SDK against the
-**published `rtvbp-go v0.37.2`** over a real WebSocket, exercising both role directions. R-12 first
-mechanically compares the fixture-relevant v0.37.2 and v0.40.0 encodings and records the exact
-equivalence scope; live interop then proves the behavioral contract. Together these show deployed
-telephony peers are unaffected rather than assuming the two old releases speak identical bytes.
+**published `rtvbp-go v0.37.2`** over a real WebSocket, exercising both role directions. R-17's
+pinned comparison proves byte equality for all 40 common fixtures and explicitly classifies the six
+non-common fixtures; R-12's live interop then proves the behavioral contract. Together these show
+deployed telephony peers are unaffected rather than assuming the two old releases speak identical
+bytes.
 
 ### Acceptance (R-15)
 

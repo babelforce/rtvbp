@@ -20,9 +20,9 @@ implementation keep working against it — which vectors alone cannot establish.
 - [ ] The demo client (voice role, dummy phone), the demo server (application role) and the load
       test are ported to the new SDK and run.
 - [ ] All three are `goleak`-clean.
-- [ ] A capture comparison mechanically proves that the v0.37.2 payload/envelope shapes exercised
-      by interop are wire-equivalent to the v0.40.0 authority used by the golden fixtures; the
-      result and exact scope are recorded in the conformance design.
+- [ ] R-17's pinned v0.37.2 comparison remains in the conformance gate and covers every common
+      payload/envelope shape exercised by interop; any newly added fixture is explicitly classified
+      rather than silently skipped.
 - [ ] An interop test stands the new SDK against the **published** `rtvbp-go v0.37` over a real
       WebSocket and completes a session in **both** role directions: new-as-application against
       old-as-voice, and new-as-voice against old-as-application.
