@@ -26,3 +26,6 @@ All notable changes to this project are documented here. The format is based on
 - Bidirectional spec-side byte parity for all 29 frozen `babelforce.v1` fixtures: every payload and
   event passes through its concrete Rust type, every `classic.v1` envelope decodes and re-encodes
   identically, and an inventory guard prevents fixture coverage from drifting silently.
+- Expanded `babelforce.v1` wire authority to 46 source-pinned fixtures: four additive Rust event
+  payloads plus Go presence, error, null-result, and float variants. A separate v0.37.2 capture
+  proves all 40 shapes shared with v0.40.0 byte-identical and classifies every exclusion.
