@@ -3,7 +3,6 @@ package rtvbp
 import (
 	"context"
 	"errors"
-	"io"
 	"time"
 )
 
@@ -63,25 +62,3 @@ type Transport interface {
 // TransportFactory creates a transport. The envelope is supplied so composite transports can
 // exchange reserved transport.* signaling without coupling the transport to a specific codec.
 type TransportFactory func(ctx context.Context, envelope Envelope) (Transport, error)
-
-// DataPackage is the received-byte shape used by the imported legacy session runtime.
-//
-// Deprecated: R-9 migrates Session to ControlFrame and the new Transport interface.
-type DataPackage struct {
-	Data       []byte
-	ReceivedAt int64
-}
-
-// LegacyTransport is today's byte-oriented transport contract retained only until R-9.
-//
-// Deprecated: implement Transport for new bindings.
-type LegacyTransport interface {
-	Write(data []byte) error
-	ReadChan() <-chan DataPackage
-	Close(ctx context.Context) error
-}
-
-// LegacyTransportFactory creates the byte-oriented transport consumed by today's Session.
-//
-// Deprecated: R-9 replaces this with TransportFactory.
-type LegacyTransportFactory func(ctx context.Context, audio io.ReadWriter) (LegacyTransport, error)
