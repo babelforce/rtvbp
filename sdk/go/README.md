@@ -10,7 +10,7 @@ generated and must not be edited by hand.
 ## Install
 
 ```bash
-go get github.com/babelforce/rtvbp/sdk/go
+go get github.com/babelforce/rtvbp/sdk/go@v0.1.0
 ```
 
 ## WebSocket server

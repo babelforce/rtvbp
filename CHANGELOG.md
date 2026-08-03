@@ -83,3 +83,6 @@ All notable changes to this project are documented here. The format is based on
 - Proved the new Go SDK in the separately maintained `rtvbp-openai` service: the migrated OpenAI
   Realtime GA adapter now runs on Fly, and public mic/speaker calls verified duplex audio, DTMF,
   speech barge-in with `audio.buffer.clear`, and clean termination over RTVBP.
+- Added `task generate` and the ordered cross-language `task check` release gate. CI regenerates all
+  manifests, Go code, reference docs and vectors, rejects any diff, then tests the Go SDK and builds
+  the published site; `sdk/go/v*` tags now run the same gate before creating a GitHub release.

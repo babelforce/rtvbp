@@ -42,7 +42,7 @@ cross-language release gate and release automation.
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · R-15 live acceptance passed; implementing the unified gate and first Go module release
+- [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · unified gate is green and stale-output failure is proven; public tags and repository retirement remain
 
 ## Next (ready — take the top one unless the user named a story)
 
