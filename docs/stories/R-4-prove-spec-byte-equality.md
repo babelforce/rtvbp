@@ -2,7 +2,7 @@
 id: R-4
 title: Prove spec byte-equality against the golden fixtures
 pillar: Proof
-status: ready
+status: in-progress
 priority: 4
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
@@ -29,7 +29,8 @@ proven-correct model rather than a plausible one.
       so the emitters do not have to rediscover them.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started; adding a failing-first bidirectional byte round-trip test over all 29 frozen
+  payload, event, and `classic.v1` envelope fixtures.
 
 ## Notes
 - This is the highest-value story in M1: it is where the byte-identity bet is won or lost, and it
