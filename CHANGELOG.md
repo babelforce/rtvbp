@@ -53,3 +53,10 @@ All notable changes to this project are documented here. The format is based on
 - Ported the WebSocket client and server to semantic text control plus static binary audio with
   subprotocol negotiation, reverse-role media, flush-on-close, validated audio/keepalive policies,
   atomic shutdown admission and race/stress coverage.
+- Added source-pinned Go `float64` boundary authority for `audio.info`, documenting and testing the
+  exact supported deployed-rate compatibility envelope and representative behavior outside it.
+- Expanded the frozen `babelforce.v1` authority from 46 to 48 fixtures by proving the pinned Rust
+  producer omits `output.transcript.done.text` while its serializer permits present non-empty and
+  empty values; generated Go now preserves all three presence states with an optional string pointer.
+- Settled `transport.*` as an operation-method-only reservation, documented the frozen top-level
+  `error:null` normalization exception, and refreshed the roadmap and runnable contributor gate.

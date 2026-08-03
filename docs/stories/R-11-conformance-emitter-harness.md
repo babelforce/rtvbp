@@ -7,7 +7,7 @@ priority: 12
 design: docs/designs/conformance.md
 epic: conformance
 areas: [generator, conformance, sdk-go]
-note: blocked on R-10 and R-19; review residuals must settle before vectors become compatibility commitments
+note: blocked on R-10; R-19 review residuals are closed before vectors become compatibility commitments
 ---
 
 # Conformance vector emitter and the Go harness

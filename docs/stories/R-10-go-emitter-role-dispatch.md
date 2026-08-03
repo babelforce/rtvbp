@@ -2,12 +2,12 @@
 id: R-10
 title: Go emitter — role interfaces, dispatch adapters and typed peer clients
 pillar: Generator
-status: backlog
+status: in-progress
 priority: 11
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [generator, sdk-go]
-note: blocked on R-6 and R-9; turns role asymmetry into concrete API surface
+note: active after R-9/R-19; turns role asymmetry into concrete API surface
 ---
 
 # Go emitter — role interfaces, dispatch adapters and typed peer clients
@@ -31,7 +31,9 @@ what it must implement, and a typed client for exactly what the other side offer
       replacing the hand-written `protov1.NewClientHandler`, and the ported handler tests pass.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started after the semantic runtime and follow-up soundness review closed. Audited the
+  resolved role/terminal metadata, runtime adapter seams, event directions, validation ownership,
+  reverse-termination compatibility, and the transitional voice bridge before freezing generated APIs.
 
 ## Notes
 - Direction facts to encode: `session.initialize` / `session.terminate` flow voice → application;
