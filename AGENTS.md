@@ -35,9 +35,18 @@ documentation.
 
 ## Gate
 
-Before calling work done: `cargo test` (spec), `task generate && git diff --exit-code` (no drift),
-`go test ./...` (SDK), and the docs build. CI runs the same chain — a regenerated diff fails the
-build.
+Before calling work done, run the commands below from the repository root. The explicit commands
+are the runnable gate today; R-16 will consolidate them behind `task check` and make CI run the same
+complete chain.
+
+```sh
+cargo test --locked --manifest-path spec/Cargo.toml
+cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --check
+cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=go --check
+(cd sdk/go && go test ./...)
+(cd website && yarn build)
+git diff --exit-code
+```
 
 <!-- BEGIN track:agents -->
 ## Start here (every session) — track backlog
