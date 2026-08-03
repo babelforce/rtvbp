@@ -194,8 +194,10 @@ func (s *Session) handleAudioPumpError(operation string, err error) {
 	if err == nil || s.closing.Load() {
 		return
 	}
-	if errors.Is(err, io.EOF) {
-		s.requestStop(nil, false)
+	// Media closes with the transport, but the control reader may still have
+	// admitted frames to drain (notably a terminal response). Let control EOF
+	// own orderly session shutdown so media cannot fail pending requests first.
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) {
 		return
 	}
 	s.requestStop(fmt.Errorf("audio media %s: %w", operation, err), true)
