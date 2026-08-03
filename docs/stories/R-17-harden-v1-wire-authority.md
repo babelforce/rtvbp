@@ -2,7 +2,7 @@
 id: R-17
 title: Complete babelforce.v1 wire authority and fixture variants
 pillar: Proof
-status: ready
+status: in-progress
 priority: 4
 design: docs/reviews/2026-08-03-soundness-review.md
 epic: conformance
@@ -40,6 +40,8 @@ generator turns unobserved shapes into public SDK and documentation surfaces.
 ## Progress
 - 2026-08-03: Filed from the soundness review while R-4 made the existing 29-fixture scope explicit;
   no emitted SDK surface may depend on the four additive events until this story is done.
+- 2026-08-03: Started; auditing the pinned Rust/browser source and extending the reproducible capture
+  before adding any new authority fixture.
 
 ## Notes
 - Review: [`docs/reviews/2026-08-03-soundness-review.md`](../reviews/2026-08-03-soundness-review.md),
