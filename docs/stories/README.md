@@ -15,7 +15,7 @@ the complete typed catalog, and R-4 proved all 29 existing fixtures byte-identic
 spec types. R-17 closed the soundness review's wire-authority gap with 46 source-pinned fixtures,
 R-18 made the remaining semantic constraints explicit and tested, R-5 delivered the generator core
 plus its first committed manifest, R-6 now emits byte-proven Go payload types, and R-8 delivered the
-new runtime transport seams plus the canonical Go module migration. R-7 is ready to generate the
+new runtime transport seams plus the canonical Go module migration. R-7 is generating the
 classic.v1 envelope codec against those seams. The second soundness review is scheduled as R-19
 after the session rewrite and before conformance vectors or public reference pages are emitted.
 
@@ -36,6 +36,7 @@ cross-language release gate and release automation.
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
+- [R-7 — EnvelopeSpec and the generated Go classic.v1 codec](R-7-envelope-emitter.md) · Generator · unblocked; the generated codec can now target the settled runtime Envelope interface
 
 ## Next (ready — take the top one unless the user named a story)
 
@@ -44,7 +45,6 @@ _Before anything can be generated there must be a source of truth that is provab
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
-- [R-7 — EnvelopeSpec and the generated Go classic.v1 codec](R-7-envelope-emitter.md) · Generator · unblocked; the generated codec can now target the settled runtime Envelope interface
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_

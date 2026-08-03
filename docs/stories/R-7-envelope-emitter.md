@@ -2,7 +2,7 @@
 id: R-7
 title: EnvelopeSpec and the generated Go classic.v1 codec
 pillar: Generator
-status: ready
+status: in-progress
 priority: 8
 design: docs/designs/go-sdk.md
 epic: go-sdk
@@ -33,7 +33,8 @@ re-derived by every SDK author.
       data (demonstrated by a unit test over a synthetic `EnvelopeSpec`, not by shipping one).
 
 ## Progress
-- (not started)
+- 2026-08-03: Started after R-8 settled the hand-written `ControlFrame` and `Envelope` target API;
+  first model the frozen classic.v1 grammar, then emit and byte-prove the Go codec.
 
 ## Notes
 - The `Envelope` interface itself and `ControlFrame` / `WireError` are hand-written runtime types
