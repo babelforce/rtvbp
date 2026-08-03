@@ -7,7 +7,7 @@ priority: 15
 design: docs/designs/multi-catalog.md
 epic: multi-catalog
 areas: [spec, generator, sdk-go]
-note: blocked on R-10, R-11 and R-13; exercises emitted role glue, vectors and docs together
+note: blocked on R-11; exercises the completed role/docs emitters and generated vectors together
 ---
 
 # demo.v1 catalog and a dual-profile example

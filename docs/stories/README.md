@@ -20,7 +20,8 @@ classic.v1 envelope codec, and R-9 completed the semantic session, negotiated au
 transport rewrite. R-19 closed the second soundness review with measured float authority, complete
 transcript-done presence fixtures, and explicit namespace/null rules before conformance vectors or
 public reference pages are emitted. R-10 completed role-specific generated dispatch, typed clients,
-validation and the Go voice-bridge cutover.
+validation and the Go voice-bridge cutover, and R-13 now generates the published catalog and
+envelope reference. R-11 conformance vectors and R-12 published-version interop are next.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -40,6 +41,11 @@ _None._
 
 ## Next (ready — take the top one unless the user named a story)
 
+### conformance vectors, interop, and acceptance
+_"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
+- [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · R-10/R-19 prerequisites are complete; generated vectors and the Go harness are next
+- [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · R-10 ported the demos; published-v0.37 interop now proves deployed peers are unaffected
+
 ### the spec crate and the generator core
 _Before anything can be generated there must be a source of truth that is provably equal to the_
 
@@ -48,7 +54,6 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
-- [R-13 — Docs emitter — generated protocol reference in the Docusaurus site](R-13-docs-emitter.md) · Generator · R-19 review residuals are closed; can proceed without racing the higher-priority R-10 work
 
 ## Blocked
 _None._
@@ -57,17 +62,15 @@ _None._
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · blocked on R-10; R-19 review residuals are closed before vectors become compatibility commitments
-- [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · blocked on R-10; interop is what actually proves deployed peers are unaffected
 - [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · blocked on R-12; a real phone call is the acceptance criterion
-- [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · blocked on R-13 and R-15; makes drift unmergeable and closes out the old repo
+- [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · blocked on R-15; generated docs are complete and real-call acceptance remains before release
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
 
 ### multi-catalog operation and profile negotiation
 _The framework claims to be catalog-agnostic and to support **any transport × any envelope**. A claim_
-- [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · blocked on R-10, R-11 and R-13; exercises emitted role glue, vectors and docs together
+- [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · blocked on R-11; exercises the completed role/docs emitters and generated vectors together
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
@@ -95,4 +98,8 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 - [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · semantic frame and transport seams, drain-safe memory transport, and canonical Go module path are complete
 - [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · semantic session, negotiated audio and WebSocket transport are complete with frozen wire parity
 - [R-10 — Go emitter — role interfaces, dispatch adapters and typed peer clients](R-10-go-emitter-role-dispatch.md) · Generator · generated role APIs and the v1 voice bridge now replace hand-written protocol glue
+
+### generated protocol documentation
+_The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
+- [R-13 — Docs emitter — generated protocol reference in the Docusaurus site](R-13-docs-emitter.md) · Generator · generated catalog and envelope reference now replaces the stale hand-written v1 prose
 <!-- END track:board -->

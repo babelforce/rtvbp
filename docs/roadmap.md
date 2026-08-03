@@ -7,14 +7,13 @@ document is the hand-written narrative around it.
 ## Status
 
 _As of 2026-08-03:_ the repository is being converted from a documentation site into the **home of
-the protocol** — spec, generator, and SDKs. The frozen `babelforce.v1` authority now covers 46
-source-pinned fixtures; the typed Rust catalog reproduces them byte-for-byte; the generator emits
-Go payloads and the classic.v1 envelope codec; and the Go SDK now runs on the semantic session,
-negotiated audio, and WebSocket transport seams delivered by R-8/R-9. R-19 is closing the follow-up
-soundness review before R-11 conformance vectors and R-13 public reference pages make further
-compatibility commitments. The Docusaurus site lives under [`website/`](../website), leaving
-`docs/` for contributor material and this backlog. A runnable contributor gate and a minimal
-Rust/generated-Go CI check exist; R-16 later consolidates the complete release gate and automation.
+the protocol** — spec, generator, and SDKs. The frozen `babelforce.v1` authority is source-pinned;
+the typed Rust catalog reproduces it byte-for-byte; and the generator now emits Go payloads, role
+glue, the classic.v1 envelope codec, and the published protocol reference. The Go SDK runs on the
+semantic session, negotiated audio, and WebSocket transport seams delivered by R-8/R-9. R-11
+conformance vectors, R-12 published-version interop, and R-15's real-call acceptance remain before
+R-16 tags the first Go SDK release. The Docusaurus site lives under [`website/`](../website), leaving
+`docs/` for contributor material and this backlog.
 
 ## Delivered
 

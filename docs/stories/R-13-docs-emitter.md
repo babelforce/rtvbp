@@ -2,12 +2,12 @@
 id: R-13
 title: Docs emitter — generated protocol reference in the Docusaurus site
 pillar: Generator
-status: ready
+status: done
 priority: 14
 design: docs/designs/docs-gen.md
 epic: docs-gen
 areas: [generator, website]
-note: R-19 review residuals are closed; can proceed without racing the higher-priority R-10 work
+note: generated catalog and envelope reference now replaces the stale hand-written v1 prose
 ---
 
 # Docs emitter — generated protocol reference in the Docusaurus site
@@ -18,28 +18,36 @@ documentation cannot describe a protocol the SDKs do not implement — and give 
 per-role view that is the most useful thing to read.
 
 ## Acceptance
-- [ ] `--emit=docs` writes `website/docs/reference/babelforce.v1/` containing a page per operation
+- [x] `--emit=docs` writes `website/docs/reference/babelforce.v1/` containing a page per operation
       (params and result field tables with types, presence and descriptions, a JSON example, and a
       direction badge), a page per event, `roles/application` and `roles/voice`
       ("must implement · may call · emits · receives"), and `envelopes/classic-v1`.
-- [ ] Field tables, prose and examples all derive from the same schemas, doc comments and canonical
+- [x] Field tables, prose and examples all derive from the same schemas, doc comments and canonical
       examples that produce the SDK types and the conformance vectors.
-- [ ] The generated `classic.v1` page lists the spec's conventional error codes while stating that
+- [x] The generated `classic.v1` page lists the spec's conventional error codes while stating that
       the non-zero integer space is open, and records response both/neither permissiveness.
-- [ ] A generated `_category_.json` / sidebar fragment per catalog means a second catalog version
+- [x] A generated `_category_.json` / sidebar fragment per catalog means a second catalog version
       gets its own tree with no hand-edits to `sidebars.ts`.
-- [ ] Every generated page carries a DO-NOT-EDIT banner.
-- [ ] Two hand-written pages are added and linked: the **WebSocket transport binding** (framing,
+- [x] Every generated page carries a DO-NOT-EDIT banner.
+- [x] Two hand-written pages are added and linked: the **WebSocket transport binding** (framing,
       auth, subprotocol) and **profiles & negotiation** (a profile is transport × envelope × catalog;
       absence of a subprotocol means `rtvbp.v1`).
-- [ ] The public transport/profile prose reserves the `transport.*` method namespace across every
+- [x] The public transport/profile prose reserves the `transport.*` method namespace across every
       catalog and envelope, and the catalog validator rejects operations in that namespace.
-- [ ] The Docusaurus site builds; superseded pages under `website/docs/protov1/` are removed or
+- [x] The Docusaurus site builds; superseded pages under `website/docs/protov1/` are removed or
       reduced to narrative that links into the generated reference.
-- [ ] Regenerating produces no diff.
+- [x] Regenerating produces no diff.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started after generated Go role glue closed. Auditing the Docusaurus tree, generator
+  target ownership, schema projection, envelope semantics and narrative transport/profile boundary
+  before replacing the stale hand-written v1 reference.
+- 2026-08-03: Added the deterministic docs target with synthetic second-catalog and MDX-escaping
+  proofs, stale-file ownership checks, per-operation/event/role pages, recursive shared-type tables,
+  structured constraints, canonical examples, and a spec-driven classic.v1 envelope reference.
+- 2026-08-03: Replaced the obsolete `protov1` prose with an accurate introduction plus hand-written
+  WebSocket binding and profile-negotiation guides. Rust tests/clippy, all generator drift checks,
+  the Go suite, and the Docusaurus production build pass with all 22 generated pages bannered.
 
 ## Notes
 - The existing prose is already wrong in at least one place — it states the application side sends no

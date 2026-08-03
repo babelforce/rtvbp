@@ -2,12 +2,12 @@
 id: R-11
 title: Conformance vector emitter and the Go harness
 pillar: Proof
-status: backlog
+status: ready
 priority: 12
 design: docs/designs/conformance.md
 epic: conformance
 areas: [generator, conformance, sdk-go]
-note: blocked on R-10; R-19 review residuals are closed before vectors become compatibility commitments
+note: R-10/R-19 prerequisites are complete; generated vectors and the Go harness are next
 ---
 
 # Conformance vector emitter and the Go harness

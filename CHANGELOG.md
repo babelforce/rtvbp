@@ -64,3 +64,7 @@ All notable changes to this project are documented here. The format is based on
   semantic validators, terminal dispatch and frozen per-role rejections. Replaced the derivable
   `proto/protov1` package with generated catalog code and a thin hand-written voice/telephony bridge,
   and ported both demos to the new API.
+- Added deterministic generated protocol documentation: operation, event, role and classic-envelope
+  reference pages now derive from the catalog schemas, comments, examples and envelope declaration.
+  Replaced the stale v1 prose with WebSocket binding and profile-negotiation guides, including the
+  `rtvbp.v1` compatibility default and reserved `transport.*` operation namespace.

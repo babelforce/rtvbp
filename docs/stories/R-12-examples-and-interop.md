@@ -2,12 +2,12 @@
 id: R-12
 title: Port the examples and prove interop against rtvbp-go v0.37
 pillar: Proof
-status: backlog
+status: ready
 priority: 13
 design: docs/designs/conformance.md
 epic: conformance
 areas: [sdk-go, conformance]
-note: blocked on R-10; interop is what actually proves deployed peers are unaffected
+note: R-10 ported the demos; published-v0.37 interop now proves deployed peers are unaffected
 ---
 
 # Port the examples and prove interop against rtvbp-go v0.37

@@ -1,34 +1,19 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Outlook
 
-In future developments of **RTVBP** we have a few things in mind:
+RTVBP separates payloads, envelopes, and transports so new bindings do not require a new
+call-control protocol.
 
-## Transport
+Planned work after the first SDK milestone includes:
 
-- **QUIC Transport protocol** could be a better transport protocol for this use case because it offers lower latency and faster connection establishment compared to traditional TCP-based protocols like WebSockets over TLS. Additionally, QUIC’s built-in multiplexing and improved handling of packet loss make it well-suited for real-time audio streaming with minimal disruption.  
+- WebRTC audio with WebSocket control for browser and low-latency media use cases.
+- A Rust SDK generated from the same catalog and envelope declarations.
+- QUIC and SIP bindings using the same semantic session runtime model.
+- Additional versioned catalogs and negotiated profiles, without changing frozen `rtvbp.v1`
+  behavior.
 
-## Functionality
-
-- **Recording Control** Allow to control the creation and interruption of audio recordings.
-- **Session-Store** Allow to read and write session data to make it available within other parts of the babelforce ecosystem
-- **Outbound Calls** Allow to be the initiator of the session. Allow to create outbound calls from your end and control them.
-
-## Low-Level Requests and Events
-
-The following low-level requests will be supported in the future:
-
-- `session.set`: Set session variables
-- `session.get`: Get session variables
-- `recording.start`: Start recording
-- `recording.stop`: Stop recording
-- `playback.start`: Start playback
-- `playback.stop`: Stop playback
-
-The following events will be supported in the future:
-
-- `dtmf`: Send DTMF events
-- `audio.transcript`: Receive audio transcripts
-
+New wire behavior is introduced through a new catalog, envelope, or profile. The deployed
+`babelforce.v1` catalog and `classic.v1` envelope remain frozen for compatibility.

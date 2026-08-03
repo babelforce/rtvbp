@@ -7,7 +7,7 @@ priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
-note: blocked on R-13 and R-15; makes drift unmergeable and closes out the old repo
+note: blocked on R-15; generated docs are complete and real-call acceptance remains before release
 ---
 
 # CI drift gate, Taskfile, first release and rtvbp-go deprecation
