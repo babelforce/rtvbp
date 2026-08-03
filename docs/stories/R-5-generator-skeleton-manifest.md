@@ -2,7 +2,7 @@
 id: R-5
 title: Generator skeleton and manifest emitter
 pillar: Generator
-status: ready
+status: in-progress
 priority: 6
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
@@ -33,7 +33,8 @@ emitters will need.
       cross-language release gate.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started; defining the failing-first end-to-end manifest contract and the pure
+  load → validate → resolve → emit boundary before adding filesystem writes or CLI behavior.
 
 ## Notes
 - The generator links the catalog crates and walks the `Catalog` value in process — the manifest is
