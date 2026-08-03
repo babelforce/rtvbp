@@ -34,8 +34,11 @@ type Transport struct {
 	control  *semanticControlChannel
 	media    *staticMediaChannel
 	outgoing *outboundQueue
+	pongs    chan string
 
-	writeMu sync.Mutex
+	writeMu    sync.Mutex
+	monitorMu  sync.Mutex
+	pingSerial uint64
 
 	finishOnce sync.Once
 	closeOnce  sync.Once
@@ -61,10 +64,18 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 		cancel:               cancel,
 		done:                 make(chan struct{}),
 		outgoing:             newOutboundQueue(),
+		pongs:                make(chan string, 64),
 		closeAck:             make(chan error, 1),
 	}
 	t.control = &semanticControlChannel{transport: t, incoming: newInbox[rtvbp.Received]()}
 	t.media = &staticMediaChannel{transport: t, incoming: newInbox[rtvbp.MediaFrame]()}
+	conn.SetPongHandler(func(payload string) error {
+		select {
+		case t.pongs <- payload:
+		default:
+		}
+		return nil
+	})
 
 	go t.readPump()
 	go t.writePump()
@@ -76,6 +87,73 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 		}
 	}()
 	return t
+}
+
+// MonitorKeepalive monitors the connection using native WebSocket Ping/Pong
+// control frames. It never emits a catalog-level text ping.
+func (t *Transport) MonitorKeepalive(ctx context.Context, policy rtvbp.KeepalivePolicy) error {
+	if err := policy.Validate(); err != nil {
+		return err
+	}
+	if !policy.Enabled() {
+		return nil
+	}
+
+	t.monitorMu.Lock()
+	defer t.monitorMu.Unlock()
+
+	misses := 0
+	interval := time.NewTimer(policy.Interval)
+	defer interval.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.done:
+			return keepaliveCloseResult(t.terminalError())
+		case <-interval.C:
+		}
+
+		t.drainPongs()
+		t.pingSerial++
+		payload := fmt.Sprintf("rtvbp:%d", t.pingSerial)
+		if err := t.enqueueAcknowledged(ctx, websocket.PingMessage, []byte(payload)); err != nil {
+			return err
+		}
+
+		matched := false
+		timeout := time.NewTimer(policy.Timeout)
+	waitForPong:
+		for {
+			select {
+			case <-ctx.Done():
+				stopTimer(timeout)
+				return ctx.Err()
+			case <-t.done:
+				stopTimer(timeout)
+				return keepaliveCloseResult(t.terminalError())
+			case pong := <-t.pongs:
+				if pong == payload {
+					matched = true
+					stopTimer(timeout)
+					break waitForPong
+				}
+			case <-timeout.C:
+				break waitForPong
+			}
+		}
+
+		if matched {
+			misses = 0
+		} else {
+			misses++
+			if misses >= policy.MaxMisses {
+				t.finish(rtvbp.ErrKeepaliveTimeout)
+				return rtvbp.ErrKeepaliveTimeout
+			}
+		}
+		interval.Reset(policy.Interval)
+	}
 }
 
 // Subprotocol returns the effective RTVBP profile. A peer that selects no
@@ -181,6 +259,9 @@ func (t *Transport) writePump() {
 			return
 		}
 		err = t.writeMessage(message)
+		if message.written != nil {
+			message.written <- err
+		}
 		if message.close {
 			if err == nil {
 				t.finish(io.EOF)
@@ -219,6 +300,46 @@ func (t *Transport) enqueue(ctx context.Context, messageType int, data []byte) e
 		return err
 	}
 	return nil
+}
+
+func (t *Transport) enqueueAcknowledged(ctx context.Context, messageType int, data []byte) error {
+	written := make(chan error, 1)
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := t.outgoing.push(outboundMessage{
+		messageType: messageType,
+		data:        cloneBytes(data),
+		written:     written,
+	}); err != nil {
+		if errors.Is(err, io.ErrClosedPipe) {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-t.done:
+				return keepaliveCloseResult(t.terminalError())
+			}
+		}
+		return err
+	}
+	select {
+	case err := <-written:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.done:
+		return keepaliveCloseResult(t.terminalError())
+	}
+}
+
+func (t *Transport) drainPongs() {
+	for {
+		select {
+		case <-t.pongs:
+		default:
+			return
+		}
+	}
 }
 
 func (t *Transport) finish(err error) {
@@ -366,6 +487,7 @@ type outboundMessage struct {
 	messageType int
 	data        []byte
 	close       bool
+	written     chan error
 }
 
 type outboundQueue struct {
@@ -512,6 +634,23 @@ func cloneBytes(data []byte) []byte {
 	return append([]byte(nil), data...)
 }
 
+func keepaliveCloseResult(err error) error {
+	if err == nil || errors.Is(err, io.EOF) {
+		return nil
+	}
+	return err
+}
+
+func stopTimer(timer *time.Timer) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+}
+
 var _ rtvbp.Transport = (*Transport)(nil)
+var _ rtvbp.KeepaliveTransport = (*Transport)(nil)
 var _ rtvbp.ControlChannel = (*semanticControlChannel)(nil)
 var _ rtvbp.MediaChannel = (*staticMediaChannel)(nil)
