@@ -1,29 +1,23 @@
 package rtvbp
 
-import (
-	"context"
+import "context"
 
-	"github.com/babelforce/rtvbp/sdk/go/proto"
-)
-
-type RequestMiddlewareFunc func(ctx context.Context, h SHC, req *proto.Request) error
+type RequestMiddlewareFunc func(ctx context.Context, handler SHC, request Request) error
 
 type requestMiddleware struct {
 	next RequestHandler
 	fn   RequestMiddlewareFunc
 }
 
-func (m *requestMiddleware) MethodName() string {
-	return m.next.MethodName()
-}
+func (m *requestMiddleware) MethodName() string { return m.next.MethodName() }
 
-func (m *requestMiddleware) Handle(ctx context.Context, h SHC, req *proto.Request) error {
-	if err := m.fn(ctx, h, req); err != nil {
+func (m *requestMiddleware) Handle(ctx context.Context, handler SHC, request Request) error {
+	if err := m.fn(ctx, handler, request); err != nil {
 		return err
 	}
-	return m.next.Handle(ctx, h, req)
+	return m.next.Handle(ctx, handler, request)
 }
 
-func Middleware(fn RequestMiddlewareFunc, next RequestHandler) RequestHandler {
-	return &requestMiddleware{next: next, fn: fn}
+func Middleware(middleware RequestMiddlewareFunc, next RequestHandler) RequestHandler {
+	return &requestMiddleware{next: next, fn: middleware}
 }

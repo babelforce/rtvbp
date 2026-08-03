@@ -1,30 +1,21 @@
 package rtvbp
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
-func debugMessage(sessionID string, m proto.Message, direction string) {
-	buf := strings.Builder{}
-	buf.WriteString(fmt.Sprintf("MSG(%s|%s)", sessionID, direction))
+func debugFrame(sessionID string, frame ControlFrame, direction string) {
+	var output strings.Builder
+	fmt.Fprintf(&output, "FRAME(%s|%s)", sessionID, direction)
 	if direction == "in" {
-		buf.WriteString("[rcv] <-- ")
+		output.WriteString(" <-- ")
 	} else {
-		buf.WriteString("[sent] --> ")
+		output.WriteString(" --> ")
 	}
-	data, err := json.MarshalIndent(m, "", "  ")
-	if err != nil {
-		buf.WriteString(fmt.Sprintf("failed to marshal message: %+v %s", m, err))
-		buf.WriteString("\n")
-		fmt.Println(buf.String())
-		return
+	fmt.Fprintf(&output, "kind=%d id=%q correl=%q method=%q payload=%s", frame.Kind, frame.ID, frame.CorrelID, frame.Method, frame.Payload)
+	if frame.Err != nil {
+		fmt.Fprintf(&output, " error=%d:%s", frame.Err.Code, frame.Err.Message)
 	}
-	buf.WriteString("\n")
-	buf.WriteString(string(data))
-	buf.WriteString("\n")
-	fmt.Println(buf.String())
+	fmt.Println(output.String())
 }

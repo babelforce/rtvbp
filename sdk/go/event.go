@@ -4,49 +4,50 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/babelforce/rtvbp/sdk/go/proto"
+	"time"
 )
 
 type NamedEvent interface {
 	EventName() string
-	String() string
+}
+
+type Event struct {
+	ID         string
+	Name       string
+	Payload    json.RawMessage
+	ReceivedAt time.Time
 }
 
 type EventHandler interface {
 	EventName() string
-	Handle(ctx context.Context, hc SHC, evt *proto.Event) error
+	Handle(ctx context.Context, handler SHC, event Event) error
 }
 
-// Generic typed event handler
 type typedEventHandler[T NamedEvent] struct {
 	name string
 	h    func(context.Context, SHC, T) error
 }
 
-func (t *typedEventHandler[T]) EventName() string {
-	return t.name
-}
+func (h *typedEventHandler[T]) EventName() string { return h.name }
 
-func (t *typedEventHandler[T]) Handle(ctx context.Context, h SHC, evt *proto.Event) error {
-	raw, err := json.Marshal(evt.Data)
-	if err != nil {
-		return fmt.Errorf("marshal data: %w", err)
-	}
-
+func (h *typedEventHandler[T]) Handle(ctx context.Context, handler SHC, event Event) error {
 	var data T
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return fmt.Errorf("unmarshal into type: %w", err)
+	payload := event.Payload
+	if len(payload) == 0 {
+		payload = json.RawMessage("{}")
 	}
-
-	return t.h(ctx, h, data)
+	if err := json.Unmarshal(payload, &data); err != nil {
+		return fmt.Errorf("decode %s event: %w", event.Name, err)
+	}
+	if validation, ok := any(data).(Validation); ok && !isNil(validation) {
+		if err := validation.Validate(); err != nil {
+			return fmt.Errorf("validate %s event: %w", event.Name, err)
+		}
+	}
+	return h.h(ctx, handler, data)
 }
 
-// HandleEvent creates a new typed event handler
 func HandleEvent[T NamedEvent](handler func(context.Context, SHC, T) error) EventHandler {
 	var zero T
-	return &typedEventHandler[T]{
-		name: zero.EventName(),
-		h:    handler,
-	}
+	return &typedEventHandler[T]{name: zero.EventName(), h: handler}
 }

@@ -2,71 +2,152 @@ package rtvbp
 
 import (
 	"context"
+	"errors"
 	"fmt"
-
-	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
+type pendingResult struct {
+	response Response
+	err      error
+}
+
 type pendingRequest struct {
-	id string
-	ch chan *proto.Response
+	id     string
+	result chan pendingResult
 }
 
-// newPendingRequest creates a new pending request
-func (s *Session) newPendingRequest(id string) *pendingRequest {
-	s.muPending.Lock()
-	defer s.muPending.Unlock()
-
-	pr := &pendingRequest{
-		id: id,
-		ch: make(chan *proto.Response, 1),
+func (s *Session) registerPending(id string) (*pendingRequest, error) {
+	if id == "" {
+		return nil, errors.New("rtvbp: id generator returned an empty id")
 	}
-
-	s.pendingRequests[id] = pr
-
-	return pr
+	pending := &pendingRequest{id: id, result: make(chan pendingResult, 1)}
+	s.pendingMu.Lock()
+	if _, exists := s.pending[id]; exists {
+		s.pendingMu.Unlock()
+		return nil, fmt.Errorf("rtvbp: id generator returned duplicate id %q", id)
+	}
+	s.pending[id] = pending
+	s.pendingMu.Unlock()
+	return pending, nil
 }
 
-// resolvePendingRequest resolves a pending request
-func (s *Session) resolvePendingRequest(resp *proto.Response) {
-	s.muPending.Lock()
-	defer s.muPending.Unlock()
+func (s *Session) removePending(id string, expected *pendingRequest) {
+	s.pendingMu.Lock()
+	if s.pending[id] == expected {
+		delete(s.pending, id)
+	}
+	s.pendingMu.Unlock()
+}
 
-	pr, ok := s.pendingRequests[resp.Response]
-	if !ok {
+func (s *Session) resolvePending(frame ControlFrame) {
+	s.pendingMu.Lock()
+	pending := s.pending[frame.CorrelID]
+	if pending != nil {
+		delete(s.pending, frame.CorrelID)
+	}
+	s.pendingMu.Unlock()
+	if pending == nil {
 		return
 	}
-
-	pr.ch <- resp
-
-	delete(s.pendingRequests, resp.Response)
+	response := Response{Payload: cloneRaw(frame.Payload), Err: cloneWireError(frame.Err)}
+	result := pendingResult{response: response}
+	if response.Err != nil {
+		result.err = &RemoteError{WireError: *response.Err}
+	}
+	select {
+	case pending.result <- result:
+	default:
+	}
 }
 
-// Request sends a request
-func (s *Session) Request(ctx context.Context, payload NamedRequest) (*proto.Response, error) {
+func (s *Session) failPending(cause error) {
+	s.pendingMu.Lock()
+	pending := s.pending
+	s.pending = make(map[string]*pendingRequest)
+	s.pendingMu.Unlock()
+	for _, request := range pending {
+		select {
+		case request.result <- pendingResult{err: cause}:
+		default:
+		}
+	}
+}
 
-	ctx, cancel := context.WithTimeout(ctx, s.requestTimeout)
+func (s *Session) Request(ctx context.Context, payload NamedRequest) (Response, error) {
+	if payload == nil || isNil(payload) {
+		return Response{}, fmt.Errorf("%w: request is nil", ErrRequestValidationFailed)
+	}
+	if validation, ok := payload.(Validation); ok {
+		if err := validation.Validate(); err != nil {
+			return Response{}, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
+		}
+	}
+	encoded, err := marshalPayload(payload)
+	if err != nil {
+		return Response{}, fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
+	}
+	if s.closing.Load() {
+		return Response{}, ErrSessionClosed
+	}
+	id := s.idGenerator()
+	pending, err := s.registerPending(id)
+	if err != nil {
+		return Response{}, fmt.Errorf("%w: %w", ErrRequestFailed, err)
+	}
+	frame := ControlFrame{Kind: KindRequest, ID: id, Method: payload.MethodName(), Payload: encoded}
+	if err := s.sendFrame(ctx, frame); err != nil {
+		s.removePending(id, pending)
+		if errors.Is(err, ErrSessionClosed) {
+			return Response{}, ErrSessionClosed
+		}
+		return Response{}, fmt.Errorf("%w: %w", ErrRequestFailed, err)
+	}
+
+	waitCtx := ctx
+	cancel := func() {}
+	internalTimeout := false
+	if s.requestLimit > 0 {
+		var cancelContext context.CancelFunc
+		waitCtx, cancelContext = context.WithTimeout(ctx, s.requestLimit)
+		cancel = cancelContext
+		internalTimeout = true
+	}
 	defer cancel()
 
-	req := proto.NewRequest(payload.MethodName(), payload)
-	pr := s.newPendingRequest(req.ID)
-
-	if err := s.sendMessage(req); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrRequestFailed, err)
-	}
-
-	// wait for response
 	select {
-	case <-ctx.Done():
-		s.muPending.Lock()
-		defer s.muPending.Unlock()
-		delete(s.pendingRequests, req.ID)
-		return nil, fmt.Errorf("request [method=%s, id=%s] failed: %w", req.Method, req.ID, ErrRequestTimeout)
-	case resp := <-pr.ch:
-		if !resp.Ok() {
-			return nil, resp.Error
+	case result := <-pending.result:
+		return result.response, result.err
+	case <-waitCtx.Done():
+		select {
+		case result := <-pending.result:
+			return result.response, result.err
+		default:
 		}
-
-		return resp, nil
+		s.removePending(id, pending)
+		if internalTimeout && errors.Is(waitCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
+			return Response{}, fmt.Errorf("request method=%s id=%s: %w", payload.MethodName(), id, ErrRequestTimeout)
+		}
+		return Response{}, waitCtx.Err()
 	}
+}
+
+func (s *Session) EventDispatch(ctx context.Context, payload NamedEvent) error {
+	if payload == nil || isNil(payload) {
+		return fmt.Errorf("%w: event is nil", ErrRequestValidationFailed)
+	}
+	if validation, ok := payload.(Validation); ok {
+		if err := validation.Validate(); err != nil {
+			return fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
+		}
+	}
+	encoded, err := marshalPayload(payload)
+	if err != nil {
+		return fmt.Errorf("encode event: %w", err)
+	}
+	return s.sendFrame(ctx, ControlFrame{
+		Kind:    KindEvent,
+		ID:      s.idGenerator(),
+		Method:  payload.EventName(),
+		Payload: encoded,
+	})
 }

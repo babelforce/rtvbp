@@ -2,316 +2,363 @@ package rtvbp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
-var (
-	ErrRequestTimeout          = fmt.Errorf("request: timeout")
-	ErrRequestFailed           = fmt.Errorf("request: failed")
-	ErrRequestValidationFailed = fmt.Errorf("request: client validation failed")
-)
+var ErrSessionAlreadyRun = errors.New("rtvbp: session has already run")
 
 type CloseHandler func(ctx context.Context) error
 
+type stopRequest struct {
+	cause  error
+	failed bool
+}
+
 type Session struct {
-	id            string
-	state         SessionState
-	mu            sync.Mutex
-	shCtx         *sessionHandlerCtx
-	transport     LegacyTransport
-	transportFunc LegacyTransportFactory
+	id          string
+	envelope    Envelope
+	idGenerator IDGenerator
 
-	// transportAudio is the audio channel side which is used to read audio from the transport
-	// read: from transport
-	// write: to session
-	transportAudio   *AudioChannelSide
-	closeOnce        sync.Once
-	triggerCloseChan chan struct{} // triggerCloseChan is a channel when closed will trigger shutdown of the session
-	finalizedChan    chan struct{} // finalizedChan is a channel which will be closed whenever the connection fails on reading
-	handler          SessionHandler
-	pendingRequests  map[string]*pendingRequest
-	muPending        sync.Mutex
-	logger           *slog.Logger
-	requestTimeout   time.Duration
-	onCloseHandlers  []CloseHandler
-	debug            bool
+	stateMu sync.RWMutex
+	state   SessionState
+
+	runMu      sync.Mutex
+	runStarted bool
+	done       chan error
+	finalized  chan struct{}
+	stop       chan stopRequest
+	closing    atomic.Bool
+
+	transportMu sync.RWMutex
+	transport   Transport
+	factory     TransportFactory
+
+	handler      SessionHandler
+	shCtx        *sessionHandlerCtx
+	audio        *audioStream
+	dispatch     *dispatchQueue
+	requestLimit time.Duration
+	closeTimeout time.Duration
+	keepalive    KeepalivePolicy
+
+	pendingMu sync.Mutex
+	pending   map[string]*pendingRequest
+
+	closeHandlersMu sync.Mutex
+	closeHandlers   []CloseHandler
+	logger          *slog.Logger
+	debug           bool
 }
 
-func (s *Session) ID() string {
-	return s.id
-}
-
-// EventDispatch dispatches an event
-func (s *Session) EventDispatch(_ context.Context, payload NamedEvent) error {
-	return s.sendMessage(proto.NewEvent(payload.EventName(), payload))
-}
-
-func (s *Session) sendMessage(msg proto.Message) error {
-	if err := msg.Validate(); err != nil {
-		return fmt.Errorf("%w: %w", ErrRequestValidationFailed, err)
+func NewSession(envelope Envelope, options ...Option) *Session {
+	config := &sessionOptions{}
+	withDefaults()(config)
+	for _, option := range options {
+		option(config)
+	}
+	if config.logger == nil {
+		config.logger = slog.Default()
 	}
 
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("sending message failed: %w", err)
+	session := &Session{
+		id:            config.id,
+		envelope:      envelope,
+		idGenerator:   config.idGenerator,
+		state:         SessionStateInactive,
+		done:          make(chan error, 1),
+		finalized:     make(chan struct{}),
+		stop:          make(chan stopRequest, 1),
+		factory:       config.transport,
+		handler:       config.handler,
+		dispatch:      newDispatchQueue(),
+		requestLimit:  config.requestTimeout,
+		closeTimeout:  config.closeTimeout,
+		keepalive:     config.keepalive,
+		pending:       make(map[string]*pendingRequest),
+		closeHandlers: make([]CloseHandler, 0),
+		logger:        config.logger.With(slog.String("session", config.id)),
+		debug:         config.debug,
+		audio:         newAudioStream(config.audioBufferSize),
 	}
-
-	if s.debug {
-		debugMessage(s.id, msg, "out")
+	var handlerAudio HandlerAudio = session.audio
+	if config.streamObserver != nil {
+		handlerAudio = &ObservableAudio{s: session, ha: session.audio, o: *config.streamObserver}
 	}
-
-	return s.transport.Write(data)
+	session.shCtx = &sessionHandlerCtx{sess: session, ha: handlerAudio}
+	return session
 }
 
-func (s *Session) doClose(ctx context.Context, cb func(ctx context.Context, h SHC) error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
+func (s *Session) ID() string { return s.id }
 
-	// Check if already closing or closed
-	state := s.State()
-	if state == SessionStateClosed || state == SessionStateClosing {
+func (s *Session) Run(parent context.Context) <-chan error {
+	s.runMu.Lock()
+	if s.runStarted {
+		s.runMu.Unlock()
+		result := make(chan error, 1)
+		result <- ErrSessionAlreadyRun
+		close(result)
+		return result
+	}
+	s.runStarted = true
+	s.setState(SessionStateConnecting)
+	s.runMu.Unlock()
+
+	go s.supervise(parent)
+	return s.done
+}
+
+func (s *Session) supervise(parent context.Context) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	var terminal stopRequest
+	if s.envelope == nil {
+		terminal = stopRequest{cause: errors.New("rtvbp: envelope is required"), failed: true}
+		s.complete(s.shutdown(terminal, nil))
+		return
+	}
+	if s.factory == nil {
+		terminal = stopRequest{cause: errors.New("rtvbp: transport factory is required"), failed: true}
+		s.complete(s.shutdown(terminal, nil))
+		return
+	}
+	if s.handler == nil {
+		terminal = stopRequest{cause: errors.New("rtvbp: session handler is required"), failed: true}
+		s.complete(s.shutdown(terminal, nil))
+		return
+	}
+	if s.idGenerator == nil {
+		terminal = stopRequest{cause: errors.New("rtvbp: id generator is required"), failed: true}
+		s.complete(s.shutdown(terminal, nil))
+		return
+	}
+	if err := s.keepalive.Validate(); err != nil {
+		terminal = stopRequest{cause: err, failed: true}
+		s.complete(s.shutdown(terminal, nil))
 		return
 	}
 
-	s.closeOnce.Do(func() {
-		if cb != nil {
-			if e2 := cb(ctx, s.shCtx); e2 != nil {
-				s.logger.Error("session close callback failed", slog.Any("err", e2))
-			}
+	transport, terminal := s.createTransport(parent)
+	if transport == nil {
+		s.complete(s.shutdown(terminal, nil))
+		return
+	}
+	s.transportMu.Lock()
+	s.transport = transport
+	s.transportMu.Unlock()
+
+	taskCtx, cancelTasks := context.WithCancel(context.WithoutCancel(parent))
+	workerResult := make(chan stopRequest, 4)
+	var workers sync.WaitGroup
+	workers.Add(2)
+	go func() {
+		defer workers.Done()
+		if err := s.readControl(taskCtx); err != nil && !errors.Is(err, context.Canceled) {
+			workerResult <- stopFromTransport(err)
 		}
-		close(s.triggerCloseChan)
-	})
+	}()
+	go func() {
+		defer workers.Done()
+		s.dispatchControl(taskCtx)
+	}()
+	if monitor, ok := transport.(KeepaliveTransport); ok && s.keepalive.Enabled() {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			err := monitor.MonitorKeepalive(taskCtx, s.keepalive)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				workerResult <- stopRequest{cause: err, failed: true}
+			}
+		}()
+	}
+
+	beginResult := make(chan error, 1)
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		beginResult <- s.handler.OnBegin(taskCtx, s.shCtx)
+	}()
+
+	select {
+	case err := <-beginResult:
+		if err != nil {
+			terminal = stopRequest{cause: fmt.Errorf("handler OnBegin: %w", err), failed: true}
+		} else {
+			s.setState(SessionStateActive)
+		}
+	case terminal = <-workerResult:
+	case terminal = <-s.stop:
+	case <-parent.Done():
+		terminal = stopRequest{}
+	}
+
+	if terminal.cause == nil && !terminal.failed && s.State() == SessionStateActive {
+		select {
+		case terminal = <-workerResult:
+		case terminal = <-s.stop:
+		case <-parent.Done():
+			terminal = stopRequest{}
+		}
+	}
+
+	terminal = s.shutdown(terminal, transport)
+	cancelTasks()
+	s.dispatch.close()
+	s.audio.Close()
+
+	workersDone := make(chan struct{})
+	go func() {
+		workers.Wait()
+		close(workersDone)
+	}()
+	select {
+	case <-workersDone:
+	case <-time.After(s.teardownTimeout()):
+		if !terminal.failed {
+			terminal = stopRequest{cause: errors.New("rtvbp: session workers did not stop"), failed: true}
+		}
+	}
+	s.complete(terminal)
 }
 
-// Close triggers a shutdown of the session and waits until done
-func (s *Session) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error {
+func (s *Session) shutdown(terminal stopRequest, transport Transport) stopRequest {
+	s.closing.Store(true)
+	if s.State() != SessionStateClosing {
+		s.setState(SessionStateClosing)
+	}
 
-	s.doClose(ctx, cb)
+	pendingError := terminal.cause
+	if pendingError == nil {
+		pendingError = ErrSessionClosed
+	}
+	s.failPending(pendingError)
+	_ = s.audio.Close()
 
-	// wait until done
+	if transport != nil {
+		timeout := s.teardownTimeout()
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		err := transport.Close(ctx)
+		cancel()
+		if err != nil {
+			terminal.cause = errors.Join(terminal.cause, fmt.Errorf("close transport: %w", err))
+			terminal.failed = true
+		}
+	}
+
+	s.closeHandlersMu.Lock()
+	handlers := append([]CloseHandler(nil), s.closeHandlers...)
+	s.closeHandlersMu.Unlock()
+	for _, handler := range handlers {
+		ctx, cancel := context.WithTimeout(context.Background(), s.teardownTimeout())
+		if err := handler(ctx); err != nil {
+			s.logger.Error("session close handler failed", slog.Any("err", err))
+		}
+		cancel()
+	}
+
+	return terminal
+}
+
+type transportResult struct {
+	transport Transport
+	err       error
+}
+
+func (s *Session) createTransport(parent context.Context) (Transport, stopRequest) {
+	ctx, cancel := context.WithCancel(parent)
+	result := make(chan transportResult)
+	go func() {
+		transport, err := s.factory(ctx, s.envelope)
+		select {
+		case result <- transportResult{transport: transport, err: err}:
+		case <-ctx.Done():
+			if transport != nil {
+				closeCtx, closeCancel := context.WithTimeout(context.Background(), s.teardownTimeout())
+				_ = transport.Close(closeCtx)
+				closeCancel()
+			}
+		}
+	}()
+
+	select {
+	case created := <-result:
+		cancel()
+		if created.err != nil {
+			if parent.Err() != nil && errors.Is(created.err, parent.Err()) {
+				return nil, stopRequest{}
+			}
+			return nil, stopRequest{cause: fmt.Errorf("create transport: %w", created.err), failed: true}
+		}
+		if created.transport == nil {
+			return nil, stopRequest{cause: errors.New("rtvbp: transport factory returned nil"), failed: true}
+		}
+		return created.transport, stopRequest{}
+	case terminal := <-s.stop:
+		cancel()
+		return nil, terminal
+	case <-parent.Done():
+		cancel()
+		return nil, stopRequest{}
+	}
+}
+
+func (s *Session) teardownTimeout() time.Duration {
+	if s.closeTimeout > 0 {
+		return s.closeTimeout
+	}
+	return 5 * time.Second
+}
+
+func (s *Session) complete(terminal stopRequest) {
+	if terminal.failed {
+		s.setState(SessionStateFailed)
+	} else {
+		s.setState(SessionStateClosed)
+	}
+	s.done <- terminal.cause
+	close(s.done)
+	close(s.finalized)
+}
+
+func (s *Session) Close(ctx context.Context) error {
+	s.runMu.Lock()
+	started := s.runStarted
+	s.runMu.Unlock()
+	if !started {
+		return ErrSessionClosed
+	}
+	s.requestStop(nil, false)
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("closing session failed: %w", ctx.Err())
-	case <-s.finalizedChan:
+		return ctx.Err()
+	case <-s.finalized:
 		return nil
 	}
 }
 
-func (s *Session) finalize() {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	s.setState(SessionStateClosing)
-
-	for _, ch := range s.onCloseHandlers {
-		if err := ch(ctx); err != nil {
-			s.logger.Error("session close handler failed", slog.Any("err", err))
-		}
-	}
-
-	s.setState(SessionStateClosed)
-	s.logger.Info("closed session")
-	close(s.finalizedChan)
-}
-
-func (s *Session) handleEvent(ctx context.Context, evt *proto.Event) {
-	s.logger.Debug("handle event", slog.Any("evt", evt))
-
-	if s.handler == nil {
-		return
-	}
-
-	if err := s.handler.OnEvent(ctx, s.shCtx, evt); err != nil {
-		s.logger.Error("handler.OnEvent failed", slog.Any("err", err))
-	}
-}
-
-func (s *Session) handleRequest(ctx context.Context, req *proto.Request) {
-
-	s.logger.Debug("handleRequest", slog.Any("req", req))
-	if s.handler == nil {
-		return
-	}
-
-	err := s.handler.OnRequest(ctx, s.shCtx, req)
-
-	if err != nil {
-		s.logger.Error("handler.OnRequest failed", slog.Any("request", req), slog.Any("err", err))
-
-		if err2 := s.shCtx.Respond(ctx, req.NotOk(proto.ToResponseError(err))); err2 != nil {
-			s.logger.Error("failed to respond to request", slog.Any("request", req), slog.Any("err", err))
-		}
-	}
-}
-
-func (s *Session) handleIncomingMessage(ctx context.Context, msg proto.Message) {
-
-	switch m := msg.(type) {
-	case *proto.Event:
-		s.handleEvent(ctx, m)
-	case *proto.Request:
-		s.handleRequest(ctx, m)
-	case *proto.Response:
-		s.resolvePendingRequest(m)
+func (s *Session) requestStop(cause error, failed bool) {
+	s.closing.Store(true)
+	select {
+	case s.stop <- stopRequest{cause: cause, failed: failed}:
 	default:
-		s.logger.Error("unknown message", slog.Any("msg", msg))
 	}
 }
 
-func (s *Session) Run(
-	ctx context.Context,
-) <-chan error {
-	var done = make(chan error, 1)
-
-	// exit early without handler
-	if s.handler == nil {
-		done <- fmt.Errorf("no handler set")
-		return done
-	}
-
-	// create transport
-	if trans, err := s.transportFunc(ctx, s.transportAudio); err != nil {
-		done <- err
-		return done
-	} else {
-		s.transport = trans
-	}
-	s.OnClose(s.transport.Close)
-
-	// background listener which waits for
-	// signal to shutdown or for context to cancel
-	// will trigger finalizers
-	go func() {
-		defer func() {
-			s.finalize()
-			done <- nil
-		}()
-		for {
-			select {
-			case <-s.triggerCloseChan:
-				return
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	// read incoming
-	go func() {
-		ctrlMsgInCh := s.transport.ReadChan()
-		for {
-			select {
-			case <-s.finalizedChan:
-				return
-			case <-ctx.Done():
-				return
-			case p, ok := <-ctrlMsgInCh:
-				if !ok {
-					s.doClose(ctx, nil)
-					return
-				}
-
-				msg, err := proto.ParseValidMessage(p.Data)
-				if err != nil {
-					var pe *proto.ParseError
-					if errors.As(err, &pe) {
-						println("MSG(in|ERROR) <--\n", string(p.Data), "\n")
-					}
-					s.logger.Error("parsing message json failed", slog.Any("err", err))
-				} else {
-					if p.ReceivedAt == 0 {
-						msg.SetReceivedAt(time.Now().UnixMilli())
-					} else {
-						msg.SetReceivedAt(p.ReceivedAt)
-					}
-					if s.debug {
-						debugMessage(s.id, msg, "in")
-					}
-					go s.handleIncomingMessage(ctx, msg)
-				}
-			}
-		}
-	}()
-
-	// Initialize
-	go func() {
-		if err := s.handler.OnBegin(ctx, s.shCtx); err != nil {
-			beginErr := fmt.Errorf("handler.OnBegin() failed: %w", err)
-			s.logger.Error("session init failed", slog.Any("err", beginErr))
-			s.setState(SessionStateFailed)
-			done <- beginErr
-		} else {
-			s.setState(SessionStateActive)
-		}
-	}()
-
-	return done
+func (s *Session) OnClose(handler CloseHandler) {
+	s.closeHandlersMu.Lock()
+	s.closeHandlers = append(s.closeHandlers, handler)
+	s.closeHandlersMu.Unlock()
 }
 
-// OnClose registers CloseHandler
-// CloseHandler are called when the session terminates
-func (s *Session) OnClose(cb CloseHandler) {
-	s.onCloseHandlers = append(s.onCloseHandlers, cb)
-}
-
-// NewSession creates a new peer session
-func NewSession(
-	opts ...Option,
-) *Session {
-	// init options
-	options := &sessionOptions{}
-	withDefaults()(options)
-	for _, opt := range opts {
-		opt(options)
+func stopFromTransport(err error) stopRequest {
+	if errors.Is(err, io.EOF) {
+		return stopRequest{}
 	}
-
-	logger := options.logger.With(
-		slog.String("session", options.id),
-	)
-
-	sessionAudio, transportAudio := NewAudioChannel(options.audioBufferSize)
-
-	session := &Session{
-		id:               options.id,
-		state:            SessionStateInactive,
-		transportFunc:    options.transport,
-		triggerCloseChan: make(chan struct{}),
-		finalizedChan:    make(chan struct{}),
-		pendingRequests:  map[string]*pendingRequest{},
-		handler:          options.handler,
-		logger:           logger,
-		transportAudio:   transportAudio,
-		requestTimeout:   options.requestTimeout,
-		onCloseHandlers:  make([]CloseHandler, 0),
-		debug:            options.debug,
-	}
-
-	if options.streamObserver == nil {
-		session.shCtx = &sessionHandlerCtx{
-			sess: session,
-			ha:   sessionAudio,
-		}
-	} else {
-		session.shCtx = &sessionHandlerCtx{
-			sess: session,
-			ha: &ObservableAudio{
-				s:  session,
-				ha: sessionAudio,
-				o:  *options.streamObserver,
-			},
-		}
-	}
-
-	session.OnClose(func(ctx context.Context) error {
-		return errors.Join(sessionAudio.Close(), transportAudio.Close())
-	})
-
-	return session
+	return stopRequest{cause: fmt.Errorf("receive control: %w", err), failed: true}
 }

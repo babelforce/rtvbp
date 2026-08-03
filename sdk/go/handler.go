@@ -5,138 +5,199 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-
-	"github.com/babelforce/rtvbp/sdk/go/proto"
+	"sync/atomic"
 )
 
-type OnAfterReplyHook interface {
-	OnAfterReply(ctx context.Context, hc SHC) error // OnAfterReply is called when a handler has replied successfully to a request
-}
-
 type SessionHandler interface {
-	OnBegin(ctx context.Context, h SHC) error
-	OnRequest(ctx context.Context, h SHC, req *proto.Request) error
-	OnEvent(ctx context.Context, h SHC, evt *proto.Event) error
+	OnBegin(ctx context.Context, handler SHC) error
+	OnRequest(ctx context.Context, handler SHC, request Request) error
+	OnEvent(ctx context.Context, handler SHC, event Event) error
 }
 
 type HandlerAudio interface {
 	io.ReadWriter
-	ClearReadBuffer() (int, error) // ClearReadBuffer clears the read buffer
+	ClearReadBuffer() (int, error)
+	Format() MediaFormat
 }
 
-// SHC - Session Handler Context
+type DeferredResponse interface {
+	Respond(ctx context.Context, response Response) error
+	RespondThenClose(ctx context.Context, response Response) error
+}
+
 type SHC interface {
-	SessionID() string                                                      // SessionID retrieves the ID of the current session
-	Log() *slog.Logger                                                      // Log returns the sessions Logger
-	Request(ctx context.Context, req NamedRequest) (*proto.Response, error) // Request performs a request execution
-	Respond(ctx context.Context, res *proto.Response) error
-	Notify(ctx context.Context, evt NamedEvent) error
+	SessionID() string
+	Log() *slog.Logger
+	Request(ctx context.Context, request NamedRequest) (Response, error)
+	Respond(ctx context.Context, response Response) error
+	RespondThenClose(ctx context.Context, response Response) error
+	DeferResponse() (DeferredResponse, error)
+	Notify(ctx context.Context, event NamedEvent) error
 	AudioStream() HandlerAudio
-	Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error
+	Close(ctx context.Context) error
 	State() SessionState
 }
 
+const (
+	replyUnclaimed uint32 = iota
+	replyDeferred
+	replySent
+)
+
+type replyState struct {
+	status    atomic.Uint32
+	requestID string
+}
+
 type sessionHandlerCtx struct {
-	sess *Session
-	ha   HandlerAudio
+	sess  *Session
+	ha    HandlerAudio
+	reply *replyState
 }
 
-func (shc *sessionHandlerCtx) State() SessionState {
-	return shc.sess.State()
+func (h *sessionHandlerCtx) State() SessionState       { return h.sess.State() }
+func (h *sessionHandlerCtx) AudioStream() HandlerAudio { return h.ha }
+func (h *sessionHandlerCtx) SessionID() string         { return h.sess.id }
+func (h *sessionHandlerCtx) Log() *slog.Logger         { return h.sess.logger }
+
+func (h *sessionHandlerCtx) Request(ctx context.Context, request NamedRequest) (Response, error) {
+	return h.sess.Request(ctx, request)
 }
 
-func (shc *sessionHandlerCtx) AudioStream() HandlerAudio {
-	return shc.ha
+func (h *sessionHandlerCtx) Notify(ctx context.Context, event NamedEvent) error {
+	return h.sess.EventDispatch(ctx, event)
 }
 
-func (shc *sessionHandlerCtx) Respond(ctx context.Context, res *proto.Response) error {
-	return shc.sess.sendMessage(res)
+func (h *sessionHandlerCtx) Close(ctx context.Context) error { return h.sess.Close(ctx) }
+
+func (h *sessionHandlerCtx) Respond(ctx context.Context, response Response) error {
+	return h.respond(ctx, response, false)
 }
 
-func (shc *sessionHandlerCtx) Close(ctx context.Context, cb func(ctx context.Context, h SHC) error) error {
-	return shc.sess.Close(ctx, cb)
+func (h *sessionHandlerCtx) RespondThenClose(ctx context.Context, response Response) error {
+	return h.respond(ctx, response, true)
 }
 
-func (shc *sessionHandlerCtx) SessionID() string {
-	return shc.sess.id
+func (h *sessionHandlerCtx) respond(ctx context.Context, response Response, closeAfter bool) error {
+	if h.reply == nil {
+		return ErrNoRequestContext
+	}
+	if h.sess.closing.Load() {
+		return ErrSessionClosed
+	}
+	for {
+		status := h.reply.status.Load()
+		if status == replySent {
+			return ErrResponseAlreadySent
+		}
+		if h.reply.status.CompareAndSwap(status, replySent) {
+			break
+		}
+	}
+	if err := h.sess.sendResponse(ctx, h.reply.requestID, response); err != nil {
+		h.sess.requestStop(err, true)
+		return err
+	}
+	if closeAfter {
+		h.sess.requestStop(nil, false)
+	}
+	return nil
 }
 
-func (shc *sessionHandlerCtx) Log() *slog.Logger {
-	return shc.sess.logger
+func (h *sessionHandlerCtx) DeferResponse() (DeferredResponse, error) {
+	if h.reply == nil {
+		return nil, ErrNoRequestContext
+	}
+	if !h.reply.status.CompareAndSwap(replyUnclaimed, replyDeferred) {
+		return nil, ErrResponseAlreadySent
+	}
+	return &deferredResponse{handler: h}, nil
 }
 
-func (shc *sessionHandlerCtx) Request(ctx context.Context, req NamedRequest) (*proto.Response, error) {
-	return shc.sess.Request(ctx, req)
+type deferredResponse struct {
+	handler *sessionHandlerCtx
 }
 
-func (shc *sessionHandlerCtx) Notify(ctx context.Context, evt NamedEvent) error {
-	return shc.sess.EventDispatch(ctx, evt)
+func (d *deferredResponse) Respond(ctx context.Context, response Response) error {
+	return d.handler.Respond(ctx, response)
 }
 
-var _ SHC = &sessionHandlerCtx{}
+func (d *deferredResponse) RespondThenClose(ctx context.Context, response Response) error {
+	return d.handler.RespondThenClose(ctx, response)
+}
+
+func responseDeferred(handler SHC) bool {
+	context, ok := handler.(*sessionHandlerCtx)
+	return ok && context.reply != nil && context.reply.status.Load() == replyDeferred
+}
+
+func responseSent(handler SHC) bool {
+	context, ok := handler.(*sessionHandlerCtx)
+	return ok && context.reply != nil && context.reply.status.Load() == replySent
+}
 
 type defaultSessionHandler struct {
 	eventHandlers   map[string]EventHandler
 	requestHandlers map[string]RequestHandler
-	onEnd           func(ctx context.Context, h SHC) error
-	onBegin         func(ctx context.Context, h SHC) error
+	onBegin         func(context.Context, SHC) error
+	onUnknownMethod func(context.Context, SHC, Request) error
+	onUnknownEvent  func(context.Context, SHC, Event) error
 }
 
-func (d *defaultSessionHandler) OnBegin(ctx context.Context, hc SHC) error {
-	if d.onBegin != nil {
-		return d.onBegin(ctx, hc)
+func (h *defaultSessionHandler) OnBegin(ctx context.Context, handler SHC) error {
+	if h.onBegin != nil {
+		return h.onBegin(ctx, handler)
 	}
 	return nil
 }
 
-func (d *defaultSessionHandler) OnEnd(ctx context.Context, hc SHC) error {
-	if d.onEnd != nil {
-		return d.onEnd(ctx, hc)
+func (h *defaultSessionHandler) OnRequest(ctx context.Context, handler SHC, request Request) error {
+	registered, ok := h.requestHandlers[request.Method]
+	if !ok {
+		if h.onUnknownMethod != nil {
+			return h.onUnknownMethod(ctx, handler, request)
+		}
+		return NotImplemented(fmt.Sprintf("unknown method: %s", request.Method))
 	}
-	return nil
+	return registered.Handle(ctx, handler, request)
 }
 
-func (d *defaultSessionHandler) OnRequest(ctx context.Context, hc SHC, req *proto.Request) error {
-	hdl, ok := d.requestHandlers[req.Method]
+func (h *defaultSessionHandler) OnEvent(ctx context.Context, handler SHC, event Event) error {
+	registered, ok := h.eventHandlers[event.Name]
 	if !ok {
-		return proto.NotImplemented(fmt.Sprintf("unknown method: %s", req.Method))
-	}
-
-	return hdl.Handle(ctx, hc, req)
-}
-
-func (d *defaultSessionHandler) OnEvent(ctx context.Context, hc SHC, evt *proto.Event) error {
-	hdl, ok := d.eventHandlers[evt.Event]
-	if !ok {
+		if h.onUnknownEvent != nil {
+			return h.onUnknownEvent(ctx, handler, event)
+		}
 		return nil
 	}
-
-	return hdl.Handle(ctx, hc, evt)
+	return registered.Handle(ctx, handler, event)
 }
 
 type HandlerConfig struct {
-	OnBegin func(ctx context.Context, h SHC) error
+	OnBegin         func(context.Context, SHC) error
+	OnUnknownMethod func(context.Context, SHC, Request) error
+	OnUnknownEvent  func(context.Context, SHC, Event) error
 }
 
-// NewHandler creates a new handler
-func NewHandler(config HandlerConfig, args ...any) SessionHandler {
+func NewHandler(config HandlerConfig, handlers ...any) SessionHandler {
 	handler := &defaultSessionHandler{
 		eventHandlers:   make(map[string]EventHandler),
 		requestHandlers: make(map[string]RequestHandler),
 		onBegin:         config.OnBegin,
+		onUnknownMethod: config.OnUnknownMethod,
+		onUnknownEvent:  config.OnUnknownEvent,
 	}
-
-	// add handlers from args
-	for _, arg := range args {
-		switch arg := arg.(type) {
+	for _, candidate := range handlers {
+		switch candidate := candidate.(type) {
 		case EventHandler:
-			handler.eventHandlers[arg.EventName()] = arg
+			handler.eventHandlers[candidate.EventName()] = candidate
 		case RequestHandler:
-			handler.requestHandlers[arg.MethodName()] = arg
+			handler.requestHandlers[candidate.MethodName()] = candidate
 		}
 	}
-
 	return handler
 }
 
-var _ SessionHandler = &defaultSessionHandler{}
+var _ SHC = (*sessionHandlerCtx)(nil)
+var _ DeferredResponse = (*deferredResponse)(nil)
+var _ SessionHandler = (*defaultSessionHandler)(nil)

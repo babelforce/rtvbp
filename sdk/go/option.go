@@ -2,101 +2,95 @@ package rtvbp
 
 import (
 	"context"
-	"io"
 	"log/slog"
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go/internal/idgen"
 )
 
+type IDGenerator func() string
+
 type sessionOptions struct {
 	id              string
+	idGenerator     IDGenerator
 	logger          *slog.Logger
-	transport       LegacyTransportFactory
+	transport       TransportFactory
 	handler         SessionHandler
 	audioBufferSize int
 	requestTimeout  time.Duration
+	closeTimeout    time.Duration
+	keepalive       KeepalivePolicy
 	debug           bool
 	streamObserver  *AudioStreamObserver
 }
 
-type Option func(opts *sessionOptions)
+type Option func(*sessionOptions)
 
 func withDefaults() Option {
 	return withOptions(
 		WithLogger(slog.Default()),
 		WithRequestTimeout(5*time.Second),
+		WithCloseTimeout(5*time.Second),
 		WithAudioBufferSize(1024*1024),
 		WithID(idgen.ID()),
+		WithIDGenerator(idgen.ID),
 	)
 }
 
-func withOptions(os ...Option) Option {
-	return func(opts *sessionOptions) {
-		for _, o := range os {
-			o(opts)
+func withOptions(options ...Option) Option {
+	return func(config *sessionOptions) {
+		for _, option := range options {
+			option(config)
 		}
 	}
 }
 
-func WithStreamObserver(o AudioStreamObserver) Option {
-	return func(opts *sessionOptions) {
-		opts.streamObserver = &o
-	}
+func WithStreamObserver(observer AudioStreamObserver) Option {
+	return func(options *sessionOptions) { options.streamObserver = &observer }
 }
 
 func WithRequestTimeout(timeout time.Duration) Option {
-	return func(opts *sessionOptions) {
-		opts.requestTimeout = timeout
-	}
+	return func(options *sessionOptions) { options.requestTimeout = timeout }
+}
+
+func WithCloseTimeout(timeout time.Duration) Option {
+	return func(options *sessionOptions) { options.closeTimeout = timeout }
+}
+
+func WithKeepalivePolicy(policy KeepalivePolicy) Option {
+	return func(options *sessionOptions) { options.keepalive = policy }
 }
 
 func WithLogger(logger *slog.Logger) Option {
-	return func(opts *sessionOptions) {
-		opts.logger = logger
-	}
+	return func(options *sessionOptions) { options.logger = logger }
 }
 
 func WithID(id string) Option {
-	return func(opts *sessionOptions) {
-		opts.id = id
-	}
+	return func(options *sessionOptions) { options.id = id }
 }
 
-// WithTransportFactory configures the imported byte-oriented session runtime.
-//
-// Deprecated: R-9 migrates Session to TransportFactory and the semantic transport interfaces.
-func WithTransportFactory(f LegacyTransportFactory) Option {
-	return func(opts *sessionOptions) {
-		opts.transport = f
-	}
+func WithIDGenerator(generator IDGenerator) Option {
+	return func(options *sessionOptions) { options.idGenerator = generator }
 }
 
-// WithTransport configures the imported byte-oriented session runtime.
-//
-// Deprecated: R-9 migrates Session to Transport and the semantic transport interfaces.
-func WithTransport(t LegacyTransport) Option {
-	return func(opts *sessionOptions) {
-		opts.transport = func(ctx context.Context, audio io.ReadWriter) (LegacyTransport, error) {
-			return t, nil
-		}
-	}
+func WithTransportFactory(factory TransportFactory) Option {
+	return func(options *sessionOptions) { options.transport = factory }
 }
 
-func WithHandler(h SessionHandler) Option {
-	return func(opts *sessionOptions) {
-		opts.handler = h
-	}
+func WithTransport(transport Transport) Option {
+	return WithTransportFactory(func(context.Context, Envelope) (Transport, error) {
+		return transport, nil
+	})
+}
+
+func WithHandler(handler SessionHandler) Option {
+	return func(options *sessionOptions) { options.handler = handler }
 }
 
 func WithDebug(debug bool) Option {
-	return func(opts *sessionOptions) {
-		opts.debug = debug
-	}
+	return func(options *sessionOptions) { options.debug = debug }
 }
 
 func WithAudioBufferSize(size int) Option {
-	return func(opts *sessionOptions) {
-		opts.audioBufferSize = size
-	}
+	return func(options *sessionOptions) { options.audioBufferSize = size }
 }
