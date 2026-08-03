@@ -1,0 +1,11 @@
+[package]
+name = "rtvbp-spec-model"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+schemars.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true

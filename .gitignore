@@ -1,5 +1,15 @@
 .codewandler/
 .idea/
+# Rust
 target/
+
+# Go
+bin/
+*.exe
+*.test
+*.out
+*.cov
+coverage.*
+report.xml
 src/codewandler-audio
 src/openai-realtime
