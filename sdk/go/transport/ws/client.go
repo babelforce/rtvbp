@@ -84,34 +84,10 @@ func (d *DialConfig) doDial(ctx context.Context) (*websocket.Conn, *http.Respons
 
 // Connect connects to the websocket endpoint
 func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*WebsocketTransport, error) {
-	c.Defaults()
-
-	if err := c.Validate(); err != nil {
-		return nil, err
-	}
-
-	logger := slog.Default().With(
-		slog.String("transport", "websocket"),
-		slog.String("peer", "client"),
-		slog.String("endpoint", c.Dial.URL),
-	)
-
-	logger.Debug("Connecting to websocket endpoint", slog.Any("config", c))
-
-	// Websocket upgrade
-	conn, resp, err := c.Dial.doDial(ctx)
+	conn, logger, err := dialConnection(ctx, c)
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusSwitchingProtocols {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	logger = logger.With(
-		slog.String("remote_addr", conn.RemoteAddr().String()),
-	)
-
-	logger.Debug("Websocket connection established", slog.Any("response", resp))
 
 	t := newTransport(
 		conn,
@@ -129,6 +105,50 @@ func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*Websock
 	<-ok
 
 	return t, nil
+}
+
+// Dial connects a semantic transport to a WebSocket endpoint. Connect remains
+// as the temporary legacy-session adapter until the R-9 session cutover.
+func Dial(ctx context.Context, c ClientConfig) (*Transport, error) {
+	conn, logger, err := dialConnection(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	return NewTransport(ctx, conn, &TransportConfig{Logger: logger}), nil
+}
+
+func dialConnection(ctx context.Context, c ClientConfig) (*websocket.Conn, *slog.Logger, error) {
+	c.Defaults()
+
+	if err := c.Validate(); err != nil {
+		return nil, nil, err
+	}
+
+	logger := slog.Default().With(
+		slog.String("transport", "websocket"),
+		slog.String("peer", "client"),
+		slog.String("endpoint", c.Dial.URL),
+	)
+
+	logger.Debug("Connecting to websocket endpoint", slog.Any("config", c))
+
+	// Websocket upgrade
+	conn, resp, err := c.Dial.doDial(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		_ = conn.Close()
+		return nil, nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	logger = logger.With(
+		slog.String("remote_addr", conn.RemoteAddr().String()),
+	)
+
+	logger.Debug("Websocket connection established", slog.Any("response", resp))
+
+	return conn, logger, nil
 }
 
 func Client(config ClientConfig) rtvbp.Option {
