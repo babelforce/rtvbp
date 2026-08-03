@@ -42,4 +42,13 @@ func (s *ObservableAudio) ClearReadBuffer() (int, error) {
 	return n, err
 }
 
+// Format returns the negotiated format of the observed byte stream.
+func (s *ObservableAudio) Format() MediaFormat {
+	formatted, ok := s.ha.(interface{ Format() MediaFormat })
+	if !ok {
+		return MediaFormat{}
+	}
+	return formatted.Format()
+}
+
 var _ HandlerAudio = &ObservableAudio{}

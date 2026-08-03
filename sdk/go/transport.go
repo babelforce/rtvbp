@@ -27,6 +27,7 @@ type ControlChannel interface {
 type MediaFormat struct {
 	Encoding   string
 	SampleRate int
+	BitDepth   int
 	Channels   int
 	PTime      time.Duration
 }
