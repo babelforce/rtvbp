@@ -24,8 +24,9 @@ every future SDK mirrors.
       malformed input), and `scenarios/*.json`.
 - [ ] Scenarios are authored as typed Rust in the spec crate — so they cannot drift from the
       schemas — and serialized by the emitter, using `$name` bindings for generated ids.
-- [ ] Three scenarios ship: `initialize → updated → dtmf`; an application-initiated hangup covering
-      terminal-operation semantics; and a `ping` RTT exchange.
+- [ ] Three scenarios ship: `initialize → updated → dtmf`; termination covering
+      application-initiated `call.hangup`, supported voice→application `session.terminate`, and the
+      reverse-direction 501; and a `ping` RTT exchange.
 - [ ] A hand-written Go harness reads the committed vectors, plays the scripted peer for one role
       over the memory transport, and asserts the side under test — for both roles.
 - [ ] Matching is byte-exact on encode-side checks and structural (after id normalization) for

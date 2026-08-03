@@ -54,8 +54,9 @@ and serialized by the emitter:
 `$name` binds a generated id. Matching is byte-exact for encode-side checks and structural (method +
 params after id normalization) for messages the SDK originates.
 
-M1 ships three scenarios: `initialize → updated → dtmf`; application-initiated hangup including
-terminal-operation semantics; and a `ping` RTT exchange.
+M1 ships three scenarios: `initialize → updated → dtmf`; termination covering application-initiated
+`call.hangup`, the supported voice→application `session.terminate`, and the reverse-direction 501;
+and a `ping` RTT exchange.
 
 ### Per-SDK harness
 

@@ -112,6 +112,22 @@ and re-emitting Go's fractional `float64` spelling is exact. The full inventory 
 optional payload field absent, request params present, errors without `any`, and the deployed -1,
 400, 500, and 501 code spellings.
 
+### Frozen semantic constraints
+
+R-18 resolves the semantics that bytes alone do not state:
+
+- `session.terminate` is handled by the application. Deployed voice clients call it and deployed
+  application handlers answer it; the reverse application→voice request deliberately receives 501.
+- A response may contain both `result` and a valid `error`, or neither. This matches deployed
+  validation rather than importing JSON-RPC exclusivity: both is treated as an error by the runtime;
+  neither is a successful response with no result.
+- Error code `0` and an empty message are rejected on encode and decode. Any other signed integer is
+  accepted; `-1`, `400`, `500`, and `501` are documented conventions, not a closed enum.
+- The reference codec preserves explicit null for lossless wire proof (`result:null` and `any:null`).
+  The deployed Go decoder is lossy for those interface values and omits them if re-encoded.
+- Catalog operations cannot claim `transport.*`; validation reserves that namespace for
+  envelope-independent transport signaling. R-13 publishes the same rule for integrators.
+
 ### Generator skeleton
 
 CLI `rtvbp-spec-gen --emit=<manifest|go|docs|vectors> --out=<dir>`, plus a `--check` mode used by CI.

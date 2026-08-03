@@ -132,6 +132,23 @@ fn classic_v1_spec_pins_the_wire_description() {
         vec![FrameKind::Event, FrameKind::Request, FrameKind::Response]
     );
     assert_eq!(spec.error.data.name, "any");
+    assert_eq!(
+        spec.error_codes
+            .iter()
+            .map(|error| (error.name.as_str(), error.code))
+            .collect::<Vec<_>>(),
+        vec![
+            ("unknown", -1),
+            ("bad_request", 400),
+            ("internal_server_error", 500),
+            ("not_implemented", 501),
+        ]
+    );
+    assert!(
+        spec.error_codes
+            .iter()
+            .all(|error| !error.description.is_empty())
+    );
 }
 
 #[test]
@@ -161,4 +178,72 @@ fn classic_v1_uses_structural_precedence_and_rejects_malformed_frames() {
     assert!(spec.decode(br#"{"version":"1","method":"ping"}"#).is_err());
     assert!(spec.decode(br#"{"version":"1"}"#).is_err());
     assert!(spec.decode(b"not json").is_err());
+}
+
+#[test]
+fn classic_v1_matches_deployed_response_permissiveness_and_error_validation() {
+    let spec = classic_v1();
+    let both = br#"{"version":"1","response":"request-1","result":{},"error":{"code":500,"message":"failed"}}"#;
+    let neither = br#"{"version":"1","response":"request-1"}"#;
+
+    assert_eq!(spec.encode(&spec.decode(both).unwrap()).unwrap(), both);
+    assert_eq!(
+        spec.encode(&spec.decode(neither).unwrap()).unwrap(),
+        neither
+    );
+
+    let unknown =
+        br#"{"version":"1","response":"request-1","error":{"code":777,"message":"extension"}}"#;
+    assert!(matches!(
+        spec.decode(unknown).unwrap(),
+        ControlFrame::Response {
+            error: Some(WireError { code: 777, .. }),
+            ..
+        }
+    ));
+
+    assert!(
+        spec.decode(
+            br#"{"version":"1","response":"request-1","error":{"code":0,"message":"unset"}}"#
+        )
+        .is_err()
+    );
+    assert!(
+        spec.decode(br#"{"version":"1","response":"request-1","error":{"code":500,"message":""}}"#)
+            .is_err()
+    );
+
+    for error in [
+        WireError {
+            code: 0,
+            message: "unset".into(),
+            data: None,
+        },
+        WireError {
+            code: 500,
+            message: String::new(),
+            data: None,
+        },
+    ] {
+        assert!(
+            spec.encode(&ControlFrame::Response {
+                correlation_id: "request-1".into(),
+                result: None,
+                error: Some(error),
+            })
+            .is_err()
+        );
+    }
+
+    let error_null = br#"{"version":"1","response":"request-1","error":null}"#;
+    assert_eq!(
+        spec.encode(&spec.decode(error_null).unwrap()).unwrap(),
+        neither
+    );
+
+    let data_null = br#"{"version":"1","response":"request-1","error":{"code":500,"message":"failed","any":null}}"#;
+    assert_eq!(
+        spec.encode(&spec.decode(data_null).unwrap()).unwrap(),
+        data_null
+    );
 }

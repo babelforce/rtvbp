@@ -88,6 +88,14 @@ pub struct ErrorSpec {
     pub data: FieldSpec,
 }
 
+/// A conventional error code minted by the deployed implementation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ErrorCodeSpec {
+    pub name: String,
+    pub code: i64,
+    pub description: String,
+}
+
 /// A declarative envelope description and executable Rust reference codec.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnvelopeSpec {
@@ -96,6 +104,8 @@ pub struct EnvelopeSpec {
     /// Frame order is also structural discrimination precedence.
     pub frames: Vec<FrameSpec>,
     pub error: ErrorSpec,
+    /// Known conventions; decoders still accept any non-zero integer code.
+    pub error_codes: Vec<ErrorCodeSpec>,
 }
 
 impl EnvelopeSpec {
@@ -131,6 +141,7 @@ impl EnvelopeSpec {
                 map.serialize_entry(&shape.discriminator.name, correlation_id)?;
                 serialize_optional(&mut map, &shape.payload, result.as_ref())?;
                 if let Some(error) = error {
+                    validate_wire_error(error)?;
                     let error_field = shape.error.as_ref().ok_or(CodecError::InvalidSpec(
                         "response frame must define an error field",
                     ))?;
@@ -290,6 +301,28 @@ pub fn classic_v1() -> EnvelopeSpec {
             message: FieldSpec::required("message"),
             data: FieldSpec::optional("any"),
         },
+        error_codes: vec![
+            ErrorCodeSpec {
+                name: "unknown".to_owned(),
+                code: -1,
+                description: "Unclassified failure.".to_owned(),
+            },
+            ErrorCodeSpec {
+                name: "bad_request".to_owned(),
+                code: 400,
+                description: "The request is invalid.".to_owned(),
+            },
+            ErrorCodeSpec {
+                name: "internal_server_error".to_owned(),
+                code: 500,
+                description: "The handler failed internally.".to_owned(),
+            },
+            ErrorCodeSpec {
+                name: "not_implemented".to_owned(),
+                code: 501,
+                description: "The requested operation is not implemented.".to_owned(),
+            },
+        ],
     }
 }
 
@@ -364,4 +397,13 @@ fn require_non_empty(label: &str, value: &str) -> Result<(), CodecError> {
     } else {
         Ok(())
     }
+}
+
+fn validate_wire_error(error: &WireError) -> Result<(), CodecError> {
+    if error.code == 0 {
+        return Err(CodecError::InvalidControlFrame(
+            "error code must be non-zero".to_owned(),
+        ));
+    }
+    require_non_empty("error message", &error.message)
 }

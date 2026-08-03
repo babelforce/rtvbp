@@ -167,3 +167,19 @@ fn catalog_validation_rejects_duplicates_missing_docs_and_invalid_typed_examples
             .contains("canonical")
     );
 }
+
+#[test]
+fn catalog_validation_rejects_the_reserved_transport_namespace() {
+    let catalog = Catalog::new("demo", 1).operation(
+        Operation::new::<DemoRequest, DemoResponse>("transport.offer", Role::Both)
+            .docs("Attempt to claim the framework-reserved signaling namespace.")
+            .example(
+                "canonical",
+                json!({"input": "sdp"}),
+                json!({"output": "answer"}),
+            ),
+    );
+
+    let error = catalog.validate().unwrap_err().to_string();
+    assert!(error.contains("reserved transport.* namespace"), "{error}");
+}

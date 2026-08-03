@@ -24,6 +24,8 @@ per-role view that is the most useful thing to read.
       ("must implement · may call · emits · receives"), and `envelopes/classic-v1`.
 - [ ] Field tables, prose and examples all derive from the same schemas, doc comments and canonical
       examples that produce the SDK types and the conformance vectors.
+- [ ] The generated `classic.v1` page lists the spec's conventional error codes while stating that
+      the non-zero integer space is open, and records response both/neither permissiveness.
 - [ ] A generated `_category_.json` / sidebar fragment per catalog means a second catalog version
       gets its own tree with no hand-edits to `sidebars.ts`.
 - [ ] Every generated page carries a DO-NOT-EDIT banner.

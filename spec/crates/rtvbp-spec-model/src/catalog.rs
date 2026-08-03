@@ -7,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
+/// Method prefix reserved for envelope-independent transport signaling.
+pub const RESERVED_TRANSPORT_METHOD_PREFIX: &str = "transport.";
+
 /// A versioned payload catalog and all operations and events it declares.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Catalog {
@@ -42,6 +45,14 @@ impl Catalog {
         let mut issues = Vec::new();
         let mut operation_names = HashSet::new();
         for operation in &self.operations {
+            if operation
+                .method
+                .starts_with(RESERVED_TRANSPORT_METHOD_PREFIX)
+            {
+                issues.push(CatalogValidationError::ReservedOperationNamespace {
+                    method: operation.method.clone(),
+                });
+            }
             if !operation_names.insert(operation.method.as_str()) {
                 issues.push(CatalogValidationError::DuplicateOperation {
                     method: operation.method.clone(),
@@ -330,6 +341,8 @@ impl std::error::Error for CatalogValidationErrors {}
 /// One actionable catalog validation issue.
 #[derive(Debug, Error)]
 pub enum CatalogValidationError {
+    #[error("operation method {method:?} claims the reserved transport.* namespace")]
+    ReservedOperationNamespace { method: String },
     #[error("duplicate operation method {method:?}")]
     DuplicateOperation { method: String },
     #[error("duplicate event name {name:?}")]
