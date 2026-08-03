@@ -7,7 +7,7 @@ priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
-note: unified gate is green and stale-output failure is proven; public tags and repository retirement remain
+note: public Go v0.1.0-rc.1 and generated docs are live; stable tag and legacy retirement remain
 ---
 
 # CI drift gate, Taskfile, first release and rtvbp-go deprecation
@@ -38,6 +38,10 @@ build — and retire the old repository cleanly now that its consumers have some
   `r16-final-release` at commit `e00dcb6`; its normal, race, vet and tidy gates pass. The unrelated
   uncommitted change in its `main` worktree was left untouched. Publishing the monorepo/tag, merging
   the OpenAI branch, releasing legacy `v0.41.0`, and archiving remain external release actions.
+- 2026-08-04: Published `main` and `sdk/go/v0.1.0-rc.1`. The protocol gate, prerelease workflow and
+  Pages deployment all completed successfully; the generated operation reference serves publicly,
+  and a clean module resolved the RC through `proxy.golang.org`. The `rtvbp-openai` migration branch
+  now pins the public RC without a local `replace`, with normal, race and vet tests green.
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor
