@@ -15,7 +15,5 @@ tasks:
       - cargo test --locked --manifest-path spec/Cargo.toml
       - task: generate
       - git diff --exit-code
-      - cmd: go test ./...
-        dir: sdk/go
-      - cmd: yarn build
-        dir: website
+      - (cd sdk/go && go test ./...)
+      - (cd website && yarn build)
