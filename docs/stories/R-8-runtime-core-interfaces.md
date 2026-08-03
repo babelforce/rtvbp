@@ -7,7 +7,7 @@ priority: 8
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
-note: can run alongside R-3; defines the seams that WebRTC, QUIC and SIP must later fit
+note: independent of R-4/R-5; defines the seams that WebRTC, QUIC and SIP must later fit
 ---
 
 # Go runtime core — frame, envelope and transport interfaces plus the memory transport

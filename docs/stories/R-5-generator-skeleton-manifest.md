@@ -2,11 +2,12 @@
 id: R-5
 title: Generator skeleton and manifest emitter
 pillar: Generator
-status: backlog
+status: ready
+priority: 5
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
 areas: [generator]
-note: blocked on R-3; the cheapest emitter, chosen to force the model to be complete
+note: can run alongside R-4; the cheapest emitter forces the model to be complete
 ---
 
 # Generator skeleton and manifest emitter

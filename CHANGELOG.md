@@ -21,3 +21,5 @@ All notable changes to this project are documented here. The format is based on
 - The `rtvbp-go v0.40.0` SDK imported under `sdk/go/` with its history preserved, plus the Rust
   specification workspace, shared catalog model, presence-aware `Nullable<T>`, and byte-exact
   `classic.v1` reference envelope codec.
+- The complete typed `babelforce.v1` catalog: ten operations, nine events, roles, terminality,
+  canonical examples, target-language type hints, and typed catalog validation.

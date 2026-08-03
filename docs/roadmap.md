@@ -8,10 +8,11 @@ document is the hand-written narrative around it.
 
 _As of 2026-08-03:_ the repository is being converted from a documentation site into the **home of
 the protocol** — spec, generator, and SDKs. R-1 has frozen the `babelforce.v1` wire bytes captured
-from `rtvbp-go v0.40.0`; R-2 has imported that SDK with history and established the Rust spec model
-workspace. R-3 (the `babelforce.v1` catalog) and R-8 (the Go runtime seams) are next and can proceed
-independently. The Docusaurus site lives under [`website/`](../website), leaving `docs/` for
-contributor material and this backlog. The architecture is settled and recorded in
+from `rtvbp-go v0.40.0`; R-2 imported that SDK with history and established the Rust spec model
+workspace; R-3 modeled the complete typed catalog. R-4 (full byte-equality proof), R-5 (generator
+skeleton), and R-8 (Go runtime seams) are next and can proceed independently. The Docusaurus site
+lives under [`website/`](../website), leaving `docs/` for contributor material and this backlog. The
+architecture is settled and recorded in
 [designs/architecture.md](designs/architecture.md); no repository-wide gate exists yet —
 establishing it is part of R-16.
 

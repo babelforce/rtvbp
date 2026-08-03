@@ -2,11 +2,12 @@
 id: R-4
 title: Prove spec byte-equality against the golden fixtures
 pillar: Proof
-status: backlog
+status: ready
+priority: 4
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
 areas: [spec, conformance]
-note: blocked on R-1 and R-3; expect the spec to change shape here — that is the point
+note: frozen fixtures and the typed catalog are ready; prove complete bidirectional byte equality
 ---
 
 # Prove spec byte-equality against the golden fixtures
