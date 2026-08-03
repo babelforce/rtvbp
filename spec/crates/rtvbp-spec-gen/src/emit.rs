@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use rtvbp_spec_model::{CatalogId, EventExample, OperationExample, Role};
+use rtvbp_spec_model::{CatalogId, EventExample, OperationExample, OperationRejection, Role};
 use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
@@ -138,6 +138,7 @@ struct ManifestOperation<'a> {
     method: &'a str,
     handled_by: Role,
     terminal: bool,
+    rejections: &'a [OperationRejection],
     description: &'a str,
     request: SchemaRef,
     response: SchemaRef,
@@ -150,6 +151,7 @@ impl<'a> From<&'a ResolvedOperation> for ManifestOperation<'a> {
             method: &operation.method,
             handled_by: operation.handled_by,
             terminal: operation.terminal,
+            rejections: &operation.rejections,
             description: &operation.docs,
             request: SchemaRef::new(&operation.request),
             response: SchemaRef::new(&operation.response),

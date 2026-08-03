@@ -7,7 +7,7 @@ mod nullable;
 pub use catalog::{
     Catalog, CatalogFixture, CatalogId, CatalogItemKind, CatalogValidationError,
     CatalogValidationErrors, Event, EventExample, ExampleSide, FixtureTarget, Operation,
-    OperationExample, RESERVED_TRANSPORT_METHOD_PREFIX, Role, TypeRef,
+    OperationExample, OperationRejection, RESERVED_TRANSPORT_METHOD_PREFIX, Role, TypeRef,
 };
 pub use envelope::{
     CodecError, ConstantField, ControlFrame, EnvelopeFixture, EnvelopeSpec,

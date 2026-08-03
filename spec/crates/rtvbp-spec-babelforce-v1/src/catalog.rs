@@ -1,4 +1,4 @@
-use rtvbp_spec_model::{Catalog, Event, Operation, Role};
+use rtvbp_spec_model::{Catalog, Event, Operation, OperationRejection, Role};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -23,6 +23,11 @@ pub fn catalog() -> Catalog {
                 Role::Application,
             )
             .docs("Terminate the real-time voice session after replying.")
+            .reject(OperationRejection::new(
+                Role::Voice,
+                501,
+                "session.terminate is not supported. please use application.move or call.hangup instead",
+            ))
             .terminal(),
             examples::session_terminate(),
         ))

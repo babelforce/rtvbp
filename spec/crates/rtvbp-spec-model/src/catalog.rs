@@ -83,6 +83,9 @@ impl Catalog {
                     .iter()
                     .map(|example| example.name.as_str()),
             );
+            validate_schema_rules(&mut issues, &operation.request);
+            validate_schema_rules(&mut issues, &operation.response);
+            validate_operation_rejections(&mut issues, operation);
             for example in &operation.examples {
                 validate_example_value(
                     &mut issues,
@@ -125,6 +128,7 @@ impl Catalog {
                 event.docs.as_deref(),
                 event.examples.iter().map(|example| example.name.as_str()),
             );
+            validate_schema_rules(&mut issues, &event.data);
             for example in &event.examples {
                 validate_example_value(
                     &mut issues,
@@ -235,6 +239,16 @@ pub enum Role {
     Both,
 }
 
+impl fmt::Display for Role {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Voice => "voice",
+            Self::Application => "application",
+            Self::Both => "both",
+        })
+    }
+}
+
 /// A named Rust payload type and its complete JSON Schema.
 #[derive(Clone)]
 pub struct TypeRef {
@@ -293,6 +307,7 @@ pub struct Operation {
     pub request: TypeRef,
     pub response: TypeRef,
     pub terminal: bool,
+    pub rejections: Vec<OperationRejection>,
     pub docs: Option<String>,
     pub examples: Vec<OperationExample>,
 }
@@ -310,6 +325,7 @@ impl Operation {
             request: TypeRef::of::<Request>(),
             response: TypeRef::of::<Response>(),
             terminal: false,
+            rejections: Vec::new(),
             docs: None,
             examples: Vec::new(),
         }
@@ -327,6 +343,13 @@ impl Operation {
         self
     }
 
+    /// Declare the exact error returned when a role that does not handle this operation receives it.
+    #[must_use]
+    pub fn reject(mut self, rejection: OperationRejection) -> Self {
+        self.rejections.push(rejection);
+        self
+    }
+
     #[must_use]
     pub fn example(mut self, name: impl Into<String>, request: Value, response: Value) -> Self {
         self.examples.push(OperationExample {
@@ -335,6 +358,25 @@ impl Operation {
             response,
         });
         self
+    }
+}
+
+/// An operation error intentionally returned by one concrete role that does not handle it.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct OperationRejection {
+    pub role: Role,
+    pub code: i64,
+    pub message: String,
+}
+
+impl OperationRejection {
+    #[must_use]
+    pub fn new(role: Role, code: i64, message: impl Into<String>) -> Self {
+        Self {
+            role,
+            code,
+            message: message.into(),
+        }
     }
 }
 
@@ -500,6 +542,26 @@ pub enum CatalogValidationError {
     DuplicateEvent { name: String },
     #[error("{kind} {name:?} has no role")]
     MissingRole { kind: CatalogItemKind, name: String },
+    #[error("payload schema {payload_type} at {location}: {message}")]
+    InvalidSchemaRule {
+        payload_type: String,
+        location: String,
+        message: String,
+    },
+    #[error("operation {method:?} rejection must name voice or application, not both")]
+    AmbiguousRejectionRole { method: String },
+    #[error("operation {method:?} rejection role {role} is already handled by {handled_by}")]
+    RejectionForHandledRole {
+        method: String,
+        role: Role,
+        handled_by: Role,
+    },
+    #[error("operation {method:?} has duplicate rejection for {role}")]
+    DuplicateRejection { method: String, role: Role },
+    #[error("operation {method:?} rejection for {role} error code must be non-zero")]
+    RejectionZeroCode { method: String, role: Role },
+    #[error("operation {method:?} rejection for {role} error message must be non-empty")]
+    RejectionEmptyMessage { method: String, role: Role },
     #[error("duplicate conformance fixture path {path:?}")]
     DuplicateFixturePath { path: String },
     #[error("conformance fixture path must be relative and confined: {path:?}")]
@@ -669,4 +731,270 @@ fn validate_example_value(
             source,
         }),
     }
+}
+
+fn validate_operation_rejections(issues: &mut Vec<CatalogValidationError>, operation: &Operation) {
+    let mut roles = HashSet::new();
+    for rejection in &operation.rejections {
+        if rejection.role == Role::Both {
+            issues.push(CatalogValidationError::AmbiguousRejectionRole {
+                method: operation.method.clone(),
+            });
+            continue;
+        }
+        if !roles.insert(rejection.role) {
+            issues.push(CatalogValidationError::DuplicateRejection {
+                method: operation.method.clone(),
+                role: rejection.role,
+            });
+        }
+        if let Some(handled_by) = operation.handled_by
+            && (handled_by == Role::Both || handled_by == rejection.role)
+        {
+            issues.push(CatalogValidationError::RejectionForHandledRole {
+                method: operation.method.clone(),
+                role: rejection.role,
+                handled_by,
+            });
+        }
+        if rejection.code == 0 {
+            issues.push(CatalogValidationError::RejectionZeroCode {
+                method: operation.method.clone(),
+                role: rejection.role,
+            });
+        }
+        if rejection.message.trim().is_empty() {
+            issues.push(CatalogValidationError::RejectionEmptyMessage {
+                method: operation.method.clone(),
+                role: rejection.role,
+            });
+        }
+    }
+}
+
+fn validate_schema_rules(issues: &mut Vec<CatalogValidationError>, payload_type: &TypeRef) {
+    validate_schema_node(
+        issues,
+        &payload_type.name,
+        "$",
+        payload_type.schema.as_value(),
+    );
+}
+
+fn validate_schema_node(
+    issues: &mut Vec<CatalogValidationError>,
+    payload_type: &str,
+    location: &str,
+    schema: &Value,
+) {
+    let Some(object) = schema.as_object() else {
+        return;
+    };
+
+    if let Some(min_length) = object.get("minLength") {
+        if min_length.as_u64().is_none() {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "minLength must be a non-negative integer",
+            );
+        }
+        if !schema_accepts_type(object, "string") {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "minLength requires a string field",
+            );
+        }
+    }
+
+    if let Some(minimum) = object.get("minimum") {
+        if !minimum.is_number() {
+            schema_issue(issues, payload_type, location, "minimum must be a number");
+        }
+        if !schema_accepts_type(object, "integer") && !schema_accepts_type(object, "number") {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "minimum requires a numeric field",
+            );
+        }
+    }
+
+    if let Some(nonzero) = object.get("x-rtvbp-nonzero") {
+        if nonzero != &Value::Bool(true) {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "x-rtvbp-nonzero must be true",
+            );
+        }
+        if !schema_accepts_type(object, "integer") {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "x-rtvbp-nonzero requires an integer field",
+            );
+        }
+    }
+
+    if let Some(order) = object.get("x-rtvbp-field-order") {
+        validate_field_order(issues, payload_type, location, object, order);
+    }
+
+    for (key, value) in object {
+        match value {
+            Value::Object(_) => {
+                validate_schema_node(issues, payload_type, &format!("{location}.{key}"), value)
+            }
+            Value::Array(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    validate_schema_node(
+                        issues,
+                        payload_type,
+                        &format!("{location}.{key}[{index}]"),
+                        item,
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn validate_field_order(
+    issues: &mut Vec<CatalogValidationError>,
+    payload_type: &str,
+    location: &str,
+    schema: &serde_json::Map<String, Value>,
+    order: &Value,
+) {
+    if !schema_accepts_type(schema, "object") {
+        schema_issue(
+            issues,
+            payload_type,
+            location,
+            "x-rtvbp-field-order requires an object schema",
+        );
+        return;
+    }
+    let Some(entries) = order.as_array().filter(|entries| !entries.is_empty()) else {
+        schema_issue(
+            issues,
+            payload_type,
+            location,
+            "x-rtvbp-field-order must be a non-empty array",
+        );
+        return;
+    };
+    let Some(properties) = schema.get("properties").and_then(Value::as_object) else {
+        schema_issue(
+            issues,
+            payload_type,
+            location,
+            "x-rtvbp-field-order requires object properties",
+        );
+        return;
+    };
+    let required = schema
+        .get("required")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect::<HashSet<_>>();
+
+    for entry in entries {
+        let Some(entry) = entry.as_object() else {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "x-rtvbp-field-order entries require exactly lower and upper",
+            );
+            continue;
+        };
+        if entry.len() != 2 || !entry.contains_key("lower") || !entry.contains_key("upper") {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "x-rtvbp-field-order entries require exactly lower and upper",
+            );
+            continue;
+        }
+        let (Some(lower), Some(upper)) = (
+            entry.get("lower").and_then(Value::as_str),
+            entry.get("upper").and_then(Value::as_str),
+        ) else {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "x-rtvbp-field-order lower and upper must be field names",
+            );
+            continue;
+        };
+        for (bound, field) in [("lower", lower), ("upper", upper)] {
+            let Some(field_schema) = properties.get(field).and_then(Value::as_object) else {
+                schema_issue(
+                    issues,
+                    payload_type,
+                    location,
+                    &format!("x-rtvbp-field-order references unknown {bound} field {field:?}"),
+                );
+                continue;
+            };
+            if !schema_accepts_type(field_schema, "integer") {
+                schema_issue(
+                    issues,
+                    payload_type,
+                    location,
+                    &format!("x-rtvbp-field-order {bound} field {field:?} must be an integer"),
+                );
+            }
+            if !required.contains(field) {
+                schema_issue(
+                    issues,
+                    payload_type,
+                    location,
+                    &format!("x-rtvbp-field-order {bound} field {field:?} must be required"),
+                );
+            }
+        }
+        if lower == upper {
+            schema_issue(
+                issues,
+                payload_type,
+                location,
+                "x-rtvbp-field-order lower and upper must be different fields",
+            );
+        }
+    }
+}
+
+fn schema_accepts_type(schema: &serde_json::Map<String, Value>, expected: &str) -> bool {
+    match schema.get("type") {
+        Some(Value::String(actual)) => actual == expected,
+        Some(Value::Array(actual)) => actual.iter().any(|item| item == expected),
+        _ => false,
+    }
+}
+
+fn schema_issue(
+    issues: &mut Vec<CatalogValidationError>,
+    payload_type: &str,
+    location: &str,
+    message: &str,
+) {
+    issues.push(CatalogValidationError::InvalidSchemaRule {
+        payload_type: payload_type.to_owned(),
+        location: location.to_owned(),
+        message: message.to_owned(),
+    });
 }

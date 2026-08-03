@@ -1,4 +1,6 @@
-use rtvbp_spec_model::{Catalog, CatalogFixture, Event, Nullable, Operation, Role, TypeRef};
+use rtvbp_spec_model::{
+    Catalog, CatalogFixture, Event, Nullable, Operation, OperationRejection, Role, TypeRef,
+};
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -26,6 +28,19 @@ struct PresenceExample {
     nullable: Nullable<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     optional: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema, Serialize)]
+#[schemars(extend(
+    "x-rtvbp-field-order" = [{"lower": "started_at", "upper": "finished_at"}]
+))]
+struct ValidatedRequest {
+    #[schemars(length(min = 1))]
+    name: String,
+    #[schemars(range(min = 0), extend("x-rtvbp-nonzero" = true))]
+    started_at: i64,
+    #[schemars(range(min = 0))]
+    finished_at: i64,
 }
 
 #[test]
@@ -199,6 +214,152 @@ fn catalog_validation_rejects_operations_and_events_without_roles() {
         error.contains("event \"demo.updated\" has no role"),
         "{error}"
     );
+}
+
+#[test]
+fn catalog_validation_accepts_structured_schema_rules_and_per_role_rejections() {
+    let operation = Operation::new::<ValidatedRequest, DemoResponse>("demo.run", Role::Application)
+        .docs("Run a validated operation.")
+        .reject(OperationRejection::new(
+            Role::Voice,
+            501,
+            "demo.run is not offered by voice",
+        ))
+        .example(
+            "canonical",
+            json!({"name": "hello", "started_at": 1, "finished_at": 2}),
+            json!({"output": "world"}),
+        );
+
+    Catalog::new("demo", 1)
+        .operation(operation)
+        .validate()
+        .unwrap();
+}
+
+#[test]
+fn catalog_validation_rejects_malformed_schema_rule_metadata() {
+    let cases = [
+        (
+            "nonzero marker",
+            json!({
+                "type": "object",
+                "properties": {"value": {"type": "integer", "x-rtvbp-nonzero": "yes"}},
+                "required": ["value"]
+            }),
+            "x-rtvbp-nonzero must be true",
+        ),
+        (
+            "nonzero type",
+            json!({
+                "type": "object",
+                "properties": {"value": {"type": "string", "x-rtvbp-nonzero": true}},
+                "required": ["value"]
+            }),
+            "x-rtvbp-nonzero requires an integer field",
+        ),
+        (
+            "minimum type",
+            json!({
+                "type": "object",
+                "properties": {"value": {"type": "string", "minimum": 0}},
+                "required": ["value"]
+            }),
+            "minimum requires a numeric field",
+        ),
+        (
+            "min length type",
+            json!({
+                "type": "object",
+                "properties": {"value": {"type": "integer", "minLength": 1}},
+                "required": ["value"]
+            }),
+            "minLength requires a string field",
+        ),
+        (
+            "field order shape",
+            json!({
+                "type": "object",
+                "properties": {"first": {"type": "integer"}, "last": {"type": "integer"}},
+                "required": ["first", "last"],
+                "x-rtvbp-field-order": [{"lower": "first"}]
+            }),
+            "x-rtvbp-field-order entries require exactly lower and upper",
+        ),
+        (
+            "unknown ordered field",
+            json!({
+                "type": "object",
+                "properties": {"first": {"type": "integer"}, "last": {"type": "integer"}},
+                "required": ["first", "last"],
+                "x-rtvbp-field-order": [{"lower": "missing", "upper": "last"}]
+            }),
+            "references unknown lower field \"missing\"",
+        ),
+        (
+            "ordered field type",
+            json!({
+                "type": "object",
+                "properties": {"first": {"type": "string"}, "last": {"type": "integer"}},
+                "required": ["first", "last"],
+                "x-rtvbp-field-order": [{"lower": "first", "upper": "last"}]
+            }),
+            "lower field \"first\" must be an integer",
+        ),
+    ];
+
+    for (name, schema, expected) in cases {
+        let mut operation = operation_for_fixture();
+        operation.request.schema = schema.try_into().unwrap();
+        let error = Catalog::new("demo", 1)
+            .operation(operation)
+            .validate()
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(expected), "{name}: {error}");
+    }
+}
+
+#[test]
+fn catalog_validation_rejects_invalid_per_role_operation_rejections() {
+    let cases = [
+        (
+            OperationRejection::new(Role::Application, 501, "already handled"),
+            "is already handled by application",
+        ),
+        (
+            OperationRejection::new(Role::Both, 501, "ambiguous role"),
+            "must name voice or application, not both",
+        ),
+        (
+            OperationRejection::new(Role::Voice, 0, "unset"),
+            "error code must be non-zero",
+        ),
+        (
+            OperationRejection::new(Role::Voice, 501, "   "),
+            "error message must be non-empty",
+        ),
+    ];
+
+    for (rejection, expected) in cases {
+        let operation = operation_for_fixture().reject(rejection);
+        let error = Catalog::new("demo", 1)
+            .operation(operation)
+            .validate()
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(expected), "{error}");
+    }
+
+    let duplicate = operation_for_fixture()
+        .reject(OperationRejection::new(Role::Voice, 501, "first"))
+        .reject(OperationRejection::new(Role::Voice, 500, "second"));
+    let error = Catalog::new("demo", 1)
+        .operation(duplicate)
+        .validate()
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("duplicate rejection for voice"), "{error}");
 }
 
 #[test]

@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use rtvbp_spec_model::{
-    Catalog, CatalogId, EventExample, FixtureTarget, OperationExample, Role, TypeRef,
+    Catalog, CatalogId, EventExample, FixtureTarget, OperationExample, OperationRejection, Role,
+    TypeRef,
 };
 use serde_json::Value;
 use thiserror::Error;
@@ -20,6 +21,7 @@ pub struct ResolvedOperation {
     pub method: String,
     pub handled_by: Role,
     pub terminal: bool,
+    pub rejections: Vec<OperationRejection>,
     pub docs: String,
     pub request: String,
     pub response: String,
@@ -81,6 +83,7 @@ pub fn resolve(catalog: Catalog) -> Result<ResolvedCatalog, ResolveError> {
                     name: operation.method.clone(),
                 })?,
             terminal: operation.terminal,
+            rejections: operation.rejections,
             docs: operation.docs.ok_or(ResolveError::MissingDocumentation {
                 kind: "operation",
                 name: operation.method,

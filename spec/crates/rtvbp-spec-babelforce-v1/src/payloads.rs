@@ -86,6 +86,7 @@ pub struct SessionUpdatedEvent {
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
 pub struct SessionTerminateRequest {
     /// Reason the session is ending.
+    #[schemars(length(min = 1))]
     pub reason: String,
 }
 
@@ -116,6 +117,7 @@ pub struct ApplicationMoveResponse {
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
 pub struct CallHangupRequest {
     /// Reason the call should be hung up.
+    #[schemars(length(min = 1))]
     pub reason: String,
 }
 
@@ -173,15 +175,21 @@ pub struct AudioInfoEvent {
 
 /// Data emitted by `dtmf` when the caller releases a key.
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
+#[schemars(extend(
+    "x-rtvbp-field-order" = [{"lower": "pressed_at", "upper": "released_at"}]
+))]
 pub struct DtmfEvent {
     /// Monotonic event sequence number within the session.
-    #[schemars(extend("x-go-type" = "int"))]
+    #[schemars(range(min = 0), extend("x-go-type" = "int"))]
     pub seq: i64,
     /// Epoch timestamp in milliseconds when the key was pressed.
+    #[schemars(range(min = 0))]
     pub pressed_at: i64,
     /// Epoch timestamp in milliseconds when the key was released.
+    #[schemars(range(min = 0))]
     pub released_at: i64,
     /// DTMF digit that was pressed.
+    #[schemars(length(min = 1))]
     pub digit: String,
 }
 
@@ -216,6 +224,7 @@ pub struct RecordingStartRequest {
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
 pub struct RecordingStartResponse {
     /// New recording identifier.
+    #[schemars(length(min = 1))]
     pub id: String,
 }
 
@@ -223,6 +232,7 @@ pub struct RecordingStartResponse {
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
 pub struct RecordingStopRequest {
     /// Recording identifier to stop.
+    #[schemars(length(min = 1))]
     pub id: String,
 }
 
@@ -230,6 +240,7 @@ pub struct RecordingStopRequest {
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
 pub struct PingRequest {
     /// Sender timestamp in epoch milliseconds.
+    #[schemars(extend("x-rtvbp-nonzero" = true))]
     pub t0: i64,
     /// Optional round-trip time measured by a previous ping.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -243,10 +254,13 @@ pub struct PingRequest {
 #[derive(Clone, Debug, PartialEq, Deserialize, JsonSchema, Serialize)]
 pub struct PingResponse {
     /// Echo of the request sender timestamp.
+    #[schemars(extend("x-rtvbp-nonzero" = true))]
     pub t0: i64,
     /// Transport receive timestamp in epoch milliseconds.
+    #[schemars(extend("x-rtvbp-nonzero" = true))]
     pub t1: i64,
     /// Application handling timestamp in epoch milliseconds.
+    #[schemars(extend("x-rtvbp-nonzero" = true))]
     pub t2: i64,
     /// Estimated one-way delay in milliseconds.
     pub owd: i64,

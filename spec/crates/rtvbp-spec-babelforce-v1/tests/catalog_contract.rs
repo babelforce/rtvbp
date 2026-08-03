@@ -103,6 +103,67 @@ fn catalog_and_every_typed_example_validate() {
 }
 
 #[test]
+fn catalog_declares_deployed_validation_and_reverse_rejection_metadata() {
+    let catalog = catalog();
+    let operation = |method: &str| {
+        catalog
+            .operations
+            .iter()
+            .find(|operation| operation.method == method)
+            .unwrap()
+    };
+
+    assert_eq!(
+        operation("session.terminate").request.schema.as_value()["properties"]["reason"]["minLength"],
+        1
+    );
+    assert_eq!(
+        operation("call.hangup").request.schema.as_value()["properties"]["reason"]["minLength"],
+        1
+    );
+    assert_eq!(
+        operation("recording.stop").request.schema.as_value()["properties"]["id"]["minLength"],
+        1
+    );
+    assert_eq!(
+        operation("ping").request.schema.as_value()["properties"]["t0"]["x-rtvbp-nonzero"],
+        true
+    );
+    for field in ["t0", "t1", "t2"] {
+        assert_eq!(
+            operation("ping").response.schema.as_value()["properties"][field]["x-rtvbp-nonzero"],
+            true
+        );
+    }
+
+    let dtmf = catalog
+        .events
+        .iter()
+        .find(|event| event.name == "dtmf")
+        .unwrap()
+        .data
+        .schema
+        .as_value();
+    assert_eq!(dtmf["properties"]["digit"]["minLength"], 1);
+    for field in ["seq", "pressed_at", "released_at"] {
+        assert_eq!(dtmf["properties"][field]["minimum"], 0);
+    }
+    assert_eq!(
+        dtmf["x-rtvbp-field-order"],
+        json!([{"lower": "pressed_at", "upper": "released_at"}])
+    );
+
+    assert_eq!(
+        operation("session.terminate").rejections,
+        [rtvbp_spec_model::OperationRejection::new(
+            Role::Voice,
+            501,
+            "session.terminate is not supported. please use application.move or call.hangup instead"
+        )]
+    );
+}
+
+#[test]
 fn catalog_names_the_open_map_response_and_owns_every_payload_fixture() {
     let catalog = catalog();
     let session_get = catalog
