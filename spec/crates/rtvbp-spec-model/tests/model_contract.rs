@@ -202,7 +202,7 @@ fn catalog_validation_rejects_operations_and_events_without_roles() {
 }
 
 #[test]
-fn catalog_validation_rejects_the_reserved_transport_namespace() {
+fn catalog_validation_reserves_transport_methods_but_not_event_names() {
     let catalog = Catalog::new("demo", 1).operation(
         Operation::new::<DemoRequest, DemoResponse>("transport.offer", Role::Both)
             .docs("Attempt to claim the framework-reserved signaling namespace.")
@@ -215,6 +215,15 @@ fn catalog_validation_rejects_the_reserved_transport_namespace() {
 
     let error = catalog.validate().unwrap_err().to_string();
     assert!(error.contains("reserved transport.* namespace"), "{error}");
+
+    Catalog::new("demo", 1)
+        .event(
+            Event::new::<DemoEvent>("transport.state", Role::Voice)
+                .docs("Report transport state without claiming a control method.")
+                .example("canonical", json!({"state": "connected"})),
+        )
+        .validate()
+        .expect("the reserved namespace applies only to operation methods");
 }
 
 #[test]

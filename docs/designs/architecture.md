@@ -53,7 +53,8 @@ Two rules keep the layers honest:
 
 There is exactly one sanctioned exception: the reserved **`transport.*` method namespace**, used for
 in-band transport signaling (WebRTC SDP/ICE). It is reserved across all envelopes and catalogs and is
-documented as such, so no catalog may claim it.
+documented as such, so no catalog operation may claim it. The reservation is operation-only: event
+names beginning with `transport.` remain available because they do not claim a control method.
 
 ### What is generated vs. hand-written
 
@@ -152,8 +153,9 @@ WebSocket, in both role directions.
 - **Generator scope creep.** Emitters are pure functions over the model; resist per-SDK special
   cases leaking into the model. When a target needs something, prefer a namespaced schema extension
   (`x-go-type`) over model surgery.
-- **The `transport.*` reservation** is enforced by catalog validation; R-13 must also write it into
-  the public spec before any integrator could plausibly try to claim that namespace.
+- **The operation-only `transport.*` method reservation** is enforced by catalog validation; R-13
+  must also write it into the public spec before any integrator could plausibly try to claim a
+  control method in that namespace.
 - **Deferred-response API shape** (sentinel error vs. explicit handle) — decide when the session is
   rewritten (R-9).
 - WebRTC codec policy (transcode opus↔L16 in the media pump vs. force PCMU/8000) — an M2 decision.

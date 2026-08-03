@@ -1,4 +1,5 @@
-// Command capture-rtvbp-go-v0.40.0 records the deployed protocol's JSON bytes.
+// Command capture-rtvbp-go-v0.40.0 records the deployed protocol's JSON bytes and the exact
+// encoding/json spellings at the boundary of the Rust compatibility envelope.
 //
 // This command is intentionally disposable. It depends on the old rtvbp-go
 // module and is not part of any repository-wide build.
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,11 +24,32 @@ type fixture struct {
 	value any
 }
 
+type float64Boundary struct {
+	Name    string  `json:"name"`
+	Bits    string  `json:"bits"`
+	JSON    *string `json:"json,omitempty"`
+	Rejects bool    `json:"rejects,omitempty"`
+}
+
+type namedFloat64 struct {
+	name  string
+	value float64
+}
+
 func main() {
 	out := flag.String("out", defaultOutputRoot(), "golden fixture output directory")
+	floatBoundariesOut := flag.String(
+		"float-boundaries-out",
+		defaultFloatBoundaryOutput(),
+		"Go float64 boundary authority output path",
+	)
 	flag.Parse()
 
 	if err := capture(*out); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := captureFloat64Boundaries(*floatBoundariesOut); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -48,6 +71,57 @@ func capture(root string) error {
 		}
 	}
 	return nil
+}
+
+func captureFloat64Boundaries(path string) error {
+	captured := make([]float64Boundary, 0, len(float64BoundaryInputs()))
+	for _, input := range float64BoundaryInputs() {
+		item := float64Boundary{
+			Name: input.name,
+			Bits: fmt.Sprintf("%016x", math.Float64bits(input.value)),
+		}
+		data, err := json.Marshal(input.value)
+		if err != nil {
+			item.Rejects = true
+		} else {
+			encoded := string(data)
+			item.JSON = &encoded
+		}
+		captured = append(captured, item)
+	}
+
+	data, err := json.Marshal(captured)
+	if err != nil {
+		return fmt.Errorf("marshal float64 boundary authority: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create float64 boundary authority directory: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("write float64 boundary authority: %w", err)
+	}
+	return nil
+}
+
+func float64BoundaryInputs() []namedFloat64 {
+	return []namedFloat64{
+		{name: "positive-zero", value: 0},
+		{name: "negative-zero", value: math.Copysign(0, -1)},
+		{name: "one-e-minus-seven", value: 1e-7},
+		{name: "one-e-minus-six", value: 1e-6},
+		{name: "below-one-e-minus-five", value: math.Nextafter(1e-5, 0)},
+		{name: "one-e-minus-five", value: 1e-5},
+		{name: "canonical-fraction", value: 106.66666666666667},
+		{name: "two-to-53", value: math.Exp2(53)},
+		{name: "above-two-to-53", value: math.Nextafter(math.Exp2(53), math.Inf(1))},
+		{name: "below-two-to-63", value: math.Nextafter(math.Exp2(63), 0)},
+		{name: "two-to-63", value: math.Exp2(63)},
+		{name: "one-e19", value: 1e19},
+		{name: "below-one-e21", value: math.Nextafter(1e21, 0)},
+		{name: "one-e21", value: 1e21},
+		{name: "not-a-number", value: math.Float64frombits(0x7ff8000000000001)},
+		{name: "positive-infinity", value: math.Inf(1)},
+	}
 }
 
 func fixtures() []fixture {
@@ -156,4 +230,8 @@ func defaultOutputRoot() string {
 		panic("cannot locate capture source")
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "babelforce.v1", "golden"))
+}
+
+func defaultFloatBoundaryOutput() string {
+	return filepath.Join(filepath.Dir(defaultOutputRoot()), "authority", "go-float64-boundaries.json")
 }

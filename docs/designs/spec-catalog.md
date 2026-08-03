@@ -95,7 +95,15 @@ R-4's bidirectional proof covers all 29 frozen fixtures and pinned these emitter
 - `SessionInitializeRequest.metadata`, `SessionInitializeResponse.audio_codec`, and
   `SessionUpdatedEvent.audio_codec` are required nullable fields; `Option<T>` fields are omitted.
 - Go serializes an integral `float64` such as `AudioInfoItem.bytes_per_second == 0` as `0`, not
-  serde's default `0.0`; the spec carries a Go-compatible serializer for that field.
+  serde's default `0.0`; the spec carries a compatibility serializer for that field. Its exact
+  supported deployed-rate envelope is positive zero or a finite non-negative value in
+  `1e-5..=2^53`. The lower limit is where serde_json and Go both use fixed notation; through the
+  upper limit every integer remains exactly representable. Values outside that envelope are not
+  promised byte parity: [source-pinned Go witnesses](../../conformance/babelforce.v1/authority/)
+  cover the notation mismatch at `1e-6 <= value < 1e-5`, possible shorter rounded integer
+  spellings above `2^53`, negative zero, and non-finite values. Some disconnected outside values,
+  including `1e-7` and the next `float64` above `2^53`, currently happen to match but are
+  deliberately not compatibility commitments.
 - The five native Go `int` fields carry `x-go-type: int`; timestamp and counter fields that are
   actually `int64` do not.
 - `classic.v1` omits nil request params, correlates responses only through `response`, and keeps the
@@ -124,9 +132,13 @@ R-18 resolves the semantics that bytes alone do not state:
 - Error code `0` and an empty message are rejected on encode and decode. Any other signed integer is
   accepted; `-1`, `400`, `500`, and `501` are documented conventions, not a closed enum.
 - The reference codec preserves explicit null for lossless wire proof (`result:null` and `any:null`).
-  The deployed Go decoder is lossy for those interface values and omits them if re-encoded.
-- Catalog operations cannot claim `transport.*`; validation reserves that namespace for
-  envelope-independent transport signaling. R-13 publishes the same rule for integrators.
+  The deployed Go decoder is lossy for those interface values and omits them if re-encoded. The
+  frozen exception is a top-level `error:null`: it decodes as no error and re-encodes without the
+  `error` key, matching the deployed Go codec's nil error pointer with `omitempty`.
+- Catalog operation methods cannot claim `transport.*`; validation reserves that method namespace
+  for envelope-independent transport signaling. Event names such as `transport.state` remain
+  legal because events do not claim a control method. R-13 publishes the same operation-only rule
+  for integrators.
 
 ### Generator skeleton
 
