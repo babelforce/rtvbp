@@ -1,0 +1,7 @@
+go 1.25
+
+use (
+	.
+	examples/rtvbp-demo-client
+	examples/rtvbp-demo-server
+)
