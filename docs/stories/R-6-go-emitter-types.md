@@ -32,6 +32,10 @@ the frozen fixtures — the moment the "spec generates the SDK" claim becomes re
 ## Progress
 - 2026-08-03: Started by inventorying the frozen payload/schema shapes and the legacy Go structs;
   defining the failing-first generated package contract before extending the pure emitter pipeline.
+- 2026-08-03: Added a validated, target-neutral registry for all 36 payload/event fixtures and gave
+  the bare-map `session.get` response an explicit schema identity. The pure Go emitter now produces
+  ordered documented types, constants/name methods, and exact-byte construction/round-trip tests;
+  generator, Go package, gofmt, and all-target drift checks are passing pending final audit.
 
 ## Notes
 - Shared named types (`AudioCodec`, `CallInfo`, …) are emitted once and referenced, not duplicated

@@ -162,7 +162,7 @@
         "$ref": "#/schemas/SessionGetRequest"
       },
       "response": {
-        "$ref": "#/schemas/Map_of_AnyValue"
+        "$ref": "#/schemas/SessionGetResponse"
       },
       "examples": [
         {
@@ -707,10 +707,6 @@
       ],
       "description": "Data emitted by `input.transcript` for one finalized caller utterance."
     },
-    "Map_of_AnyValue": {
-      "type": "object",
-      "additionalProperties": true
-    },
     "OutputTranscriptDeltaEvent": {
       "type": "object",
       "properties": {
@@ -854,6 +850,11 @@
         "keys"
       ],
       "description": "Parameters for `session.get`."
+    },
+    "SessionGetResponse": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Bare open-map result returned by `session.get`."
     },
     "SessionInitializeRequest": {
       "type": "object",

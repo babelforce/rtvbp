@@ -200,7 +200,9 @@ pub struct SessionGetRequest {
 }
 
 /// Bare open-map result returned by `session.get`.
-pub type SessionGetResponse = Map<String, Value>;
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, JsonSchema, Serialize)]
+#[serde(transparent)]
+pub struct SessionGetResponse(pub Map<String, Value>);
 
 /// Parameters for `recording.start`.
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, JsonSchema, Serialize)]

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::PathBuf;
 
@@ -100,6 +100,40 @@ fn catalog_declares_every_event_role_doc_and_example() {
 #[test]
 fn catalog_and_every_typed_example_validate() {
     catalog().validate().unwrap();
+}
+
+#[test]
+fn catalog_names_the_open_map_response_and_owns_every_payload_fixture() {
+    let catalog = catalog();
+    let session_get = catalog
+        .operations
+        .iter()
+        .find(|operation| operation.method == "session.get")
+        .unwrap();
+
+    assert_eq!(session_get.response.name, "SessionGetResponse");
+    assert_eq!(catalog.fixtures.len(), 36);
+
+    let declared = catalog
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.path.clone())
+        .collect::<BTreeSet<_>>();
+    let golden =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../conformance/babelforce.v1/golden");
+    let mut actual = BTreeSet::new();
+    for directory in ["payloads", "events", "variants/payloads", "variants/events"] {
+        for entry in fs::read_dir(golden.join(directory)).unwrap() {
+            let entry = entry.unwrap();
+            if entry.path().extension().and_then(|value| value.to_str()) == Some("json") {
+                actual.insert(format!(
+                    "{directory}/{}",
+                    entry.file_name().to_string_lossy()
+                ));
+            }
+        }
+    }
+    assert_eq!(declared, actual);
 }
 
 #[test]

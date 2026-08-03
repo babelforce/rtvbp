@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rtvbp_spec_gen::catalogs;
@@ -286,6 +287,116 @@ fn manifest_emitter_is_deterministic_and_ends_with_one_newline() {
     assert_eq!(first, second);
     assert!(first[0].bytes.ends_with(b"\n"));
     assert!(!first[0].bytes.ends_with(b"\n\n"));
+}
+
+#[test]
+fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
+    assert_eq!(Target::from_str("go").unwrap(), Target::Go);
+    assert_eq!(Target::Go.canonical_out_dir(), "sdk/go/catalog");
+    assert!(Target::Go.owns_output_path(Path::new("babelforcev1/zz_generated.types.go")));
+    assert!(!Target::Go.owns_output_path(Path::new("babelforcev1/handwritten.go")));
+
+    let first = generate(Target::Go).unwrap();
+    let second = generate(Target::Go).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first.len(), 2);
+    assert_eq!(
+        first
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("babelforcev1/zz_generated.golden_test.go"),
+            Path::new("babelforcev1/zz_generated.types.go"),
+        ]
+    );
+    for file in &first {
+        assert!(file.bytes.starts_with(b"// Code generated"));
+        assert!(file.bytes.ends_with(b"\n"));
+        assert!(!file.bytes.ends_with(b"\n\n"));
+    }
+
+    let types = String::from_utf8(
+        first
+            .iter()
+            .find(|file| file.path.ends_with("zz_generated.types.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+    assert!(types.contains("type DtmfEvent struct"));
+    assert!(!types.contains("DTMFEvent"));
+    assert!(types.contains("Application AppInfo `json:\"application\"`"));
+    assert!(types.contains("Metadata *map[string]any `json:\"metadata\"`"));
+    assert!(!types.contains("metadata,omitempty"));
+    assert!(types.contains("Reason string `json:\"reason,omitempty\"`"));
+    assert!(types.contains("type SessionGetResponse map[string]any"));
+    assert!(types.contains("const MethodSessionInitialize = \"session.initialize\""));
+    assert!(types.contains("func (*SessionUpdatedEvent) EventName() string"));
+    assert!(types.contains("Application that owns the call flow."));
+    assert!(
+        types.find("Application AppInfo").unwrap() < types.find("Call CallInfo").unwrap()
+            && types.find("Call CallInfo").unwrap()
+                < types.find("AudioCodecOfferings []AudioCodec").unwrap()
+    );
+
+    let tests = String::from_utf8(
+        first
+            .iter()
+            .find(|file| file.path.ends_with("zz_generated.golden_test.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+    assert_eq!(tests.matches("\t{name: \"").count(), 36);
+    assert!(tests.contains("/round_trip"));
+    assert!(tests.contains("/construct"));
+}
+
+#[test]
+fn go_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_files() {
+    let temp = TempDir::new();
+    let binary = env!("CARGO_BIN_EXE_rtvbp-spec-gen");
+    let out = format!("--out={}", temp.path().display());
+    assert!(
+        Command::new(binary)
+            .args(["--emit=go", &out])
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(
+        temp.path().join("babelforcev1/zz_generated.old.go"),
+        b"stale\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path().join("babelforcev1/handwritten.go"),
+        b"package babelforcev1\n",
+    )
+    .unwrap();
+    let stale = Command::new(binary)
+        .args(["--emit=go", &out, "--check"])
+        .output()
+        .unwrap();
+    assert!(!stale.status.success());
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("zz_generated.old.go"));
+    assert!(
+        Command::new(binary)
+            .args(["--emit=go", &out])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        !temp
+            .path()
+            .join("babelforcev1/zz_generated.old.go")
+            .exists()
+    );
+    assert!(temp.path().join("babelforcev1/handwritten.go").exists());
 }
 
 fn assert_schema_refs_resolve(value: &Value, schemas: &serde_json::Map<String, Value>) {

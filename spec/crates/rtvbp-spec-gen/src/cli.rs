@@ -7,7 +7,7 @@ use crate::emit::{Target, UnknownTarget};
 use crate::write::{WriteError, check_owned_files, synchronize_files};
 use crate::{GenerateError, generate};
 
-const USAGE: &str = "usage: rtvbp-spec-gen --emit=<manifest> [--out=<dir>] [--check]\n       rtvbp-spec-gen --check";
+const USAGE: &str = "usage: rtvbp-spec-gen --emit=<manifest|go> [--out=<dir>] [--check]\n       rtvbp-spec-gen --check";
 
 #[derive(Debug, Error)]
 pub enum CliError {
@@ -25,22 +25,30 @@ pub enum CliError {
 
 #[derive(Debug)]
 struct Options {
-    target: Target,
-    out_dir: PathBuf,
+    target: Option<Target>,
+    out_dir: Option<PathBuf>,
     check: bool,
 }
 
 pub fn run(args: impl IntoIterator<Item = OsString>) -> Result<(), CliError> {
     let options = parse(args)?;
-    let files = generate(options.target)?;
-    if options.check {
-        check_owned_files(&options.out_dir, &files, |path| {
-            options.target.owns_output_path(path)
-        })?;
+    if let Some(target) = options.target {
+        run_target(target, options.out_dir, options.check)?;
     } else {
-        synchronize_files(&options.out_dir, &files, |path| {
-            options.target.owns_output_path(path)
-        })?;
+        for target in Target::ALL {
+            run_target(target, None, true)?;
+        }
+    }
+    Ok(())
+}
+
+fn run_target(target: Target, out_dir: Option<PathBuf>, check: bool) -> Result<(), CliError> {
+    let out_dir = out_dir.unwrap_or_else(|| PathBuf::from(target.canonical_out_dir()));
+    let files = generate(target)?;
+    if check {
+        check_owned_files(&out_dir, &files, |path| target.owns_output_path(path))?;
+    } else {
+        synchronize_files(&out_dir, &files, |path| target.owns_output_path(path))?;
     }
     Ok(())
 }
@@ -75,16 +83,19 @@ fn parse(args: impl IntoIterator<Item = OsString>) -> Result<Options, CliError> 
         }
     }
 
-    let target = match (target, check) {
-        (Some(target), _) => target,
-        (None, true) => Target::Manifest,
-        (None, false) => {
+    match (&target, check, &out_dir) {
+        (None, false, _) => {
             return Err(CliError::Arguments(
                 "either --emit or --check is required".to_owned(),
             ));
         }
-    };
-    let out_dir = out_dir.unwrap_or_else(|| PathBuf::from(target.canonical_out_dir()));
+        (None, true, Some(_)) => {
+            return Err(CliError::Arguments(
+                "--out requires an explicit --emit target".to_owned(),
+            ));
+        }
+        _ => {}
+    }
     Ok(Options {
         target,
         out_dir,

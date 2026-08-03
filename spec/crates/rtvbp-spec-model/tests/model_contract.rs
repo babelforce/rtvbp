@@ -1,4 +1,4 @@
-use rtvbp_spec_model::{Catalog, Event, Nullable, Operation, Role, TypeRef};
+use rtvbp_spec_model::{Catalog, CatalogFixture, Event, Nullable, Operation, Role, TypeRef};
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -215,4 +215,64 @@ fn catalog_validation_rejects_the_reserved_transport_namespace() {
 
     let error = catalog.validate().unwrap_err().to_string();
     assert!(error.contains("reserved transport.* namespace"), "{error}");
+}
+
+#[test]
+fn catalog_validation_rejects_invalid_fixture_metadata_and_bytes() {
+    let valid = operation_for_fixture();
+    let duplicate = Catalog::new("demo", 1).operation(valid.clone()).fixtures([
+        CatalogFixture::operation_request(
+            "demo.run",
+            "payloads/demo.json",
+            br#"{"input":"hello"}"#.as_slice(),
+        ),
+        CatalogFixture::operation_request(
+            "demo.run",
+            "payloads/demo.json",
+            br#"{"input":"hello"}"#.as_slice(),
+        ),
+    ]);
+    assert!(
+        duplicate
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate conformance fixture path")
+    );
+
+    let invalid = Catalog::new("demo", 1).operation(valid).fixtures([
+        CatalogFixture::operation_request(
+            "missing.run",
+            "../outside.json",
+            br#"{"input":"hello"}"#.as_slice(),
+        ),
+        CatalogFixture::operation_request(
+            "demo.run",
+            "payloads/changed.json",
+            b"{\"input\":\"hello\" }".as_slice(),
+        ),
+        CatalogFixture::operation_request(
+            "demo.run",
+            "payloads/invalid.json",
+            br#"{"input":42}"#.as_slice(),
+        ),
+    ]);
+    let error = invalid.validate().unwrap_err().to_string();
+    assert!(error.contains("relative and confined"), "{error}");
+    assert!(
+        error.contains("unknown operation \"missing.run\" request"),
+        "{error}"
+    );
+    assert!(error.contains("changes after typed round-trip"), "{error}");
+    assert!(error.contains("does not match DemoRequest"), "{error}");
+}
+
+fn operation_for_fixture() -> Operation {
+    Operation::new::<DemoRequest, DemoResponse>("demo.run", Role::Application)
+        .docs("Run the demo operation.")
+        .example(
+            "canonical",
+            json!({"input": "hello"}),
+            json!({"output": "world"}),
+        )
 }

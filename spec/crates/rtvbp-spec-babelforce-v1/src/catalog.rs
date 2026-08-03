@@ -122,6 +122,7 @@ pub fn catalog() -> Catalog {
                 .docs("Publish the redaction-safe name of a tool invoked by the agent."),
             examples::agent_tool_call(),
         ))
+        .fixtures(crate::fixtures::fixtures())
 }
 
 fn operation<Request: Serialize, Response: Serialize>(

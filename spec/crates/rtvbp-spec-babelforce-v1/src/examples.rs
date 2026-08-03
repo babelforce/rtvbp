@@ -53,7 +53,7 @@ pub fn session_get() -> (SessionGetRequest, SessionGetResponse) {
         SessionGetRequest {
             keys: vec!["customer".to_owned(), "attempt".to_owned()],
         },
-        canonical_variables(),
+        SessionGetResponse(canonical_variables()),
     )
 }
 

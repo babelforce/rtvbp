@@ -1,0 +1,206 @@
+use rtvbp_spec_model::CatalogFixture;
+
+macro_rules! bytes {
+    ($path:literal) => {
+        include_bytes!(concat!(
+            "../../../../conformance/babelforce.v1/golden/",
+            $path
+        ))
+        .as_slice()
+    };
+}
+
+pub(crate) fn fixtures() -> Vec<CatalogFixture> {
+    let mut fixtures = vec![
+        request(
+            "application.move",
+            "payloads/application.move.request.json",
+            bytes!("payloads/application.move.request.json"),
+        ),
+        response(
+            "application.move",
+            "payloads/application.move.response.json",
+            bytes!("payloads/application.move.response.json"),
+        ),
+        request(
+            "audio.buffer.clear",
+            "payloads/audio.buffer.clear.request.json",
+            bytes!("payloads/audio.buffer.clear.request.json"),
+        ),
+        response(
+            "audio.buffer.clear",
+            "payloads/audio.buffer.clear.response.json",
+            bytes!("payloads/audio.buffer.clear.response.json"),
+        ),
+        request(
+            "call.hangup",
+            "payloads/call.hangup.request.json",
+            bytes!("payloads/call.hangup.request.json"),
+        ),
+        response(
+            "call.hangup",
+            "payloads/call.hangup.response.json",
+            bytes!("payloads/call.hangup.response.json"),
+        ),
+        request(
+            "ping",
+            "payloads/ping.request.json",
+            bytes!("payloads/ping.request.json"),
+        ),
+        response(
+            "ping",
+            "payloads/ping.response.json",
+            bytes!("payloads/ping.response.json"),
+        ),
+        request(
+            "recording.start",
+            "payloads/recording.start.request.json",
+            bytes!("payloads/recording.start.request.json"),
+        ),
+        response(
+            "recording.start",
+            "payloads/recording.start.response.json",
+            bytes!("payloads/recording.start.response.json"),
+        ),
+        request(
+            "recording.stop",
+            "payloads/recording.stop.request.json",
+            bytes!("payloads/recording.stop.request.json"),
+        ),
+        response(
+            "recording.stop",
+            "payloads/recording.stop.response.json",
+            bytes!("payloads/recording.stop.response.json"),
+        ),
+        request(
+            "session.get",
+            "payloads/session.get.request.json",
+            bytes!("payloads/session.get.request.json"),
+        ),
+        response(
+            "session.get",
+            "payloads/session.get.response.json",
+            bytes!("payloads/session.get.response.json"),
+        ),
+        request(
+            "session.initialize",
+            "payloads/session.initialize.request.json",
+            bytes!("payloads/session.initialize.request.json"),
+        ),
+        response(
+            "session.initialize",
+            "payloads/session.initialize.response.json",
+            bytes!("payloads/session.initialize.response.json"),
+        ),
+        request(
+            "session.set",
+            "payloads/session.set.request.json",
+            bytes!("payloads/session.set.request.json"),
+        ),
+        response(
+            "session.set",
+            "payloads/session.set.response.json",
+            bytes!("payloads/session.set.response.json"),
+        ),
+        request(
+            "session.terminate",
+            "payloads/session.terminate.request.json",
+            bytes!("payloads/session.terminate.request.json"),
+        ),
+        response(
+            "session.terminate",
+            "payloads/session.terminate.response.json",
+            bytes!("payloads/session.terminate.response.json"),
+        ),
+        event(
+            "agent.tool.call",
+            "events/agent.tool.call.json",
+            bytes!("events/agent.tool.call.json"),
+        ),
+        event(
+            "audio.info",
+            "events/audio.info.json",
+            bytes!("events/audio.info.json"),
+        ),
+        event(
+            "audio.speech.started",
+            "events/audio.speech.started.json",
+            bytes!("events/audio.speech.started.json"),
+        ),
+        event(
+            "call.hangup",
+            "events/call.hangup.json",
+            bytes!("events/call.hangup.json"),
+        ),
+        event("dtmf", "events/dtmf.json", bytes!("events/dtmf.json")),
+        event(
+            "input.transcript",
+            "events/input.transcript.json",
+            bytes!("events/input.transcript.json"),
+        ),
+        event(
+            "output.transcript.delta",
+            "events/output.transcript.delta.json",
+            bytes!("events/output.transcript.delta.json"),
+        ),
+        event(
+            "output.transcript.done",
+            "events/output.transcript.done.json",
+            bytes!("events/output.transcript.done.json"),
+        ),
+        event(
+            "session.updated",
+            "events/session.updated.json",
+            bytes!("events/session.updated.json"),
+        ),
+        event(
+            "audio.info",
+            "variants/events/audio.info-nonzero.json",
+            bytes!("variants/events/audio.info-nonzero.json"),
+        ),
+        event(
+            "call.hangup",
+            "variants/events/call.hangup-no-reason.json",
+            bytes!("variants/events/call.hangup-no-reason.json"),
+        ),
+        request(
+            "application.move",
+            "variants/payloads/application.move.request-empty.json",
+            bytes!("variants/payloads/application.move.request-empty.json"),
+        ),
+        response(
+            "application.move",
+            "variants/payloads/application.move.response-no-next.json",
+            bytes!("variants/payloads/application.move.response-no-next.json"),
+        ),
+        request(
+            "ping",
+            "variants/payloads/ping.request-no-optionals.json",
+            bytes!("variants/payloads/ping.request-no-optionals.json"),
+        ),
+        response(
+            "ping",
+            "variants/payloads/ping.response-no-data.json",
+            bytes!("variants/payloads/ping.response-no-data.json"),
+        ),
+        request(
+            "recording.start",
+            "variants/payloads/recording.start.request-no-tags.json",
+            bytes!("variants/payloads/recording.start.request-no-tags.json"),
+        ),
+    ];
+    fixtures.sort_by(|left, right| left.path.cmp(&right.path));
+    fixtures
+}
+
+fn request(method: &str, path: &str, bytes: &[u8]) -> CatalogFixture {
+    CatalogFixture::operation_request(method, path, bytes)
+}
+
+fn response(method: &str, path: &str, bytes: &[u8]) -> CatalogFixture {
+    CatalogFixture::operation_response(method, path, bytes)
+}
+
+fn event(name: &str, path: &str, bytes: &[u8]) -> CatalogFixture {
+    CatalogFixture::event(name, path, bytes)
+}

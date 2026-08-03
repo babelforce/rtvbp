@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use rtvbp_spec_model::{Catalog, CatalogId, EventExample, OperationExample, Role, TypeRef};
+use rtvbp_spec_model::{
+    Catalog, CatalogId, EventExample, FixtureTarget, OperationExample, Role, TypeRef,
+};
 use serde_json::Value;
 use thiserror::Error;
 
@@ -10,6 +12,7 @@ pub struct ResolvedCatalog {
     pub operations: Vec<ResolvedOperation>,
     pub events: Vec<ResolvedEvent>,
     pub schemas: BTreeMap<String, Value>,
+    pub fixtures: Vec<ResolvedFixture>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -32,6 +35,14 @@ pub struct ResolvedEvent {
     pub examples: Vec<EventExample>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct ResolvedFixture {
+    pub path: String,
+    pub payload: String,
+    pub bytes: Vec<u8>,
+    pub value: Value,
+}
+
 #[derive(Debug, Error)]
 pub enum ResolveError {
     #[error("operation {name:?} has no role after validation")]
@@ -42,6 +53,14 @@ pub enum ResolveError {
     MissingDocumentation { kind: &'static str, name: String },
     #[error("schema name {name:?} resolves to conflicting definitions")]
     ConflictingSchema { name: String },
+    #[error("fixture {path:?} refers to a missing resolved catalog item")]
+    MissingFixtureTarget { path: String },
+    #[error("fixture {path:?} is not valid JSON: {source}")]
+    InvalidFixture {
+        path: String,
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 /// Resolve one validated catalog into the complete, emitter-facing model.
@@ -96,11 +115,46 @@ pub fn resolve(catalog: Catalog) -> Result<ResolvedCatalog, ResolveError> {
     }
     events.sort_by(|left, right| left.name.cmp(&right.name));
 
+    let mut fixtures = Vec::with_capacity(catalog.fixtures.len());
+    for fixture in catalog.fixtures {
+        let payload = match &fixture.target {
+            FixtureTarget::OperationRequest { method } => operations
+                .iter()
+                .find(|operation| operation.method == *method)
+                .map(|operation| operation.request.clone()),
+            FixtureTarget::OperationResponse { method } => operations
+                .iter()
+                .find(|operation| operation.method == *method)
+                .map(|operation| operation.response.clone()),
+            FixtureTarget::Event { name } => events
+                .iter()
+                .find(|event| event.name == *name)
+                .map(|event| event.data.clone()),
+        }
+        .ok_or_else(|| ResolveError::MissingFixtureTarget {
+            path: fixture.path.clone(),
+        })?;
+        let value = serde_json::from_slice(&fixture.bytes).map_err(|source| {
+            ResolveError::InvalidFixture {
+                path: fixture.path.clone(),
+                source,
+            }
+        })?;
+        fixtures.push(ResolvedFixture {
+            path: fixture.path,
+            payload,
+            bytes: fixture.bytes,
+            value,
+        });
+    }
+    fixtures.sort_by(|left, right| left.path.cmp(&right.path));
+
     Ok(ResolvedCatalog {
         id: catalog.id,
         operations,
         events,
         schemas,
+        fixtures,
     })
 }
 
@@ -150,7 +204,8 @@ fn rewrite_local_refs(value: &mut Value) {
             if let Some(Value::String(reference)) = object.get_mut("$ref")
                 && let Some(name) = reference.strip_prefix("#/$defs/")
             {
-                *reference = format!("#/schemas/{name}");
+                let name = name.replace("~1", "/").replace("~0", "~");
+                *reference = schema_reference(&name);
             }
             for child in object.values_mut() {
                 rewrite_local_refs(child);
@@ -163,4 +218,9 @@ fn rewrite_local_refs(value: &mut Value) {
         }
         _ => {}
     }
+}
+
+pub(crate) fn schema_reference(name: &str) -> String {
+    let name = name.replace('~', "~0").replace('/', "~1");
+    format!("#/schemas/{name}")
 }

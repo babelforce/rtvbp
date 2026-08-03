@@ -2,6 +2,7 @@
 
 mod catalog;
 pub mod examples;
+mod fixtures;
 mod payloads;
 
 pub use catalog::catalog;

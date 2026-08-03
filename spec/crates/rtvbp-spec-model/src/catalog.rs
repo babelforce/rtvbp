@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fmt;
+use std::path::{Component, Path};
 
 use schemars::{JsonSchema, Schema, schema_for};
 use serde::de::DeserializeOwned;
@@ -16,6 +17,7 @@ pub struct Catalog {
     pub id: CatalogId,
     pub operations: Vec<Operation>,
     pub events: Vec<Event>,
+    pub fixtures: Vec<CatalogFixture>,
 }
 
 impl Catalog {
@@ -25,6 +27,7 @@ impl Catalog {
             id: CatalogId::new(name, major),
             operations: Vec::new(),
             events: Vec::new(),
+            fixtures: Vec::new(),
         }
     }
 
@@ -37,6 +40,12 @@ impl Catalog {
     #[must_use]
     pub fn event(mut self, event: Event) -> Self {
         self.events.push(event);
+        self
+    }
+
+    #[must_use]
+    pub fn fixtures(mut self, fixtures: impl IntoIterator<Item = CatalogFixture>) -> Self {
+        self.fixtures.extend(fixtures);
         self
     }
 
@@ -126,6 +135,63 @@ impl Catalog {
                     &event.data,
                     &example.data,
                 );
+            }
+        }
+
+        let mut fixture_paths = HashSet::new();
+        for fixture in &self.fixtures {
+            if fixture.path.is_empty()
+                || !Path::new(&fixture.path)
+                    .components()
+                    .all(|component| matches!(component, Component::Normal(_)))
+            {
+                issues.push(CatalogValidationError::InvalidFixturePath {
+                    path: fixture.path.clone(),
+                });
+            }
+            if !fixture_paths.insert(fixture.path.as_str()) {
+                issues.push(CatalogValidationError::DuplicateFixturePath {
+                    path: fixture.path.clone(),
+                });
+            }
+            let payload_type = match &fixture.target {
+                FixtureTarget::OperationRequest { method } => self
+                    .operations
+                    .iter()
+                    .find(|operation| operation.method == *method)
+                    .map(|operation| &operation.request),
+                FixtureTarget::OperationResponse { method } => self
+                    .operations
+                    .iter()
+                    .find(|operation| operation.method == *method)
+                    .map(|operation| &operation.response),
+                FixtureTarget::Event { name } => self
+                    .events
+                    .iter()
+                    .find(|event| event.name == *name)
+                    .map(|event| &event.data),
+            };
+            let Some(payload_type) = payload_type else {
+                issues.push(CatalogValidationError::UnknownFixtureTarget {
+                    path: fixture.path.clone(),
+                    target: fixture.target.clone(),
+                });
+                continue;
+            };
+            match payload_type.round_trip_bytes(&fixture.bytes) {
+                Ok(actual) if actual != fixture.bytes => {
+                    issues.push(CatalogValidationError::FixtureChanged {
+                        path: fixture.path.clone(),
+                        expected: fixture.bytes.clone(),
+                        actual,
+                    });
+                }
+                Ok(_) => {}
+                Err(source) => issues.push(CatalogValidationError::FixtureRoundTrip {
+                    path: fixture.path.clone(),
+                    payload_type: payload_type.name.clone(),
+                    source,
+                }),
             }
         }
 
@@ -328,6 +394,79 @@ pub struct EventExample {
     pub data: Value,
 }
 
+/// One frozen payload/event fixture and the catalog type that owns it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CatalogFixture {
+    pub path: String,
+    pub target: FixtureTarget,
+    pub bytes: Vec<u8>,
+}
+
+impl CatalogFixture {
+    #[must_use]
+    pub fn operation_request(
+        method: impl Into<String>,
+        path: impl Into<String>,
+        bytes: impl Into<Vec<u8>>,
+    ) -> Self {
+        Self {
+            path: path.into(),
+            target: FixtureTarget::OperationRequest {
+                method: method.into(),
+            },
+            bytes: bytes.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn operation_response(
+        method: impl Into<String>,
+        path: impl Into<String>,
+        bytes: impl Into<Vec<u8>>,
+    ) -> Self {
+        Self {
+            path: path.into(),
+            target: FixtureTarget::OperationResponse {
+                method: method.into(),
+            },
+            bytes: bytes.into(),
+        }
+    }
+
+    #[must_use]
+    pub fn event(
+        name: impl Into<String>,
+        path: impl Into<String>,
+        bytes: impl Into<Vec<u8>>,
+    ) -> Self {
+        Self {
+            path: path.into(),
+            target: FixtureTarget::Event { name: name.into() },
+            bytes: bytes.into(),
+        }
+    }
+}
+
+/// The catalog request, response, or event type exercised by a fixture.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum FixtureTarget {
+    OperationRequest { method: String },
+    OperationResponse { method: String },
+    Event { name: String },
+}
+
+impl fmt::Display for FixtureTarget {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OperationRequest { method } => write!(formatter, "operation {method:?} request"),
+            Self::OperationResponse { method } => {
+                write!(formatter, "operation {method:?} response")
+            }
+            Self::Event { name } => write!(formatter, "event {name:?} data"),
+        }
+    }
+}
+
 /// All issues found while validating one catalog.
 #[derive(Debug)]
 pub struct CatalogValidationErrors {
@@ -361,6 +500,25 @@ pub enum CatalogValidationError {
     DuplicateEvent { name: String },
     #[error("{kind} {name:?} has no role")]
     MissingRole { kind: CatalogItemKind, name: String },
+    #[error("duplicate conformance fixture path {path:?}")]
+    DuplicateFixturePath { path: String },
+    #[error("conformance fixture path must be relative and confined: {path:?}")]
+    InvalidFixturePath { path: String },
+    #[error("conformance fixture {path:?} refers to unknown {target}")]
+    UnknownFixtureTarget { path: String, target: FixtureTarget },
+    #[error("conformance fixture {path:?} does not match {payload_type}: {source}")]
+    FixtureRoundTrip {
+        path: String,
+        payload_type: String,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("conformance fixture {path:?} changes after typed round-trip")]
+    FixtureChanged {
+        path: String,
+        expected: Vec<u8>,
+        actual: Vec<u8>,
+    },
     #[error("{kind} {name:?} has no documentation")]
     MissingDocumentation { kind: CatalogItemKind, name: String },
     #[error("{kind} {name:?} has no canonical examples")]

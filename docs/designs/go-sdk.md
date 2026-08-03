@@ -119,6 +119,18 @@ reading bytes. `AudioObserver` survives unchanged on the byte view.
 
 ### Generated glue
 
+`rtvbp-spec-gen --emit=go` first converts the resolved catalog schemas into a Go-specific ordered
+IR. Required fields are values, optional fields carry `omitempty`, and required nullable fields are
+pointers without `omitempty`; schema `properties` order remains struct declaration order. Authored
+schema names are preserved while wire field names are independently converted to Go identifiers,
+including the `ID`, `RTT`, and `OWD` initialisms.
+
+The source catalog also owns a target-neutral registry of all frozen payload/event fixtures. Each
+entry binds a relative fixture path and bytes to an operation request, operation response, or event
+type and is validated by typed round-trip before resolution. The Go emitter uses that registry to
+generate standard-library-only construction and unmarshal/re-marshal tests for all 36 payload/event
+fixtures; the ten `classic.v1` envelope fixtures remain R-7's responsibility.
+
 ```go
 // GENERATED — role asymmetry as concrete API surface
 type ApplicationHandler interface {   // what the application side must implement
