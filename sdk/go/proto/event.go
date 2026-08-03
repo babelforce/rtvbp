@@ -3,7 +3,7 @@ package proto
 import (
 	"fmt"
 
-	"github.com/babelforce/rtvbp-go/internal/idgen"
+	"github.com/babelforce/rtvbp/sdk/go/internal/idgen"
 )
 
 type IntoEvent interface {

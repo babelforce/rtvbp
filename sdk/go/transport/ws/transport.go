@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/gorilla/websocket"
 )
 
@@ -133,7 +133,7 @@ func (w *WebsocketTransport) process(ctx context.Context) {
 				}
 
 				w.logger.Error("read failed", slog.Any("err", err))
-				
+
 				return
 			}
 
@@ -290,7 +290,7 @@ func (w *WebsocketTransport) sendMessage(msg wsMessage) error {
 	return nil
 }
 
-var _ rtvbp.Transport = &WebsocketTransport{}
+var _ rtvbp.LegacyTransport = &WebsocketTransport{}
 
 func newTransport(
 	conn *websocket.Conn,

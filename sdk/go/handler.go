@@ -6,7 +6,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 type OnAfterReplyHook interface {

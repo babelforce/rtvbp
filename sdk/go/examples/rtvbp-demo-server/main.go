@@ -9,10 +9,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/audio"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
-	"github.com/babelforce/rtvbp-go/transport/ws"
+	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/audio"
+	"github.com/babelforce/rtvbp/sdk/go/proto/protov1"
+	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
 	"github.com/gordonklaus/portaudio"
 )

@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 // PingRequest ping request

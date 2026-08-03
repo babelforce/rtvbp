@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 type NamedEvent interface {

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/gorilla/websocket"
 )
 
@@ -49,7 +49,7 @@ func serverUpgradeHandler(
 		log.Debug("websocket upgrade successful")
 
 		sess := rtvbp.NewSession(
-			rtvbp.WithTransportFactory(func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
+			rtvbp.WithTransportFactory(func(ctx context.Context, audio io.ReadWriter) (rtvbp.LegacyTransport, error) {
 				trans := newTransport(
 					conn,
 					audio,

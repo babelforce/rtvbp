@@ -22,7 +22,7 @@ A powerful Go library for building real-time voice communication applications wi
 ### Installation
 
 ```bash
-go get github.com/babelforce/rtvbp-go
+go get github.com/babelforce/rtvbp/sdk/go
 ```
 
 ### Basic Server Example
@@ -34,9 +34,9 @@ import (
     "context"
     "log/slog"
     
-    "github.com/babelforce/rtvbp-go"
-    "github.com/babelforce/rtvbp-go/audio"
-    "github.com/babelforce/rtvbp-go/transport/ws"
+    "github.com/babelforce/rtvbp/sdk/go"
+    "github.com/babelforce/rtvbp/sdk/go/audio"
+    "github.com/babelforce/rtvbp/sdk/go/transport/ws"
 )
 
 func main() {
@@ -76,8 +76,8 @@ package main
 import (
     "context"
     
-    "github.com/babelforce/rtvbp-go"
-    "github.com/babelforce/rtvbp-go/transport/ws"
+    "github.com/babelforce/rtvbp/sdk/go"
+    "github.com/babelforce/rtvbp/sdk/go/transport/ws"
 )
 
 func main() {
@@ -275,7 +275,7 @@ The workflow will:
 - Run `go vet ./...`
 - Verify `go mod tidy`
 - Create a GitHub release with changelog
-- Make the module available via `go get github.com/babelforce/rtvbp-go@v1.0.0`
+- Make the module available via `go get github.com/babelforce/rtvbp/sdk/go@v1.0.0`
 
 ### Workflow Configuration
 

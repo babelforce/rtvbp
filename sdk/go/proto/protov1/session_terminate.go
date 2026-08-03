@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 )
 
 type SessionTerminateRequest struct {

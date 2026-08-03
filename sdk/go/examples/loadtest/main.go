@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/transport/ws"
+	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	"go.uber.org/goleak"
 )
 

@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/babelforce/rtvbp-go/transport/ws"
+	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 )
 
 type cliArgs struct {

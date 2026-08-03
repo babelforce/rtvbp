@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/proto"
-	"github.com/babelforce/rtvbp-go/transport/ws"
+	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )

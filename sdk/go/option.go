@@ -6,13 +6,13 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/babelforce/rtvbp-go/internal/idgen"
+	"github.com/babelforce/rtvbp/sdk/go/internal/idgen"
 )
 
 type sessionOptions struct {
 	id              string
 	logger          *slog.Logger
-	transport       TransportFactory
+	transport       LegacyTransportFactory
 	handler         SessionHandler
 	audioBufferSize int
 	requestTimeout  time.Duration
@@ -63,15 +63,21 @@ func WithID(id string) Option {
 	}
 }
 
-func WithTransportFactory(f TransportFactory) Option {
+// WithTransportFactory configures the imported byte-oriented session runtime.
+//
+// Deprecated: R-9 migrates Session to TransportFactory and the semantic transport interfaces.
+func WithTransportFactory(f LegacyTransportFactory) Option {
 	return func(opts *sessionOptions) {
 		opts.transport = f
 	}
 }
 
-func WithTransport(t Transport) Option {
+// WithTransport configures the imported byte-oriented session runtime.
+//
+// Deprecated: R-9 migrates Session to Transport and the semantic transport interfaces.
+func WithTransport(t LegacyTransport) Option {
 	return func(opts *sessionOptions) {
-		opts.transport = func(ctx context.Context, audio io.ReadWriter) (Transport, error) {
+		opts.transport = func(ctx context.Context, audio io.ReadWriter) (LegacyTransport, error) {
 			return t, nil
 		}
 	}

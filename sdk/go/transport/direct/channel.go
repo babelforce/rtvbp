@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 )
 
 type closer struct {
@@ -43,9 +43,9 @@ func (d *myDirectTransport) ReadChan() <-chan rtvbp.DataPackage {
 	return d.b
 }
 
-var _ rtvbp.Transport = &myDirectTransport{}
+var _ rtvbp.LegacyTransport = &myDirectTransport{}
 
-func New() (rtvbp.Transport, rtvbp.Transport) {
+func New() (rtvbp.LegacyTransport, rtvbp.LegacyTransport) {
 	var (
 		a = make(chan rtvbp.DataPackage, 1)
 		b = make(chan rtvbp.DataPackage, 1)

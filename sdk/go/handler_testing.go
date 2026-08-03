@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 type TestingSHC struct {

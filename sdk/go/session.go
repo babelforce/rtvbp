@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 var (
@@ -25,8 +25,8 @@ type Session struct {
 	state         SessionState
 	mu            sync.Mutex
 	shCtx         *sessionHandlerCtx
-	transport     Transport
-	transportFunc TransportFactory
+	transport     LegacyTransport
+	transportFunc LegacyTransportFactory
 
 	// transportAudio is the audio channel side which is used to read audio from the transport
 	// read: from transport

@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 )
 
 type audioInfoItem struct {

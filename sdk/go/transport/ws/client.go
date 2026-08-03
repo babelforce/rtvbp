@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/gorilla/websocket"
 )
 
@@ -133,7 +133,7 @@ func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*Websock
 
 func Client(config ClientConfig) rtvbp.Option {
 	return rtvbp.WithTransportFactory(
-		func(ctx context.Context, audio io.ReadWriter) (rtvbp.Transport, error) {
+		func(ctx context.Context, audio io.ReadWriter) (rtvbp.LegacyTransport, error) {
 			return Connect(ctx, config, audio)
 		},
 	)

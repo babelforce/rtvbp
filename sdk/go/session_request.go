@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 type pendingRequest struct {

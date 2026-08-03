@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 func debugMessage(sessionID string, m proto.Message, direction string) {

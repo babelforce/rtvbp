@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/internal/idgen"
+	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/internal/idgen"
 )
 
 type TelephonyDtmfHandler func(dtmf *DTMFEvent)

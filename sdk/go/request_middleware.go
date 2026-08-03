@@ -3,7 +3,7 @@ package rtvbp
 import (
 	"context"
 
-	"github.com/babelforce/rtvbp-go/proto"
+	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 type RequestMiddlewareFunc func(ctx context.Context, h SHC, req *proto.Request) error

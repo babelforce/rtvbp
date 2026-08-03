@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/gorilla/websocket"
 )
 

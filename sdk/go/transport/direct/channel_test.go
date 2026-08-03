@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/babelforce/rtvbp-go"
-	"github.com/babelforce/rtvbp-go/proto/protov1"
+	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/proto/protov1"
 	"github.com/stretchr/testify/require"
 )
 

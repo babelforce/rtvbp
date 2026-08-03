@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/babelforce/rtvbp-go/proto/protov1"
+	"github.com/babelforce/rtvbp/sdk/go/proto/protov1"
 )
 
 type PhoneSystem struct {

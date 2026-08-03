@@ -3,7 +3,7 @@ module rtvbp_demo_client
 go 1.24.4
 
 require (
-	github.com/babelforce/rtvbp-go v0.0.0
+	github.com/babelforce/rtvbp/sdk/go v0.0.0
 	github.com/codewandler/audio-go v1.0.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
@@ -16,4 +16,4 @@ require (
 	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904 // indirect
 )
 
-replace github.com/babelforce/rtvbp-go v0.0.0 => ../../../rtvbp-go
+replace github.com/babelforce/rtvbp/sdk/go v0.0.0 => ../..

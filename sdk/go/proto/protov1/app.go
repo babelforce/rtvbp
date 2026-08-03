@@ -3,7 +3,7 @@ package protov1
 import (
 	"context"
 
-	"github.com/babelforce/rtvbp-go"
+	"github.com/babelforce/rtvbp/sdk/go"
 )
 
 // ApplicationMoveRequest moves to another location in the IVR graph
