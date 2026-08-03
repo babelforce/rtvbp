@@ -32,3 +32,6 @@ All notable changes to this project are documented here. The format is based on
 - Formalized frozen v1 semantics: `session.terminate` remains voice→application, responses allow
   both or neither of result/error, error codes are an open non-zero integer space with four named
   conventions, and catalog validation reserves `transport.*` for transport signaling.
+- Added the deterministic `rtvbp-spec-gen` load → validate → resolve → emit pipeline, its committed
+  `babelforce.v1` catalog manifest, non-mutating drift checks, stale-output synchronization, and a
+  minimal Rust CI gate that prevents spec/generated drift from merging.

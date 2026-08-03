@@ -2,7 +2,7 @@
 id: R-5
 title: Generator skeleton and manifest emitter
 pillar: Generator
-status: in-progress
+status: done
 priority: 6
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
@@ -18,17 +18,17 @@ it end to end with its cheapest emitter, which also forces the spec model to exp
 emitters will need.
 
 ## Acceptance
-- [ ] `rtvbp-spec-gen --emit=<target> --out=<dir>` runs the full pipeline: load → validate → resolve
+- [x] `rtvbp-spec-gen --emit=<target> --out=<dir>` runs the full pipeline: load → validate → resolve
       → emit → write.
-- [ ] The validate stage fails loudly on a duplicate method or event name, an operation or event
+- [x] The validate stage fails loudly on a duplicate method or event name, an operation or event
       without a role, and an example that does not round-trip its schema (a test per case).
-- [ ] `--emit=manifest` writes `spec/manifests/babelforce.v1.catalog.json` containing the catalog id,
+- [x] `--emit=manifest` writes `spec/manifests/babelforce.v1.catalog.json` containing the catalog id,
       every operation and event with its role and terminality, and the embedded schemas.
-- [ ] Output is deterministic: stable ordering and a trailing newline, so regenerating twice
+- [x] Output is deterministic: stable ordering and a trailing newline, so regenerating twice
       produces no diff (a test asserts this).
-- [ ] `--check` re-emits and exits non-zero on any difference, ready for the CI drift gate.
-- [ ] Emitters are pure `model → [(path, bytes)]` functions; writing is the only side effect.
-- [ ] A minimal CI job runs the Rust tests and `rtvbp-spec-gen --check`, so spec/generated drift is
+- [x] `--check` re-emits and exits non-zero on any difference, ready for the CI drift gate.
+- [x] Emitters are pure `model → [(path, bytes)]` functions; writing is the only side effect.
+- [x] A minimal CI job runs the Rust tests and `rtvbp-spec-gen --check`, so spec/generated drift is
       unmergeable as soon as the first emitted artifact lands; R-16 later expands this to the full
       cross-language release gate.
 
@@ -38,6 +38,9 @@ emitters will need.
 - 2026-08-03: Implemented optional-role source validation, required-role resolution, deterministic
   schema registry and manifest emission, isolated write/check behavior, and end-to-end CLI tests.
   The committed artifact and minimal CI drift check are being wired into the final gate.
+- 2026-08-03: Completed after an independent audit added root/definition schema normalization,
+  recursive reference checks, target-owned stale-output detection, and full-pipeline determinism
+  coverage. Rust tests, Clippy, manifest drift, Go SDK tests, and the docs build are green.
 
 ## Notes
 - The generator links the catalog crates and walks the `Catalog` value in process — the manifest is

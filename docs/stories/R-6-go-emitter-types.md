@@ -2,12 +2,12 @@
 id: R-6
 title: Go emitter — payload types and name constants
 pillar: Generator
-status: backlog
+status: ready
 priority: 7
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [generator, sdk-go]
-note: blocked on R-4, R-5, R-17 and R-18; emits only after wire authority and semantics are complete
+note: unblocked; wire authority, semantics, and the generator core are complete
 ---
 
 # Go emitter — payload types and name constants
