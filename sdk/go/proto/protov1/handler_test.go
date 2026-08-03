@@ -41,7 +41,7 @@ func createTestClientHandler(tel TelephonyAdapter) *ClientHandler {
 	return NewClientHandler(
 		tel,
 		&ClientHandlerConfig{
-			SampleRate: 8_000,
+			AudioFormat: DefaultMediaFormat(),
 			Metadata: map[string]any{
 				"foobar": 23,
 			},
@@ -90,6 +90,13 @@ func createServerHandler(
 			},
 		},
 		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
+			format, err := MediaFormat(&req.AudioCodecOfferings[0], DefaultPTime)
+			if err != nil {
+				return nil, err
+			}
+			if err := hc.OpenAudio(ctx, format); err != nil {
+				return nil, err
+			}
 			return &SessionInitializeResponse{
 				AudioCodec: &req.AudioCodecOfferings[0],
 			}, nil

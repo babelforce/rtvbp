@@ -16,10 +16,10 @@ type EmptyResponse struct {
 }
 
 type ClientHandlerConfig struct {
-	Call       CallInfo
-	App        AppInfo
-	Metadata   map[string]any
-	SampleRate int
+	Call        CallInfo
+	App         AppInfo
+	Metadata    map[string]any
+	AudioFormat rtvbp.MediaFormat
 }
 
 type ClientHandler struct {
@@ -28,6 +28,7 @@ type ClientHandler struct {
 	initialized bool
 	shc         rtvbp.SHC
 	dtmfSeq     atomic.Int64
+	audioFormat rtvbp.MediaFormat
 }
 
 func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req *SessionInitializeRequest) (*SessionInitializeResponse, error) {
@@ -54,7 +55,16 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 		return nil, fmt.Errorf("invalid response")
 	}
 
-	// TODO: verify that returned audio codec is supported by the client (is in the list of audio codecs offered)
+	selected, err := MediaFormat(r2.AudioCodec, ch.audioFormat.PTime)
+	if err != nil {
+		return nil, err
+	}
+	if selected != ch.audioFormat {
+		return nil, fmt.Errorf("peer selected unsupported audio format %#v", selected)
+	}
+	if err := h.AcceptAudio(ctx); err != nil {
+		return nil, fmt.Errorf("accept negotiated audio: %w", err)
+	}
 
 	ch.initialized = true
 	ch.shc = h
@@ -93,7 +103,11 @@ func NewClientHandler(
 	config *ClientHandlerConfig,
 	onAudio func(ctx context.Context, h rtvbp.SHC) error,
 ) *ClientHandler {
-	hdl := &ClientHandler{}
+	audioFormat := config.AudioFormat
+	if audioFormat == (rtvbp.MediaFormat{}) {
+		audioFormat = DefaultMediaFormat()
+	}
+	hdl := &ClientHandler{audioFormat: audioFormat}
 
 	var check rtvbp.RequestMiddlewareFunc = func(ctx context.Context, h rtvbp.SHC, req rtvbp.Request) error {
 		hdl.mu.Lock()
@@ -108,10 +122,12 @@ func NewClientHandler(
 		rtvbp.HandlerConfig{
 
 			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-				//
+				if _, err := audioFormat.FrameBytes(); err != nil {
+					return fmt.Errorf("invalid configured audio format: %w", err)
+				}
 				r, err := hdl.sessionInitialize(ctx, h, &SessionInitializeRequest{
 					Metadata:            config.Metadata,
-					AudioCodecOfferings: []AudioCodec{newL16Codec(config.SampleRate)},
+					AudioCodecOfferings: []AudioCodec{audioCodec(audioFormat)},
 					CallInfo:            config.Call,
 					AppInfo:             config.App,
 				})
