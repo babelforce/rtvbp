@@ -15,7 +15,8 @@ the complete typed catalog, and R-4 proved all 29 existing fixtures byte-identic
 spec types. R-17 closed the soundness review's wire-authority gap with 46 source-pinned fixtures,
 R-18 made the remaining semantic constraints explicit and tested, R-5 delivered the generator core
 plus its first committed manifest, and R-6 now emits byte-proven Go payload types. R-8 is building
-the new runtime transport seams; R-13 remains independently ready.
+the new runtime transport seams. The second soundness review is scheduled as R-19 after the runtime
+seam settles and before conformance vectors or public reference pages are emitted.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -46,7 +47,6 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
-- [R-13 — Docs emitter — generated protocol reference in the Docusaurus site](R-13-docs-emitter.md) · Generator · unblocked by the manifest pipeline; reference docs can now project the resolved catalog
 
 ## Blocked
 _None._
@@ -55,7 +55,8 @@ _None._
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · blocked on R-10; the mechanism that rolls abstract e2e tests into every SDK
+- [R-19 — Close follow-up soundness review residuals before vectors and public reference](R-19-close-followup-soundness-review.md) · Proof · take after R-8/R-9 runtime seams and before R-11/R-13 compatibility outputs
+- [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · blocked on R-10 and R-19; review residuals must settle before vectors become compatibility commitments
 - [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · blocked on R-10; interop is what actually proves deployed peers are unaffected
 - [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · blocked on R-12; a real phone call is the acceptance criterion
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · blocked on R-13 and R-15; makes drift unmergeable and closes out the old repo
@@ -69,6 +70,10 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 ### multi-catalog operation and profile negotiation
 _The framework claims to be catalog-agnostic and to support **any transport × any envelope**. A claim_
 - [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · blocked on R-10, R-11 and R-13; exercises emitted role glue, vectors and docs together
+
+### generated protocol documentation
+_The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
+- [R-13 — Docs emitter — generated protocol reference in the Docusaurus site](R-13-docs-emitter.md) · Generator · blocked on R-19; review residuals must settle before the public reference is emitted
 
 ## Done
 

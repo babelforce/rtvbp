@@ -2,12 +2,12 @@
 id: R-13
 title: Docs emitter — generated protocol reference in the Docusaurus site
 pillar: Generator
-status: ready
+status: backlog
 priority: 14
 design: docs/designs/docs-gen.md
 epic: docs-gen
 areas: [generator, website]
-note: unblocked by the manifest pipeline; reference docs can now project the resolved catalog
+note: blocked on R-19; review residuals must settle before the public reference is emitted
 ---
 
 # Docs emitter — generated protocol reference in the Docusaurus site

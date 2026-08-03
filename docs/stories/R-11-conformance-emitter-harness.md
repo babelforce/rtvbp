@@ -7,7 +7,7 @@ priority: 12
 design: docs/designs/conformance.md
 epic: conformance
 areas: [generator, conformance, sdk-go]
-note: blocked on R-10; the mechanism that rolls abstract e2e tests into every SDK
+note: blocked on R-10 and R-19; review residuals must settle before vectors become compatibility commitments
 ---
 
 # Conformance vector emitter and the Go harness
