@@ -31,45 +31,49 @@ func (s *Session) registerPending(id string) (*pendingRequest, error) {
 	return pending, nil
 }
 
-func (s *Session) removePending(id string, expected *pendingRequest) {
+// cancelPending atomically removes a request only when no response or shutdown
+// failure has already claimed it. A false return means the completion path won
+// and has published exactly one result to expected.result.
+func (s *Session) cancelPending(id string, expected *pendingRequest) bool {
 	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
 	if s.pending[id] == expected {
 		delete(s.pending, id)
+		return true
 	}
-	s.pendingMu.Unlock()
+	return false
+}
+
+func (s *Session) completePending(id string, result pendingResult) bool {
+	s.pendingMu.Lock()
+	defer s.pendingMu.Unlock()
+	pending := s.pending[id]
+	if pending == nil {
+		return false
+	}
+	delete(s.pending, id)
+	// The cell is buffered and only the map owner may publish, so this cannot
+	// block. Publishing while holding pendingMu makes completion indivisible
+	// from cancellation's point of view.
+	pending.result <- result
+	return true
 }
 
 func (s *Session) resolvePending(frame ControlFrame) {
-	s.pendingMu.Lock()
-	pending := s.pending[frame.CorrelID]
-	if pending != nil {
-		delete(s.pending, frame.CorrelID)
-	}
-	s.pendingMu.Unlock()
-	if pending == nil {
-		return
-	}
 	response := Response{Payload: cloneRaw(frame.Payload), Err: cloneWireError(frame.Err)}
 	result := pendingResult{response: response}
 	if response.Err != nil {
 		result.err = &RemoteError{WireError: *response.Err}
 	}
-	select {
-	case pending.result <- result:
-	default:
-	}
+	s.completePending(frame.CorrelID, result)
 }
 
 func (s *Session) failPending(cause error) {
 	s.pendingMu.Lock()
-	pending := s.pending
-	s.pending = make(map[string]*pendingRequest)
-	s.pendingMu.Unlock()
-	for _, request := range pending {
-		select {
-		case request.result <- pendingResult{err: cause}:
-		default:
-		}
+	defer s.pendingMu.Unlock()
+	for id, request := range s.pending {
+		delete(s.pending, id)
+		request.result <- pendingResult{err: cause}
 	}
 }
 
@@ -96,7 +100,10 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (Response, 
 	}
 	frame := ControlFrame{Kind: KindRequest, ID: id, Method: payload.MethodName(), Payload: encoded}
 	if err := s.sendFrame(ctx, frame); err != nil {
-		s.removePending(id, pending)
+		if !s.cancelPending(id, pending) {
+			result := <-pending.result
+			return result.response, result.err
+		}
 		if errors.Is(err, ErrSessionClosed) {
 			return Response{}, ErrSessionClosed
 		}
@@ -118,12 +125,10 @@ func (s *Session) Request(ctx context.Context, payload NamedRequest) (Response, 
 	case result := <-pending.result:
 		return result.response, result.err
 	case <-waitCtx.Done():
-		select {
-		case result := <-pending.result:
+		if !s.cancelPending(id, pending) {
+			result := <-pending.result
 			return result.response, result.err
-		default:
 		}
-		s.removePending(id, pending)
 		if internalTimeout && errors.Is(waitCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
 			return Response{}, fmt.Errorf("request method=%s id=%s: %w", payload.MethodName(), id, ErrRequestTimeout)
 		}
