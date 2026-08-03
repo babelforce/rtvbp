@@ -1,18 +1,20 @@
-name: Protocol gate
+name: Release Go SDK
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    tags:
+      - 'sdk/go/v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  test-and-check:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
@@ -25,10 +27,9 @@ jobs:
       - uses: arduino/setup-task@v2
       - run: yarn install --frozen-lockfile
         working-directory: website
-      - run: cargo test --locked --manifest-path spec/Cargo.toml
-      - run: task generate
-      - run: git diff --exit-code
-      - run: go test ./...
-        working-directory: sdk/go
-      - run: yarn build
-        working-directory: website
+      - run: task check
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
