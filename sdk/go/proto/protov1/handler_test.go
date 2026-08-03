@@ -2,6 +2,7 @@ package protov1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
-	"github.com/babelforce/rtvbp/sdk/go/proto"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -29,6 +29,12 @@ type serverTestCase struct {
 
 	// fn describes the scenario on the server side (integrator)
 	fn scenarioFn
+}
+
+func decodeResponse[T any](response rtvbp.Response) (T, error) {
+	var decoded T
+	err := json.Unmarshal(response.Payload, &decoded)
+	return decoded, err
 }
 
 func createTestClientHandler(tel TelephonyAdapter) *ClientHandler {
@@ -92,7 +98,7 @@ func createServerHandler(
 			updatedCh <- struct{}{}
 			return nil
 		}),
-		rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*EmptyResponse, error) {
+		rtvbp.HandleTerminalRequest(func(ctx context.Context, hc rtvbp.SHC, req *SessionTerminateRequest) (*EmptyResponse, error) {
 			return &EmptyResponse{}, nil
 		}),
 		rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, dtmf *DTMFEvent) error {
@@ -186,7 +192,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, res)
 
-				res2, err := proto.As[ApplicationMoveResponse](res.Result)
+				res2, err := decodeResponse[ApplicationMoveResponse](res)
 				require.NoError(t, err)
 				require.Equal(t, "1234", res2.NextApplicationID)
 
@@ -205,7 +211,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, res)
 
-				res2, err := proto.As[ApplicationMoveResponse](res.Result)
+				res2, err := decodeResponse[ApplicationMoveResponse](res)
 				require.NoError(t, err)
 				require.Equal(t, "<id_of_next_node_if_any>", res2.NextApplicationID)
 
@@ -254,7 +260,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 					res, err := h.Request(ctx, &SessionGetRequest{Keys: []string{"foo", "bing", "unknown"}})
 					require.NoError(t, err)
 					require.NotNil(t, res)
-					data, err := proto.As[map[string]any](res.Result)
+					data, err := decodeResponse[map[string]any](res)
 					require.NoError(t, err)
 					require.Equal(t, "bar", data["foo"])
 					require.Equal(t, 23.0, data["bing"])
@@ -266,7 +272,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 					res, err := h.Request(ctx, &SessionGetRequest{})
 					require.NoError(t, err)
 					require.NotNil(t, res)
-					data, err := proto.As[map[string]any](res.Result)
+					data, err := decodeResponse[map[string]any](res)
 					require.NoError(t, err)
 					fmt.Printf("ALL %+v\n", data)
 					require.Equal(t, map[string]any{
@@ -285,7 +291,7 @@ func TestHandlerUseCasesHappyPath(outerT *testing.T) {
 				require.NoError(t, err)
 				require.NotNil(t, res)
 
-				rec, err := proto.As[RecordingStartResponse](res.Result)
+				rec, err := decodeResponse[RecordingStartResponse](res)
 				require.NoError(t, err)
 				require.NotNil(t, rec)
 				require.NotEmpty(t, rec.ID)

@@ -2,12 +2,12 @@ package protov1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
-	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 // PingRequest ping request
@@ -71,8 +71,8 @@ func ping(ctx context.Context, h rtvbp.SHC, lastRTT int64) (int, error) {
 		return 0, err
 	}
 
-	pingRes, err := proto.As[PingResponse](res.Result)
-	if err != nil {
+	var pingRes PingResponse
+	if err := json.Unmarshal(res.Payload, &pingRes); err != nil {
 		return 0, err
 	}
 
@@ -88,38 +88,10 @@ func ping(ctx context.Context, h rtvbp.SHC, lastRTT int64) (int, error) {
 	return int(rtt.Milliseconds()), nil
 }
 
-func StartPinger(ctx context.Context, pingInterval time.Duration, h rtvbp.SHC) {
-
-	if pingInterval == 0 {
-		pingInterval = 10 * time.Second
-	}
-	h.Log().Debug("starting pinger", slog.Any("interval", pingInterval))
-
-	pingTicker := time.NewTicker(pingInterval)
-	defer pingTicker.Stop()
-
-	lastRTT := int64(0)
-
-	for {
-		select {
-		case <-pingTicker.C:
-			rtt, err := ping(ctx, h, lastRTT)
-			if err != nil {
-				h.Log().Error("ping failed", slog.Any("err", err))
-			}
-			lastRTT = int64(rtt)
-		case <-ctx.Done():
-			h.Log().Info("pinger stopped")
-			return
-		}
-	}
-}
-
 // NewPingHandler creates a request handler for PingRequest
 func NewPingHandler() rtvbp.RequestHandler {
 	return rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *PingRequest) (*PingResponse, error) {
-
-		r, ok := ctx.Value("request").(*proto.Request)
+		inbound, ok := rtvbp.InboundRequest(ctx)
 		if !ok {
 			return nil, fmt.Errorf("failed to extract original request from context")
 		}
@@ -127,7 +99,7 @@ func NewPingHandler() rtvbp.RequestHandler {
 		t2 := time.Now().UnixMilli()
 		return &PingResponse{
 			T0:   req.T0,
-			T1:   r.GetReceivedAt(),
+			T1:   inbound.ReceivedAt.UnixMilli(),
 			T2:   t2,
 			OWD:  t2 - req.T0,
 			Data: req.Data,

@@ -2,6 +2,7 @@ package protov1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -9,18 +10,16 @@ import (
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
-	"github.com/babelforce/rtvbp/sdk/go/proto"
 )
 
 type EmptyResponse struct {
 }
 
 type ClientHandlerConfig struct {
-	Call         CallInfo
-	App          AppInfo
-	Metadata     map[string]any
-	PingInterval time.Duration
-	SampleRate   int
+	Call       CallInfo
+	App        AppInfo
+	Metadata   map[string]any
+	SampleRate int
 }
 
 type ClientHandler struct {
@@ -43,7 +42,10 @@ func (ch *ClientHandler) sessionInitialize(ctx context.Context, h rtvbp.SHC, req
 	if err != nil {
 		return nil, err
 	}
-	r2, err := proto.As[*SessionInitializeResponse](r1.Result)
+	var r2 *SessionInitializeResponse
+	if len(r1.Payload) != 0 {
+		err = json.Unmarshal(r1.Payload, &r2)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +95,7 @@ func NewClientHandler(
 ) *ClientHandler {
 	hdl := &ClientHandler{}
 
-	var check rtvbp.RequestMiddlewareFunc = func(ctx context.Context, h rtvbp.SHC, req *proto.Request) error {
+	var check rtvbp.RequestMiddlewareFunc = func(ctx context.Context, h rtvbp.SHC, req rtvbp.Request) error {
 		hdl.mu.Lock()
 		defer hdl.mu.Unlock()
 		if !hdl.initialized {
@@ -144,9 +146,6 @@ func NewClientHandler(
 					return fmt.Errorf("failed to setup hangup event: %w", err)
 				}
 
-				// periodic application level pinger
-				go StartPinger(ctx, config.PingInterval, h)
-
 				return nil
 			},
 		},
@@ -167,7 +166,10 @@ func NewClientHandler(
 			},
 		)),
 		// REQ: session.terminate
-		rtvbp.HandleWithError[*SessionTerminateRequest](proto.NotImplemented("session.terminate is not supported. please use application.move or call.hangup instead")),
+		rtvbp.HandleWithError[*SessionTerminateRequest](rtvbp.WireError{
+			Code:    501,
+			Message: "session.terminate is not supported. please use application.move or call.hangup instead",
+		}),
 		// REQ: audio.buffer.clear
 		rtvbp.Middleware(check, rtvbp.HandleRequest(
 			func(ctx context.Context, hc rtvbp.SHC, req *AudioBufferClearRequest) (*AudioBufferClearResponse, error) {
@@ -215,17 +217,11 @@ func NewClientHandler(
 }
 
 func sessionTerminateAndClose(ctx context.Context, hc rtvbp.SHC, reason string) error {
-
-	closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	terminateCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-
-	// Close client
-	return hc.Close(closeCtx, func(ctx context.Context, h rtvbp.SHC) error {
-		terminateCtx, terminateCancel := context.WithTimeout(ctx, 5*time.Second)
-		defer terminateCancel()
-		_, err := hc.Request(terminateCtx, &SessionTerminateRequest{
-			Reason: reason,
-		})
+	_, err := hc.Request(terminateCtx, &SessionTerminateRequest{Reason: reason})
+	if err != nil {
 		return err
-	})
+	}
+	return hc.Close(ctx)
 }

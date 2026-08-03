@@ -1,10 +1,7 @@
 package protov1
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/babelforce/rtvbp/sdk/go"
 )
 
 type SessionTerminateRequest struct {
@@ -20,17 +17,4 @@ func (r *SessionTerminateRequest) Validate() error {
 
 func (r *SessionTerminateRequest) MethodName() string {
 	return "session.terminate"
-}
-
-func (r *SessionTerminateRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
-
-	// close
-	/*closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	if err := hc.Close(closeCtx); err != nil {
-		return fmt.Errorf("failed to close session on session.terminate request: %w", err)
-	}*/
-
-	return nil
 }

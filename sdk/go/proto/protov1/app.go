@@ -1,11 +1,5 @@
 package protov1
 
-import (
-	"context"
-
-	"github.com/babelforce/rtvbp/sdk/go"
-)
-
 // ApplicationMoveRequest moves to another location in the IVR graph
 // If ApplicationID is not specified the application will be moved to the
 // next IVR graph node (if any)
@@ -19,10 +13,6 @@ type ApplicationMoveRequest struct {
 
 func (m *ApplicationMoveRequest) MethodName() string {
 	return "application.move"
-}
-
-func (m *ApplicationMoveRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
-	return sessionTerminateAndClose(ctx, hc, "application.move")
 }
 
 type ApplicationMoveResponse struct {

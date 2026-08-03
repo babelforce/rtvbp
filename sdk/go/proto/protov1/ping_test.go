@@ -2,51 +2,26 @@ package protov1
 
 import (
 	"context"
-	"log/slog"
+	"encoding/json"
+	"testing"
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
-	"github.com/babelforce/rtvbp/sdk/go/proto"
-	"github.com/babelforce/rtvbp/sdk/go/transport/direct"
 	"github.com/stretchr/testify/require"
-
-	"testing"
 )
 
 func TestPingHandler(t *testing.T) {
 	shc := rtvbp.NewTestingSHC()
 	h := NewPingHandler()
 
-	req := proto.NewRequest("ping", NewPingRequest())
-	req.SetReceivedAt(time.Now().UnixMilli())
-
-	err := h.Handle(context.Background(), shc, req)
+	params, err := json.Marshal(NewPingRequest())
 	require.NoError(t, err)
-	require.Equal(t, req.ID, shc.Response.Response)
-}
+	receivedAt := time.Now()
+	req := rtvbp.Request{ID: "ping-1", Method: "ping", Payload: params, ReceivedAt: receivedAt}
 
-func TestPinger(t *testing.T) {
-	slog.SetLogLoggerLevel(slog.LevelDebug)
-
-	var (
-		ctx = context.Background()
-		h   = rtvbp.NewHandler(
-			rtvbp.HandlerConfig{
-				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-					go StartPinger(ctx, 100*time.Millisecond, h)
-					return nil
-				},
-			},
-			NewPingHandler(),
-		)
-		t1, t2 = direct.NewTestSessions(h, h)
-	)
-
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-
-	go t1.Run(ctx)
-	go t2.Run(ctx)
-
-	<-ctx.Done()
+	err = h.Handle(context.Background(), shc, req)
+	require.NoError(t, err)
+	var response PingResponse
+	require.NoError(t, json.Unmarshal(shc.Response.Payload, &response))
+	require.Equal(t, receivedAt.UnixMilli(), response.T1)
 }

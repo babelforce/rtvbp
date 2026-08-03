@@ -1,10 +1,7 @@
 package protov1
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/babelforce/rtvbp/sdk/go"
 )
 
 type CallHangupEvent struct {
@@ -32,8 +29,4 @@ func (r *CallHangupRequest) Validate() error {
 
 func (r *CallHangupRequest) MethodName() string {
 	return "call.hangup"
-}
-
-func (r *CallHangupRequest) OnAfterReply(ctx context.Context, hc rtvbp.SHC) error {
-	return sessionTerminateAndClose(ctx, hc, "call.hangup")
 }
