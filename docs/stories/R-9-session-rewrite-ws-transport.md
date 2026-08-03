@@ -7,7 +7,7 @@ priority: 10
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
-note: blocked on R-7 and R-8; keeps encodings frozen while traffic semantics change under interop
+note: blocked on R-7; keeps encodings frozen while traffic semantics change under interop
 ---
 
 # Session rewrite and WebSocket transport port

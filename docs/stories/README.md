@@ -14,9 +14,10 @@ Milestone 1 — **spec + generator + a Go SDK at wire parity** — is underway. 
 the complete typed catalog, and R-4 proved all 29 existing fixtures byte-identical through concrete
 spec types. R-17 closed the soundness review's wire-authority gap with 46 source-pinned fixtures,
 R-18 made the remaining semantic constraints explicit and tested, R-5 delivered the generator core
-plus its first committed manifest, and R-6 now emits byte-proven Go payload types. R-8 is building
-the new runtime transport seams. The second soundness review is scheduled as R-19 after the runtime
-seam settles and before conformance vectors or public reference pages are emitted.
+plus its first committed manifest, R-6 now emits byte-proven Go payload types, and R-8 delivered the
+new runtime transport seams plus the canonical Go module migration. R-7 is ready to generate the
+classic.v1 envelope codec against those seams. The second soundness review is scheduled as R-19
+after the session rewrite and before conformance vectors or public reference pages are emitted.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -35,7 +36,6 @@ cross-language release gate and release automation.
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
-- [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · independent of R-4/R-5; defines the seams that WebRTC, QUIC and SIP must later fit
 
 ## Next (ready — take the top one unless the user named a story)
 
@@ -44,6 +44,7 @@ _Before anything can be generated there must be a source of truth that is provab
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
+- [R-7 — EnvelopeSpec and the generated Go classic.v1 codec](R-7-envelope-emitter.md) · Generator · unblocked; the generated codec can now target the settled runtime Envelope interface
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
@@ -63,8 +64,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
-- [R-7 — EnvelopeSpec and the generated Go classic.v1 codec](R-7-envelope-emitter.md) · Generator · blocked on R-6, R-8 and R-18; the generated codec implements settled runtime interfaces
-- [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · blocked on R-7 and R-8; keeps encodings frozen while traffic semantics change under interop
+- [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · blocked on R-7; keeps encodings frozen while traffic semantics change under interop
 - [R-10 — Go emitter — role interfaces, dispatch adapters and typed peer clients](R-10-go-emitter-role-dispatch.md) · Generator · blocked on R-6 and R-9; turns role asymmetry into concrete API surface
 
 ### multi-catalog operation and profile negotiation
@@ -93,4 +93,5 @@ _Before anything can be generated there must be a source of truth that is provab
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
 - [R-6 — Go emitter — payload types and name constants](R-6-go-emitter-types.md) · Generator · 30 generated Go types and 36 exact-byte fixture cases now project the frozen catalog
+- [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · semantic frame and transport seams, drain-safe memory transport, and canonical Go module path are complete
 <!-- END track:board -->

@@ -38,3 +38,7 @@ All notable changes to this project are documented here. The format is based on
 - Added generated Go `babelforce.v1` payload types, method/event constants and name methods, plus
   standard-library golden tests that construct and round-trip all 36 payload/event fixtures
   byte-for-byte. CI now checks Go formatting, generated drift, and the full imported SDK test suite.
+- Added the Go semantic frame, envelope, control, transport, and timed-media runtime contracts plus
+  a drain-safe in-memory transport with optional duplex media. Renamed the module to
+  `github.com/babelforce/rtvbp/sdk/go`, migrated workspace imports and examples, and made the Go gate
+  run directly in workspace mode.
