@@ -48,9 +48,10 @@ the new transport interface.
 - 2026-08-03: Started after the generated classic.v1 codec made wire preservation mechanical;
   rewrite the session against semantic frames first, then port WebSocket/media and delete the
   transitional byte-oriented runtime.
+- 2026-08-03: Chose an explicit one-shot deferred-response handle, a single supervised session
+  lifecycle, and `MediaFormat.BitDepth` with validated fixed-width L16 chunking; recorded the
+  concurrency, keepalive, terminal-response, and audio ownership details in the design.
 
 ## Notes
-- Decide the deferred-response API shape here (sentinel error vs. explicit handle) and record it in
-  the design doc — it must land together with serial dispatch, not after.
 - Reuse the existing gorilla plumbing from the imported tree rather than rewriting the socket layer.
 - Nothing in this story may change the wire; R-6/R-7 tests are the guard.

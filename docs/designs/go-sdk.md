@@ -61,7 +61,11 @@ type ControlChannel interface {
     Recv(ctx context.Context) (Received, error)   // io.EOF on orderly close
 }
 
-type MediaFormat struct { Encoding string; SampleRate, Channels int; PTime time.Duration }
+type MediaFormat struct {
+    Encoding string
+    SampleRate, Channels, BitDepth int
+    PTime time.Duration
+}
 type MediaFrame  struct { Data []byte; PTS time.Duration; Timed bool }
 
 type MediaChannel interface {
@@ -108,14 +112,66 @@ How each binding degrades:
 Correlation ids are minted by the session via an injectable `IDGen` (default nanoid, preserving the
 current wire look); the envelope treats ids as opaque strings.
 
+The envelope is a mandatory constructor dependency: `NewSession(env Envelope, opts ...Option)`.
+The root runtime cannot import a generated envelope implementation to provide a default without an
+import cycle. `Run` has one supervisor and exactly one terminal result. It moves the session to
+`Connecting` before invoking the factory, starts the reader and dispatcher before `OnBegin` (so an
+initialization hook can make a request), and reaches `Active` only after `OnBegin` succeeds. Every
+exit passes through `Closing`; local close, context cancellation, and orderly transport EOF finish
+at `Closed`, while factory, initialization, transport, keepalive, or close errors finish at
+`Failed`.
+
+The control reader is the sole caller of `Control().Recv` and `Envelope.Decode`. It stamps the
+transport's `ReceivedAt`, resolves responses inline, and appends requests and events to an
+unbounded mutex-backed FIFO. One dispatcher consumes that FIFO serially. A bounded dispatcher
+channel is deliberately not used: a slow handler must never prevent the reader from receiving the
+response to a nested or unrelated request. Pending requests use buffered one-result cells; shutdown
+atomically detaches and resolves all of them with `ErrSessionClosed`, or with the failure cause for
+a failed session.
+
+#### Deferred and terminal responses
+
+Deferred response ownership is explicit, not a sentinel error. Each inbound request receives a
+request-scoped `SHC` whose reply state is one-shot. In addition to an ordinary `Respond`, it exposes
+`RespondThenClose`, and `DeferResponse` returns a request-bound handle with the same response
+operations. Claiming the handle suppresses the typed adapter's automatic response, preserves the
+correlation id for background work, and lets the dispatcher continue. A duplicate response returns
+`ErrResponseAlreadySent`; using the handle after shutdown returns `ErrSessionClosed`. If a handler
+returns an error after deferring, the still-open handle is failed immediately rather than leaking.
+
+`RespondThenClose` sends synchronously and then signals the supervisor without waiting from the
+dispatcher. The supervisor invokes `Transport.Close` with an independent bounded context. The
+transport's flush contract therefore makes the terminal response observable before connection
+teardown without deadlocking the serial handler.
+
+#### Keepalive ownership
+
+The runtime owns one `KeepalivePolicy{Interval, Timeout, MaxMisses}` and the sentinel
+`ErrKeepaliveTimeout`. A transport may implement the optional `KeepaliveTransport` monitor; when the
+policy is enabled the session supervises it and treats a breach as a transport failure, moving to
+`Failed` and resolving pending requests with the sentinel. Classic WebSocket implements the monitor
+with protocol Ping/Pong frames through its sole writer. The catalog `ping` operation is never run
+automatically.
+
 ### Audio API
 
 Keep `io.ReadWriter` + `ClearReadBuffer` — it is what `rtvbp-openai` and every example consume, and
 byte-oriented PCM is what AI backends want. Add `Format()`, plumbed from the `session.initialize`
-negotiation. The session owns the ring-buffer pair and pumps media frames in and out, decoupling
-transport packet cadence from handler read cadence. Later, timed transports expose an optional
-`FrameAudio` interface on the same object for callers that care about PTS; everyone else keeps
-reading bytes. `AudioObserver` survives unchanged on the byte view.
+negotiation. The session owns separate inbound and outbound ring buffers and pumps media frames in
+and out, decoupling transport packet cadence from handler read cadence. Media binding is a
+protocol-neutral session operation; the root session does not inspect `session.initialize` JSON.
+The catalog adapter that selects or accepts the codec binds the resulting media channel and format.
+
+For R-9 the byte pump supports fixed-width L16 explicitly. `MediaFormat` includes the negotiated
+`BitDepth`, and the frame size is
+`SampleRate * Channels * (BitDepth/8) * PTime / time.Second`, with positivity, integral-sample, and
+overflow validation. Classic WebSocket uses a local 20 ms PTime default because babelforce.v1 does
+not carry PTime on the wire. Variable-rate or otherwise unsupported encodings fail clearly instead
+of guessing a packet size. The outbound pump writes exact PTime chunks and does not emit a partial
+chunk during teardown. `ClearReadBuffer` drains inbound bytes without resetting or killing blocked
+readers. Later, timed transports expose an optional `FrameAudio` interface on the same object for
+callers that care about PTS; everyone else keeps reading bytes. `AudioObserver` survives unchanged
+on the byte view.
 
 ### Generated glue
 
@@ -167,7 +223,6 @@ Go (`DtmfEvent`, field `Application`); wire names live only in tags.
 
 - Serial dispatch changes timing for handlers that currently benefit from accidental concurrency; the
   deferred-response hatch must land with it, not after.
-- Deferred-response API shape (sentinel error vs. explicit handle) — decide during R-9.
 - Subtree import must not lose `rtvbp-go` history; verify before the old repo is archived.
 
 ## Acceptance / done
