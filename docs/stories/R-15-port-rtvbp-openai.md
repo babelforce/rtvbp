@@ -7,7 +7,7 @@ priority: 16
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance]
-note: branch port builds and starts cleanly; live duplex phone-call acceptance remains
+note: migrated branch passes local duplex speaker, DTMF and termination; Fly deploy and barge-in remain
 ---
 
 # Port rtvbp-openai to the new SDK as the acceptance test
@@ -34,6 +34,12 @@ pins `github.com/babelforce/rtvbp-go v0.37.2` — runs a live call against it.
   absence, recorded that finding in the Go SDK design, and kept the service structure unchanged.
   The OpenAI credential is present; a routed phone call is still needed to verify duplex audio,
   barge-in, DTMF, and clean termination together.
+- 2026-08-04: A bounded local CLI call exposed the retired OpenAI Realtime Beta API in the demo's
+  third-party client. Migrated `rtvbp-openai` itself to the GA WebSocket session/audio shape and
+  `gpt-realtime-2.1` on commit `a3837ca`, with failing-first schema and output-audio tests. The live
+  rerun sent 319,488 microphone bytes, received and played 98,560 agent audio bytes, spoke the DTMF
+  result (confirmed by the listener), and terminated cleanly. Fly deployment still awaits local CLI
+  authorization; the final barge-in interaction remains to close this story.
 
 ## Notes
 - `rtvbp-openai` exercises a good slice of the protocol: typed request and event handlers,

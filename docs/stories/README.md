@@ -42,7 +42,7 @@ cross-language release gate and release automation.
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · branch port builds and starts cleanly; live duplex phone-call acceptance remains
+- [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · migrated branch passes local duplex speaker, DTMF and termination; Fly deploy and barge-in remain
 
 ## Next (ready — take the top one unless the user named a story)
 
@@ -69,6 +69,7 @@ _None._
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · blocked on R-15; generated docs are complete and real-call acceptance remains before release
+- [R-20 — Bounded two-agent OpenAI Realtime acceptance over RTVBP](R-20-bounded-two-agent-realtime-acceptance.md) · Proof · follow-up after the first Go tag; OpenAI implementation remains in rtvbp-openai
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
