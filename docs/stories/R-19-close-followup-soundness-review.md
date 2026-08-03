@@ -2,12 +2,12 @@
 id: R-19
 title: Close follow-up soundness review residuals before vectors and public reference
 pillar: Proof
-status: backlog
+status: in-progress
 priority: 11
 design: docs/reviews/2026-08-03-soundness-review-2.md
 epic: conformance
 areas: [spec, conformance, generator, website]
-note: take after R-9 runtime migration and before R-11/R-13 compatibility outputs
+note: active after R-9 and before R-11/R-13 compatibility outputs
 ---
 
 # Close follow-up soundness review residuals before vectors and public reference
@@ -30,7 +30,8 @@ reference documentation turn them into compatibility commitments.
 - [ ] The full repository gate and any affected source-pinned capture reproductions pass.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started immediately after the R-9 runtime migration; audit the float boundary and
+  pinned transcript authority first because both constrain the later conformance vectors.
 
 ## Notes
 - Scheduled from the second 2026-08-03 soundness review. These are minor findings, but the float and

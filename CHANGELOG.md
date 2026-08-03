@@ -46,3 +46,10 @@ All notable changes to this project are documented here. The format is based on
   `classic.v1` codec from that declaration. The codec byte-round-trips all ten envelope fixtures,
   preserves deployed precedence/null/error quirks, and includes data-driven malformed and semantic
   regression tests plus a synthetic second-envelope emitter proof.
+- Rebuilt the Go session around semantic control frames, serial ordered dispatch, reader-path
+  response completion, explicit terminal replies, deterministic lifecycle and native keepalive;
+  session-owned negotiated audio now chunks by codec `PTime`, and the legacy byte transport/parser
+  APIs are removed.
+- Ported the WebSocket client and server to semantic text control plus static binary audio with
+  subprotocol negotiation, reverse-role media, flush-on-close, validated audio/keepalive policies,
+  atomic shutdown admission and race/stress coverage.

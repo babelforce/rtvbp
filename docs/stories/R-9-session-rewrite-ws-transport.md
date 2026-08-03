@@ -2,12 +2,12 @@
 id: R-9
 title: Session rewrite and WebSocket transport port
 pillar: SDK
-status: in-progress
+status: done
 priority: 10
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
-note: unblocked; generated classic.v1 bytes now guard the runtime rewrite and WebSocket port
+note: semantic session, negotiated audio and WebSocket transport are complete with frozen wire parity
 ---
 
 # Session rewrite and WebSocket transport port
@@ -18,30 +18,30 @@ ordering, keepalive, termination, and pending-request leaks — then port the We
 the new transport interface.
 
 ## Acceptance
-- [ ] Responses resolve on the reader path and never block; requests and events dispatch through a
+- [x] Responses resolve on the reader path and never block; requests and events dispatch through a
       **single serial dispatcher**, so event ordering is guaranteed (a failing-first test asserts a
       `dtmf` burst arrives in order).
-- [ ] A handler can issue a nested request without deadlocking (test).
-- [ ] Closing a session resolves every pending request with `ErrSessionClosed` instead of leaving it
+- [x] A handler can issue a nested request without deadlocking (test).
+- [x] Closing a session resolves every pending request with `ErrSessionClosed` instead of leaving it
       to time out (test).
-- [ ] `SHC.RespondThenClose` replaces the `OnAfterReply` hooks, which are deleted; a test proves the
+- [x] `SHC.RespondThenClose` replaces the `OnAfterReply` hooks, which are deleted; a test proves the
       response reaches the peer before the connection closes, for a `terminal` operation.
-- [ ] `session.terminate` remains voice→application (`handled_by: Application`): the terminal
+- [x] `session.terminate` remains voice→application (`handled_by: Application`): the terminal
       application handler responds then closes, and a reverse application→voice request preserves
       the deployed explicit 501 behavior.
-- [ ] One `KeepalivePolicy{Interval, Timeout, MaxMisses}`; a breach surfaces as
+- [x] One `KeepalivePolicy{Interval, Timeout, MaxMisses}`; a breach surfaces as
       `ErrKeepaliveTimeout`, moves the session to `Failed`, and resolves pending requests. The
       catalog `ping` operation is no longer run automatically.
-- [ ] Lifecycle is `Inactive → Connecting → Active → Closing → Closed | Failed`.
-- [ ] The session owns the audio ring-buffer pair, exposes `Format()` from the negotiated codec, and
+- [x] Lifecycle is `Inactive → Connecting → Active → Closing → Closed | Failed`.
+- [x] The session owns the audio ring-buffer pair, exposes `Format()` from the negotiated codec, and
       chunks outbound audio by `Format().PTime` — the hardcoded 320-byte buffer and the dead
       `ChunkSize` option are both gone.
-- [ ] The `ws` transport implements the new interface: text frames as the control channel, one
+- [x] The `ws` transport implements the new interface: text frames as the control channel, one
       static duplex `"audio"` media channel over binary frames, flush-on-close, keepalive wiring, and
       subprotocol negotiation (absence means `rtvbp.v1`).
-- [ ] The transitional `LegacyTransport` API and imported hand-written `proto` envelope parser are
+- [x] The transitional `LegacyTransport` API and imported hand-written `proto` envelope parser are
       removed after the session and WebSocket transport use `ControlFrame` plus the generated codec.
-- [ ] `ClearReadBuffer` and the audio observer still work; the runtime's own concurrency and close
+- [x] `ClearReadBuffer` and the audio observer still work; the runtime's own concurrency and close
       tests are `goleak`-clean.
 
 ## Progress
@@ -51,6 +51,14 @@ the new transport interface.
 - 2026-08-03: Chose an explicit one-shot deferred-response handle, a single supervised session
   lifecycle, and `MediaFormat.BitDepth` with validated fixed-width L16 chunking; recorded the
   concurrency, keepalive, terminal-response, and audio ownership details in the design.
+- 2026-08-03: Replaced the byte-oriented session with a serial semantic dispatcher and reader-path
+  response completion, atomic pending-request arbitration, explicit terminal replies, one supervised
+  lifecycle, negotiated audio pumps, and transport-native keepalive.
+- 2026-08-03: Ported WebSocket client/server operation to semantic text control plus static binary
+  audio, including subprotocol negotiation, flush-on-close, reverse-role audio, validated policies,
+  and an atomic shutdown admission barrier; removed the legacy parser and transport APIs.
+- 2026-08-03: Closed concurrency audits with race, stress and goleak coverage, including the media
+  EOF versus terminal-response drain race; the full Rust, generator, Go and website gates pass.
 
 ## Notes
 - Reuse the existing gorilla plumbing from the imported tree rather than rewriting the socket layer.

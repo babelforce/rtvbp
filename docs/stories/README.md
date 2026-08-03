@@ -15,10 +15,10 @@ the complete typed catalog, and R-4 proved all 29 existing fixtures byte-identic
 spec types. R-17 closed the soundness review's wire-authority gap with 46 source-pinned fixtures,
 R-18 made the remaining semantic constraints explicit and tested, R-5 delivered the generator core
 plus its first committed manifest, R-6 now emits byte-proven Go payload types, R-8 delivered the new
-runtime transport seams plus the canonical Go module migration, and R-7 now generates the
-byte-proven classic.v1 envelope codec. R-9 is porting the session and WebSocket transport onto those
-seams. The second soundness review is scheduled as R-19 after that rewrite and before
-conformance vectors or public reference pages are emitted.
+runtime transport seams plus the canonical Go module migration, R-7 now generates the byte-proven
+classic.v1 envelope codec, and R-9 completed the semantic session, negotiated audio and WebSocket
+transport rewrite. R-19 is now closing the second soundness review before conformance vectors or
+public reference pages are emitted.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -35,9 +35,9 @@ cross-language release gate and release automation.
 
 ## Now (in progress)
 
-### the Go SDK — runtime and emitted glue
-_The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
-- [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · unblocked; generated classic.v1 bytes now guard the runtime rewrite and WebSocket port
+### conformance vectors, interop, and acceptance
+_"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
+- [R-19 — Close follow-up soundness review residuals before vectors and public reference](R-19-close-followup-soundness-review.md) · Proof · active after R-9 and before R-11/R-13 compatibility outputs
 
 ## Next (ready — take the top one unless the user named a story)
 
@@ -57,7 +57,6 @@ _None._
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-19 — Close follow-up soundness review residuals before vectors and public reference](R-19-close-followup-soundness-review.md) · Proof · take after R-9 runtime migration and before R-11/R-13 compatibility outputs
 - [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · blocked on R-10 and R-19; review residuals must settle before vectors become compatibility commitments
 - [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · blocked on R-10; interop is what actually proves deployed peers are unaffected
 - [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · blocked on R-12; a real phone call is the acceptance criterion
@@ -95,4 +94,5 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 - [R-6 — Go emitter — payload types and name constants](R-6-go-emitter-types.md) · Generator · 30 generated Go types and 36 exact-byte fixture cases now project the frozen catalog
 - [R-7 — EnvelopeSpec and the generated Go classic.v1 codec](R-7-envelope-emitter.md) · Generator · classic.v1 is declared once and emitted as a byte-proven Go Envelope implementation
 - [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · semantic frame and transport seams, drain-safe memory transport, and canonical Go module path are complete
+- [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · semantic session, negotiated audio and WebSocket transport are complete with frozen wire parity
 <!-- END track:board -->
