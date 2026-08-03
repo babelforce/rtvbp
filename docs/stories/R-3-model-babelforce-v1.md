@@ -2,7 +2,7 @@
 id: R-3
 title: Model babelforce.v1 in the spec crate
 pillar: Spec
-status: ready
+status: in-progress
 priority: 3
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
@@ -35,7 +35,8 @@ every SDK and every document.
       round-trips its own schema.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started; inventorying the frozen Go payloads and adding failing-first catalog
+  completeness, presence, role, and validation tests.
 
 ## Notes
 - Port field-for-field from `rtvbp-go/proto/protov1/*.go`. Prose for doc comments can be lifted from
