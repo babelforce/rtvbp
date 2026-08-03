@@ -8,7 +8,9 @@ pub mod write;
 
 use thiserror::Error;
 
-pub use emit::{GeneratedFile, Target, emit_docs, emit_go, emit_go_envelope, emit_manifest};
+pub use emit::{
+    GeneratedFile, Target, emit_docs, emit_go, emit_go_envelope, emit_manifest, emit_vectors,
+};
 pub use resolve::{ResolveError, ResolvedCatalog, resolve};
 
 #[derive(Debug, Error)]
@@ -25,6 +27,8 @@ pub enum GenerateError {
     GoEmit(#[from] emit::GoEmitError),
     #[error(transparent)]
     DocsEmit(#[from] emit::DocsEmitError),
+    #[error(transparent)]
+    VectorEmit(#[from] emit::VectorEmitError),
 }
 
 /// Run the side-effect-free load → validate → resolve → emit pipeline.
@@ -41,6 +45,7 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
             Target::Manifest => files.extend(emit_manifest(&resolved)?),
             Target::Go => files.extend(emit_go(&resolved)?),
             Target::Docs => files.extend(emit_docs(&resolved, &envelopes)?),
+            Target::Vectors => files.extend(emit_vectors(&resolved, &envelopes)?),
         }
     }
     if target == Target::Go {

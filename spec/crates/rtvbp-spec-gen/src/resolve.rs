@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use rtvbp_spec_model::{
     Catalog, CatalogId, EventExample, FixtureTarget, OperationExample, OperationRejection, Role,
-    TypeRef,
+    Scenario, TypeRef,
 };
 use serde_json::Value;
 use thiserror::Error;
@@ -14,6 +14,7 @@ pub struct ResolvedCatalog {
     pub events: Vec<ResolvedEvent>,
     pub schemas: BTreeMap<String, Value>,
     pub fixtures: Vec<ResolvedFixture>,
+    pub scenarios: Vec<Scenario>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -67,6 +68,7 @@ pub enum ResolveError {
 
 /// Resolve one validated catalog into the complete, emitter-facing model.
 pub fn resolve(catalog: Catalog) -> Result<ResolvedCatalog, ResolveError> {
+    let scenarios = catalog.scenarios.clone();
     let mut schemas = BTreeMap::new();
     let mut operations = Vec::with_capacity(catalog.operations.len());
     for mut operation in catalog.operations {
@@ -158,6 +160,7 @@ pub fn resolve(catalog: Catalog) -> Result<ResolvedCatalog, ResolveError> {
         events,
         schemas,
         fixtures,
+        scenarios,
     })
 }
 

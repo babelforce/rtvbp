@@ -11,6 +11,8 @@ use crate::resolve::{ResolvedCatalog, ResolvedEvent, ResolvedOperation};
 
 mod go;
 pub use go::{GoEmitError, emit_go, emit_go_envelope};
+mod vectors;
+pub use vectors::{VectorEmitError, emit_vectors};
 mod docs;
 pub use docs::{DocsEmitError, emit_docs};
 
@@ -22,6 +24,7 @@ pub enum Target {
     Manifest,
     Go,
     Docs,
+    Vectors,
 }
 
 impl FromStr for Target {
@@ -32,13 +35,14 @@ impl FromStr for Target {
             "manifest" => Ok(Self::Manifest),
             "go" => Ok(Self::Go),
             "docs" => Ok(Self::Docs),
+            "vectors" => Ok(Self::Vectors),
             _ => Err(UnknownTarget(value.to_owned())),
         }
     }
 }
 
 impl Target {
-    pub const ALL: [Self; 3] = [Self::Manifest, Self::Go, Self::Docs];
+    pub const ALL: [Self; 4] = [Self::Manifest, Self::Go, Self::Docs, Self::Vectors];
 
     #[must_use]
     pub const fn canonical_out_dir(self) -> &'static str {
@@ -46,6 +50,7 @@ impl Target {
             Self::Manifest => "spec/manifests",
             Self::Go => "sdk/go",
             Self::Docs => "website/docs/reference",
+            Self::Vectors => "conformance",
         }
     }
 
@@ -76,12 +81,23 @@ impl Target {
                     && file_name
                         .is_some_and(|name| name == "_category_.json" || name.ends_with(".mdx"))
             }
+            Self::Vectors => {
+                let parts = path
+                    .iter()
+                    .filter_map(|part| part.to_str())
+                    .collect::<Vec<_>>();
+                matches!(
+                    parts.as_slice(),
+                    [_, "payloads", file] | [_, "scenarios", file]
+                        if file.ends_with(".json")
+                ) || matches!(parts.as_slice(), [_, "envelope", _, "frames.json"])
+            }
         }
     }
 }
 
 #[derive(Debug, Error)]
-#[error("unknown emit target {0:?}; expected manifest, go, or docs")]
+#[error("unknown emit target {0:?}; expected manifest, go, docs, or vectors")]
 pub struct UnknownTarget(String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]

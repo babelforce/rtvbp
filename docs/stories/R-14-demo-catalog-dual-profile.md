@@ -2,12 +2,12 @@
 id: R-14
 title: demo.v1 catalog and a dual-profile example
 pillar: Spec
-status: backlog
+status: ready
 priority: 15
 design: docs/designs/multi-catalog.md
 epic: multi-catalog
 areas: [spec, generator, sdk-go]
-note: blocked on R-11; exercises the completed role/docs emitters and generated vectors together
+note: role, docs and vector emitters are complete; ready after the higher-priority interop proof
 ---
 
 # demo.v1 catalog and a dual-profile example

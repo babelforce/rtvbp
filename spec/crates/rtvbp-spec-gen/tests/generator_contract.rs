@@ -508,6 +508,69 @@ fn docs_emitter_projects_the_catalog_roles_examples_and_envelope() {
 }
 
 #[test]
+fn vector_emitter_projects_payloads_envelope_cases_and_typed_scenarios() {
+    assert_eq!(Target::from_str("vectors").unwrap(), Target::Vectors);
+    assert_eq!(Target::Vectors.canonical_out_dir(), "conformance");
+    assert!(Target::Vectors.owns_output_path(Path::new("babelforce.v1/payloads/call.hangup.json")));
+    assert!(!Target::Vectors.owns_output_path(Path::new(
+        "babelforce.v1/golden/payloads/call.hangup.request.json"
+    )));
+
+    let first = generate(Target::Vectors).unwrap();
+    let second = generate(Target::Vectors).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first.len(), 14);
+
+    let payload: Value = serde_json::from_str(generated_text(
+        &first,
+        "babelforce.v1/payloads/call.hangup.json",
+    ))
+    .unwrap();
+    assert_eq!(payload["method"], "call.hangup");
+    assert_eq!(
+        payload["request"]["valid"][0]["json"],
+        "{\"reason\":\"caller\"}"
+    );
+    assert!(
+        payload["request"]["invalid"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|case| case["error"] == "validation")
+    );
+
+    let frames: Value = serde_json::from_str(generated_text(
+        &first,
+        "babelforce.v1/envelope/classic.v1/frames.json",
+    ))
+    .unwrap();
+    assert_eq!(frames["envelope"], "classic.v1");
+    assert_eq!(frames["encode"].as_array().unwrap().len(), 10);
+    assert!(frames["decode"].as_array().unwrap().iter().any(|case| {
+        case["name"] == "structural_precedence" && case["frame"]["kind"] == "event"
+    }));
+    assert!(frames["invalid"].as_array().unwrap().len() >= 3);
+
+    let initialize: Value = serde_json::from_str(generated_text(
+        &first,
+        "babelforce.v1/scenarios/initialize-updated-dtmf.json",
+    ))
+    .unwrap();
+    assert_eq!(initialize["roles"]["voice"], "voice");
+    assert_eq!(initialize["roles"]["application"], "application");
+    assert_eq!(initialize["cases"][0]["steps"][0]["id"], "$init");
+    assert_eq!(initialize["cases"][0]["steps"][1]["response"], "$init");
+
+    let termination: Value = serde_json::from_str(generated_text(
+        &first,
+        "babelforce.v1/scenarios/termination.json",
+    ))
+    .unwrap();
+    assert_eq!(termination["cases"].as_array().unwrap().len(), 3);
+    assert_eq!(termination["cases"][2]["steps"][1]["error"]["code"], 501);
+}
+
+#[test]
 fn docs_emitter_is_catalog_agnostic_and_escapes_mdx_content() {
     let operation = Operation::new::<Request, Response>("demo.render", Role::Application)
         .docs("Render <unsafe> {content} | safely.")

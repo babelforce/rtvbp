@@ -32,6 +32,7 @@ pub enum ControlFrame {
 pub struct WireError {
     pub code: i64,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
 

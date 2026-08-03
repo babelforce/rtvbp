@@ -1,5 +1,6 @@
 use rtvbp_spec_model::{
-    Catalog, CatalogFixture, Event, Nullable, Operation, OperationRejection, Role, TypeRef,
+    Catalog, CatalogFixture, Event, Nullable, Operation, OperationRejection, Role, Scenario,
+    ScenarioCase, ScenarioStep, TypeRef,
 };
 use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,25 @@ struct DemoResponse {
 #[derive(Deserialize, JsonSchema, Serialize)]
 struct DemoEvent {
     state: String,
+}
+
+fn catalog_with_scenario(scenario: Scenario) -> Catalog {
+    Catalog::new("demo", 1)
+        .operation(
+            Operation::new::<DemoRequest, DemoResponse>("demo.run", Role::Application)
+                .docs("Run the demo operation.")
+                .example(
+                    "canonical",
+                    json!({"input": "hello"}),
+                    json!({"output": "world"}),
+                ),
+        )
+        .event(
+            Event::new::<DemoEvent>("demo.updated", Role::Voice)
+                .docs("Report demo state.")
+                .example("canonical", json!({"state": "ready"})),
+        )
+        .scenarios([scenario])
 }
 
 #[derive(Debug, Deserialize, JsonSchema, Serialize)]
@@ -212,6 +232,126 @@ fn catalog_validation_rejects_operations_and_events_without_roles() {
     );
     assert!(
         error.contains("event \"demo.updated\" has no role"),
+        "{error}"
+    );
+}
+
+#[test]
+fn catalog_validation_checks_typed_scenario_payloads_directions_and_bindings() {
+    let valid = Scenario::new("demo-flow")
+        .role("voice", Role::Voice)
+        .role("application", Role::Application)
+        .case(ScenarioCase::new(
+            "canonical",
+            [
+                ScenarioStep::request(
+                    "voice",
+                    "$request",
+                    "demo.run",
+                    &DemoRequest {
+                        input: "hello".to_owned(),
+                    },
+                ),
+                ScenarioStep::response(
+                    "application",
+                    "$request",
+                    &DemoResponse {
+                        output: "world".to_owned(),
+                    },
+                ),
+                ScenarioStep::event(
+                    "voice",
+                    "$event",
+                    "demo.updated",
+                    &DemoEvent {
+                        state: "ready".to_owned(),
+                    },
+                ),
+            ],
+        ));
+    catalog_with_scenario(valid).validate().unwrap();
+
+    let invalid_payload = Scenario::new("invalid-payload")
+        .role("voice", Role::Voice)
+        .role("application", Role::Application)
+        .case(ScenarioCase::new(
+            "canonical",
+            [
+                ScenarioStep::Request {
+                    from: "voice".to_owned(),
+                    id: "$request".to_owned(),
+                    method: "demo.run".to_owned(),
+                    params: json!({"input": 42}),
+                },
+                ScenarioStep::response(
+                    "application",
+                    "$request",
+                    &DemoResponse {
+                        output: "world".to_owned(),
+                    },
+                ),
+            ],
+        ));
+    let error = catalog_with_scenario(invalid_payload)
+        .validate()
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("payload does not match DemoRequest"),
+        "{error}"
+    );
+
+    let invalid_direction = Scenario::new("invalid-direction")
+        .role("voice", Role::Voice)
+        .role("application", Role::Application)
+        .case(ScenarioCase::new(
+            "canonical",
+            [
+                ScenarioStep::request(
+                    "application",
+                    "$request",
+                    "demo.run",
+                    &DemoRequest {
+                        input: "hello".to_owned(),
+                    },
+                ),
+                ScenarioStep::response(
+                    "voice",
+                    "$request",
+                    &DemoResponse {
+                        output: "world".to_owned(),
+                    },
+                ),
+            ],
+        ));
+    let error = catalog_with_scenario(invalid_direction)
+        .validate()
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("application cannot send operation \"demo.run\""),
+        "{error}"
+    );
+
+    let unbound_response = Scenario::new("unbound-response")
+        .role("voice", Role::Voice)
+        .role("application", Role::Application)
+        .case(ScenarioCase::new(
+            "canonical",
+            [ScenarioStep::response(
+                "application",
+                "$missing",
+                &DemoResponse {
+                    output: "world".to_owned(),
+                },
+            )],
+        ));
+    let error = catalog_with_scenario(unbound_response)
+        .validate()
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("response references unknown binding \"$missing\""),
         "{error}"
     );
 }

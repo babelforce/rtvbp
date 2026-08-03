@@ -8,7 +8,7 @@ use rtvbp_spec_babelforce_v1::{
     RecordingStartRequest, SessionInitializeRequest, SessionInitializeResponse,
     SessionUpdatedEvent, catalog,
 };
-use rtvbp_spec_model::{Nullable, Role};
+use rtvbp_spec_model::{Nullable, Role, ScenarioStep};
 use schemars::schema_for;
 use serde_json::{Value, json};
 
@@ -100,6 +100,41 @@ fn catalog_declares_every_event_role_doc_and_example() {
 #[test]
 fn catalog_and_every_typed_example_validate() {
     catalog().validate().unwrap();
+}
+
+#[test]
+fn catalog_owns_the_three_typed_conformance_scenarios() {
+    let catalog = catalog();
+    let scenarios = catalog
+        .scenarios
+        .iter()
+        .map(|scenario| (scenario.name.as_str(), scenario.cases.len()))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(
+        scenarios,
+        BTreeMap::from([
+            ("initialize-updated-dtmf", 1),
+            ("ping", 1),
+            ("termination", 3),
+        ])
+    );
+
+    let reverse = catalog
+        .scenarios
+        .iter()
+        .find(|scenario| scenario.name == "termination")
+        .unwrap()
+        .cases
+        .iter()
+        .find(|case| case.name == "reverse-session-terminate-rejection")
+        .unwrap();
+    assert!(matches!(
+        &reverse.steps[1],
+        ScenarioStep::Response {
+            error: Some(error),
+            ..
+        } if error.code == 501
+    ));
 }
 
 #[test]

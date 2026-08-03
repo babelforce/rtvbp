@@ -128,6 +128,7 @@ pub fn catalog() -> Catalog {
             examples::agent_tool_call(),
         ))
         .fixtures(crate::fixtures::fixtures())
+        .scenarios(crate::scenarios::scenarios())
 }
 
 fn operation<Request: Serialize, Response: Serialize>(

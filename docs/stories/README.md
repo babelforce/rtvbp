@@ -20,8 +20,9 @@ classic.v1 envelope codec, and R-9 completed the semantic session, negotiated au
 transport rewrite. R-19 closed the second soundness review with measured float authority, complete
 transcript-done presence fixtures, and explicit namespace/null rules before conformance vectors or
 public reference pages are emitted. R-10 completed role-specific generated dispatch, typed clients,
-validation and the Go voice-bridge cutover, and R-13 now generates the published catalog and
-envelope reference. R-11 conformance vectors and R-12 published-version interop are next.
+validation and the Go voice-bridge cutover, R-13 now generates the published catalog and envelope
+reference, and R-11 generates language-neutral conformance vectors exercised through both Go roles.
+R-12 published-version interop is next.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -43,7 +44,6 @@ _None._
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · R-10/R-19 prerequisites are complete; generated vectors and the Go harness are next
 - [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · R-10 ported the demos; published-v0.37 interop now proves deployed peers are unaffected
 
 ### the spec crate and the generator core
@@ -51,6 +51,10 @@ _Before anything can be generated there must be a source of truth that is provab
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
+
+### multi-catalog operation and profile negotiation
+_The framework claims to be catalog-agnostic and to support **any transport × any envelope**. A claim_
+- [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · role, docs and vector emitters are complete; ready after the higher-priority interop proof
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
@@ -70,7 +74,6 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 
 ### multi-catalog operation and profile negotiation
 _The framework claims to be catalog-agnostic and to support **any transport × any envelope**. A claim_
-- [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · blocked on R-11; exercises the completed role/docs emitters and generated vectors together
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
@@ -82,6 +85,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 - [R-1 — Capture frozen golden wire fixtures from rtvbp-go](R-1-capture-golden-wire-fixtures.md) · Proof · the authority for every later byte-identity check — capture before the spec is written
 - [R-17 — Complete babelforce.v1 wire authority and fixture variants](R-17-harden-v1-wire-authority.md) · Proof · 46 source-pinned fixtures now cover every catalog shape and the missing wire variants
 - [R-19 — Close follow-up soundness review residuals before vectors and public reference](R-19-close-followup-soundness-review.md) · Proof · follow-up review residuals are closed before vectors and public reference output
+- [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · generated payload/envelope vectors and typed scenarios now execute through both Go roles
 
 ### the spec crate and the generator core
 _Before anything can be generated there must be a source of truth that is provably equal to the_

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::{Component, Path};
 
@@ -7,6 +7,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
+
+use crate::{Scenario, ScenarioStep};
 
 /// Method prefix reserved for envelope-independent transport signaling.
 pub const RESERVED_TRANSPORT_METHOD_PREFIX: &str = "transport.";
@@ -18,6 +20,7 @@ pub struct Catalog {
     pub operations: Vec<Operation>,
     pub events: Vec<Event>,
     pub fixtures: Vec<CatalogFixture>,
+    pub scenarios: Vec<Scenario>,
 }
 
 impl Catalog {
@@ -28,6 +31,7 @@ impl Catalog {
             operations: Vec::new(),
             events: Vec::new(),
             fixtures: Vec::new(),
+            scenarios: Vec::new(),
         }
     }
 
@@ -46,6 +50,12 @@ impl Catalog {
     #[must_use]
     pub fn fixtures(mut self, fixtures: impl IntoIterator<Item = CatalogFixture>) -> Self {
         self.fixtures.extend(fixtures);
+        self
+    }
+
+    #[must_use]
+    pub fn scenarios(mut self, scenarios: impl IntoIterator<Item = Scenario>) -> Self {
+        self.scenarios.extend(scenarios);
         self
     }
 
@@ -198,6 +208,8 @@ impl Catalog {
                 }),
             }
         }
+
+        validate_scenarios(&mut issues, self);
 
         if issues.is_empty() {
             Ok(())
@@ -616,6 +628,15 @@ pub enum CatalogValidationError {
         expected: Value,
         actual: Value,
     },
+    #[error("conformance scenario {scenario:?} case {case:?} step {step}: {message}")]
+    InvalidScenario {
+        scenario: String,
+        case: String,
+        step: usize,
+        message: String,
+    },
+    #[error("duplicate conformance scenario name {name:?}")]
+    DuplicateScenario { name: String },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -647,6 +668,334 @@ impl fmt::Display for ExampleSide {
             Self::Response => "response",
             Self::EventData => "event data",
         })
+    }
+}
+
+fn validate_scenarios(issues: &mut Vec<CatalogValidationError>, catalog: &Catalog) {
+    let mut scenario_names = HashSet::new();
+    for scenario in &catalog.scenarios {
+        if scenario.name.trim().is_empty() {
+            scenario_issue(
+                issues,
+                &scenario.name,
+                "<name>",
+                0,
+                "scenario name must not be empty",
+            );
+        }
+        if !scenario_names.insert(scenario.name.as_str()) {
+            issues.push(CatalogValidationError::DuplicateScenario {
+                name: scenario.name.clone(),
+            });
+        }
+        let concrete_roles = scenario.roles.values().copied().collect::<HashSet<_>>();
+        if scenario.roles.len() != 2
+            || concrete_roles != HashSet::from([Role::Voice, Role::Application])
+        {
+            issues.push(CatalogValidationError::InvalidScenario {
+                scenario: scenario.name.clone(),
+                case: "<roles>".to_owned(),
+                step: 0,
+                message: "roles must contain concrete voice and application peers".to_owned(),
+            });
+        }
+        if scenario.cases.is_empty() {
+            scenario_issue(
+                issues,
+                &scenario.name,
+                "<cases>",
+                0,
+                "scenario must contain at least one case",
+            );
+        }
+        let mut case_names = HashSet::new();
+        for case in &scenario.cases {
+            if case.name.trim().is_empty() {
+                scenario_issue(
+                    issues,
+                    &scenario.name,
+                    &case.name,
+                    0,
+                    "case name must not be empty",
+                );
+            }
+            if !case_names.insert(case.name.as_str()) {
+                scenario_issue(issues, &scenario.name, &case.name, 0, "duplicate case name");
+            }
+            if case.steps.is_empty() {
+                scenario_issue(
+                    issues,
+                    &scenario.name,
+                    &case.name,
+                    0,
+                    "case must contain at least one step",
+                );
+                continue;
+            }
+            let mut bindings = HashMap::new();
+            for (index, step) in case.steps.iter().enumerate() {
+                let from = match step {
+                    ScenarioStep::Request { from, .. }
+                    | ScenarioStep::Response { from, .. }
+                    | ScenarioStep::Event { from, .. } => from,
+                };
+                let Some(sender) = scenario.roles.get(from).copied() else {
+                    scenario_issue(
+                        issues,
+                        &scenario.name,
+                        &case.name,
+                        index,
+                        &format!("unknown peer {from:?}"),
+                    );
+                    continue;
+                };
+                match step {
+                    ScenarioStep::Request {
+                        id, method, params, ..
+                    } => {
+                        if !valid_binding(id) || bindings.contains_key(id) {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                "request id must be a unique $binding",
+                            );
+                            continue;
+                        }
+                        let Some(operation) = catalog
+                            .operations
+                            .iter()
+                            .find(|operation| operation.method == *method)
+                        else {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                &format!("unknown operation {method:?}"),
+                            );
+                            continue;
+                        };
+                        let receiver = peer_role(sender);
+                        let rejection = operation
+                            .rejections
+                            .iter()
+                            .find(|rejection| rejection.role == receiver);
+                        let accepted = operation
+                            .handled_by
+                            .is_some_and(|role| role == receiver || role == Role::Both)
+                            || rejection.is_some();
+                        if !accepted {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                &format!("{sender} cannot send operation {method:?}"),
+                            );
+                        }
+                        validate_scenario_value(
+                            issues,
+                            &scenario.name,
+                            &case.name,
+                            index,
+                            &operation.request,
+                            params,
+                        );
+                        bindings.insert(id.clone(), Some((operation, sender, rejection)));
+                    }
+                    ScenarioStep::Response {
+                        response,
+                        result,
+                        error,
+                        ..
+                    } => {
+                        let Some(Some((operation, requester, rejection))) =
+                            bindings.get(response).copied()
+                        else {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                &format!("response references unknown binding {response:?}"),
+                            );
+                            continue;
+                        };
+                        if sender != peer_role(requester) {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                "response must come from the request peer",
+                            );
+                        }
+                        if result.is_some() == error.is_some() {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                "response must contain exactly one of result or error",
+                            );
+                        }
+                        if let Some(result) = result {
+                            validate_scenario_value(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                &operation.response,
+                                result,
+                            );
+                        }
+                        if let Some(error) = error
+                            && (error.code == 0 || error.message.trim().is_empty())
+                        {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                "response error requires a non-zero code and message",
+                            );
+                        }
+                        if let Some(rejection) = rejection
+                            && error.as_ref().is_none_or(|error| {
+                                error.code != rejection.code || error.message != rejection.message
+                            })
+                        {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                "response must match the declared role rejection",
+                            );
+                        }
+                        bindings.remove(response);
+                    }
+                    ScenarioStep::Event {
+                        id, event, data, ..
+                    } => {
+                        if !valid_binding(id) || bindings.contains_key(id) {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                "event id must be a unique $binding",
+                            );
+                        }
+                        let Some(event_spec) =
+                            catalog.events.iter().find(|item| item.name == *event)
+                        else {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                &format!("unknown event {event:?}"),
+                            );
+                            continue;
+                        };
+                        if event_spec
+                            .emitted_by
+                            .is_some_and(|role| role != sender && role != Role::Both)
+                        {
+                            scenario_issue(
+                                issues,
+                                &scenario.name,
+                                &case.name,
+                                index,
+                                &format!("{sender} cannot emit event {event:?}"),
+                            );
+                        }
+                        validate_scenario_value(
+                            issues,
+                            &scenario.name,
+                            &case.name,
+                            index,
+                            &event_spec.data,
+                            data,
+                        );
+                        bindings.insert(id.clone(), None);
+                    }
+                }
+            }
+            for (binding, request) in bindings {
+                if request.is_some() {
+                    scenario_issue(
+                        issues,
+                        &scenario.name,
+                        &case.name,
+                        case.steps.len(),
+                        &format!("request binding {binding:?} has no response"),
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn validate_scenario_value(
+    issues: &mut Vec<CatalogValidationError>,
+    scenario: &str,
+    case: &str,
+    step: usize,
+    payload: &TypeRef,
+    value: &Value,
+) {
+    match payload.round_trip(value) {
+        Ok(actual) if actual == *value => {}
+        Ok(_) => scenario_issue(
+            issues,
+            scenario,
+            case,
+            step,
+            &format!("payload changes after typed {} round-trip", payload.name),
+        ),
+        Err(error) => scenario_issue(
+            issues,
+            scenario,
+            case,
+            step,
+            &format!("payload does not match {}: {error}", payload.name),
+        ),
+    }
+}
+
+fn scenario_issue(
+    issues: &mut Vec<CatalogValidationError>,
+    scenario: &str,
+    case: &str,
+    step: usize,
+    message: &str,
+) {
+    issues.push(CatalogValidationError::InvalidScenario {
+        scenario: scenario.to_owned(),
+        case: case.to_owned(),
+        step,
+        message: message.to_owned(),
+    });
+}
+
+fn valid_binding(value: &str) -> bool {
+    value.strip_prefix('$').is_some_and(|name| {
+        !name.is_empty()
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+    })
+}
+
+fn peer_role(role: Role) -> Role {
+    match role {
+        Role::Voice => Role::Application,
+        Role::Application => Role::Voice,
+        Role::Both => Role::Both,
     }
 }
 

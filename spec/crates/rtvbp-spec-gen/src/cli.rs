@@ -7,7 +7,7 @@ use crate::emit::{Target, UnknownTarget};
 use crate::write::{WriteError, check_owned_files, synchronize_files};
 use crate::{GenerateError, generate};
 
-const USAGE: &str = "usage: rtvbp-spec-gen --emit=<manifest|go|docs> [--out=<dir>] [--check]\n       rtvbp-spec-gen --check";
+const USAGE: &str = "usage: rtvbp-spec-gen --emit=<manifest|go|docs|vectors> [--out=<dir>] [--check]\n       rtvbp-spec-gen --check";
 
 #[derive(Debug, Error)]
 pub enum CliError {

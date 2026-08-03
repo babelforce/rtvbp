@@ -3,6 +3,7 @@
 mod catalog;
 mod envelope;
 mod nullable;
+mod scenario;
 
 pub use catalog::{
     Catalog, CatalogFixture, CatalogId, CatalogItemKind, CatalogValidationError,
@@ -15,3 +16,4 @@ pub use envelope::{
     FrameKind, FrameSpec, WireError,
 };
 pub use nullable::Nullable;
+pub use scenario::{Scenario, ScenarioCase, ScenarioStep};

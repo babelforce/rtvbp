@@ -68,3 +68,7 @@ All notable changes to this project are documented here. The format is based on
   reference pages now derive from the catalog schemas, comments, examples and envelope declaration.
   Replaced the stale v1 prose with WebSocket binding and profile-negotiation guides, including the
   `rtvbp.v1` compatibility default and reserved `transport.*` operation namespace.
+- Added spec-authored conformance scenarios and generated language-neutral payload, classic-envelope
+  and multi-message vectors. A hand-written Go harness consumes the committed monorepo artifacts,
+  checks exact encoded bytes, normalizes generated IDs structurally, and executes every scenario
+  through the memory transport with both application and voice roles under test.
