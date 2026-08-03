@@ -216,7 +216,26 @@ fn go_type(
     let object = schema
         .as_object()
         .ok_or_else(|| schema_error(owner, "type schema is not an object".to_owned()))?;
-    if let Some(reference) = object.get("$ref").and_then(Value::as_str) {
+    let hint = match object.get("x-go-type") {
+        None => None,
+        Some(Value::String(hint)) => Some(hint.as_str()),
+        Some(_) => {
+            return Err(schema_error(
+                owner,
+                "invalid x-go-type extension".to_owned(),
+            ));
+        }
+    };
+    if let Some(reference) = object.get("$ref") {
+        if hint.is_some() {
+            return Err(schema_error(
+                owner,
+                "invalid x-go-type extension on reference".to_owned(),
+            ));
+        }
+        let reference = reference
+            .as_str()
+            .ok_or_else(|| schema_error(owner, "$ref is not a string".to_owned()))?;
         let name = schema_ref_name(reference)
             .ok_or_else(|| schema_error(owner, format!("unsupported reference {reference:?}")))?;
         if !schemas.contains_key(&name) {
@@ -231,7 +250,6 @@ fn go_type(
         return Err(schema_error(owner, "unsupported union schema".to_owned()));
     }
     let type_name = object.get("type").and_then(Value::as_str);
-    let hint = object.get("x-go-type").and_then(Value::as_str);
     if hint.is_some()
         && !matches!(
             (type_name, hint),
@@ -730,6 +748,25 @@ mod tests {
 
         let wrong_type = json!({"type": ["boolean", "null"], "x-go-type": "*string"});
         let error = resolve_field("Payload", "text", &wrong_type, false, &schemas).unwrap_err();
+        assert!(error.to_string().contains("invalid x-go-type extension"));
+    }
+
+    #[test]
+    fn go_type_rejects_malformed_hints_and_hints_on_references() {
+        let mut schemas = BTreeMap::new();
+        schemas.insert("Named".to_owned(), json!({"type": "string"}));
+
+        for hint in [json!(true), json!(7), Value::Null] {
+            let schema = json!({"type": "string", "x-go-type": hint});
+            let error = go_type("Payload", &schema, &schemas).unwrap_err();
+            assert!(error.to_string().contains("invalid x-go-type extension"));
+        }
+
+        let reference = json!({
+            "$ref": "#/schemas/Named",
+            "x-go-type": "*string"
+        });
+        let error = go_type("Payload", &reference, &schemas).unwrap_err();
         assert!(error.to_string().contains("invalid x-go-type extension"));
     }
 }
