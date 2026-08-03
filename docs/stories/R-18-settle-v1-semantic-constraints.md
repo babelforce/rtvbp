@@ -2,7 +2,7 @@
 id: R-18
 title: Settle frozen v1 semantic constraints before generation
 pillar: Spec
-status: ready
+status: in-progress
 priority: 5
 design: docs/reviews/2026-08-03-soundness-review.md
 epic: spec-catalog
@@ -35,6 +35,8 @@ decisions before generated codecs, role interfaces, and public documentation dep
 ## Progress
 - 2026-08-03: Repository audit resolved the role contradiction in favor of the frozen deployed
   direction (`Application`); codec and namespace decisions remain to implement.
+- 2026-08-03: Started; deriving response/error permissiveness from the deployed Go decoder and
+  adding failing-first validation tests for the reserved namespace.
 
 ## Notes
 - Review: [`docs/reviews/2026-08-03-soundness-review.md`](../reviews/2026-08-03-soundness-review.md),
