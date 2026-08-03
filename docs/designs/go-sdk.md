@@ -184,8 +184,15 @@ including the `ID`, `RTT`, and `OWD` initialisms.
 The source catalog also owns a target-neutral registry of all frozen payload/event fixtures. Each
 entry binds a relative fixture path and bytes to an operation request, operation response, or event
 type and is validated by typed round-trip before resolution. The Go emitter uses that registry to
-generate standard-library-only construction and unmarshal/re-marshal tests for all 36 payload/event
-fixtures; the ten `classic.v1` envelope fixtures remain R-7's responsibility.
+generate standard-library-only construction and unmarshal/re-marshal tests for every registered
+payload/event fixture; the `classic.v1` envelope fixtures remain R-7's responsibility.
+
+Role API names describe the **local** role. `ApplicationHandler` implements operations handled by
+the application, `ApplicationEventHandler` receives events emitted by the peer (the voice role), and
+`ApplicationEvents` emits events owned by the application. `VoiceHandler`, `VoiceEventHandler`, and
+`VoiceEvents` are the converse. An operation or event assigned to `Both` appears in both local-role
+surfaces. This convention keeps an integrator's implementation, subscriptions, and allowed emits
+under one role name instead of switching perspective between APIs.
 
 ```go
 // GENERATED — role asymmetry as concrete API surface
@@ -198,16 +205,76 @@ type VoiceHandler interface {         // what the voice side must implement
     AudioBufferClear(...) ; RecordingStart(...) ; RecordingStop(...) ; Ping(...)
 }
 
-func ApplicationHandlers(h ApplicationHandler) []rtvbp.RequestHandler  // binds into the runtime
-func VoiceHandlers(h VoiceHandler) []rtvbp.RequestHandler
+// []any is intentional: these collections expand directly into NewHandler(...any).
+func ApplicationHandlers(h ApplicationHandler) []any
+func VoiceHandlers(h VoiceHandler) []any
+
+type ApplicationEventHandler interface { // receives events emitted by Voice
+    AudioInfo(...) ; CallHangup(...) ; Dtmf(...) ; SessionUpdated(...)
+}
+type ApplicationEvents struct{ /* narrow notifier */ } // emits Application events
 
 // Typed client for the operations the *peer* role offers:
 type VoicePeer struct{ /* … */ }      // used from the application side
 func (v *VoicePeer) CallHangup(ctx context.Context, p *CallHangupRequest) (*EmptyResponse, error)
 ```
 
+Typed peers depend on a narrow requester interface matching `Session.Request` and `SHC.Request`;
+event emitters likewise depend on a narrow notifier matching `SHC.Notify`. They do not retain the
+whole session handler context. A successful response with an absent payload is decoded as `{}`
+before typed validation, matching the runtime's inbound empty-payload convention while still
+allowing the generated response validator to reject an invalid empty value.
+
+Validation is also generated, not handwritten into a catalog package. The target-neutral catalog
+model carries structured validation metadata, and the Go emitter projects it into `Validate`
+methods used by the runtime's existing `Validation` hook. The metadata includes every deployed
+semantic constraint currently enforced by `proto/protov1`: required non-empty reasons and
+identifiers, ping timestamp requirements, and DTMF digit, non-negative timestamp/sequence, and
+`released_at >= pressed_at` cross-field ordering. Cross-field predicates are first-class structured
+constraints rather than Go snippets, so later SDK emitters can produce the same behavior.
+
+Per-role operation rejection is target-neutral catalog data for the same reason. In particular, the
+voice role's reverse-direction `session.terminate` registration emits the deployed 501 code and
+exact message from catalog metadata. A generic emitter must never recognize `babelforce.v1` or a
+method spelling as a special case. Normal terminal behavior is simpler: the operation's `terminal`
+flag alone selects `HandleTerminalRequest` and therefore `RespondThenClose`; handlers and peer
+clients contain no per-operation shutdown side effects.
+
 Unknown method ⇒ 501, unknown event ⇒ ignored (as today), both hookable. Identifiers are idiomatic
 Go (`DtmfEvent`, field `Application`); wire names live only in tags.
+
+The remaining `proto/protov1` orchestration is split by derivability. Generated payloads, role
+adapters, typed peers, event helpers, validators, and role rejections replace and delete their
+handwritten counterparts. Codec-to-`MediaFormat` conversion, the local 20 ms PTime policy, ping
+timestamp calculation, initialization/audio negotiation, telephony callbacks, and audio
+observation remain a small handwritten `babelforce.v1` voice bridge built on the generated API.
+These are runtime or integration policies that the catalog does not describe. The nested demos move
+to that bridge and generated types as part of the same cutover.
+
+#### Compatibility and failing-first sequence
+
+The generated types already pin bytes; R-10 preserves behavior around those bytes. Structured
+validators retain deployed request rejection instead of silently accepting zero values after the
+type migration. Per-role rejection metadata retains the captured reverse `session.terminate` 501
+without contaminating a catalog-agnostic emitter. Terminal metadata makes all three declared
+terminal operations flush their response before close, and the narrow requester/notifier seams add
+type safety without changing envelope or transport behavior.
+
+Implementation proceeds with failing tests in this order:
+
+1. Generator contract tests use a synthetic catalog containing Application, Voice, Both,
+   terminal/non-terminal operations, both event directions, structured validators, and a per-role
+   rejection. The expected role file fails before the emitter is extended.
+2. Generated Go compile and adapter tests pin the exact interfaces, `[]any` registration, typed
+   request/response conversion, empty-payload decoding, validation, event direction, rejection, and
+   terminal close behavior.
+3. Runtime integration tests pin default and hooked unknown method/event behavior and exercise the
+   generated glue over the memory transport.
+4. The legacy handler scenarios are ported to the generated API and voice bridge. Terminal
+   `application.move` and `call.hangup` scenarios expect response-then-close rather than a later
+   handwritten shutdown; both nested demos must compile and run against the new packages.
+5. Delete the derivable `proto/protov1` types and adapters, regenerate, and run the full repository
+   gate plus race and leak checks.
 
 ## Alternatives considered
 
