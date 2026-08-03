@@ -42,6 +42,10 @@ type Session struct {
 	handler      SessionHandler
 	shCtx        *sessionHandlerCtx
 	audio        *audioStream
+	mediaMu      sync.Mutex
+	mediaState   audioBindState
+	media        MediaChannel
+	mediaWG      sync.WaitGroup
 	dispatch     *dispatchQueue
 	requestLimit time.Duration
 	closeTimeout time.Duration
@@ -210,11 +214,12 @@ func (s *Session) supervise(parent context.Context) {
 	terminal = s.shutdown(terminal, transport)
 	cancelTasks()
 	s.dispatch.close()
-	s.audio.Close()
+	_ = s.audio.Close()
 
 	workersDone := make(chan struct{})
 	go func() {
 		workers.Wait()
+		s.mediaWG.Wait()
 		close(workersDone)
 	}()
 	select {
@@ -239,6 +244,10 @@ func (s *Session) shutdown(terminal stopRequest, transport Transport) stopReques
 	}
 	s.failPending(pendingError)
 	_ = s.audio.Close()
+	if err := s.closeAudioMedia(); err != nil {
+		terminal.cause = errors.Join(terminal.cause, fmt.Errorf("close audio media: %w", err))
+		terminal.failed = true
+	}
 
 	if transport != nil {
 		timeout := s.teardownTimeout()

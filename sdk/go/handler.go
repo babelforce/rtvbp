@@ -33,6 +33,8 @@ type SHC interface {
 	RespondThenClose(ctx context.Context, response Response) error
 	DeferResponse() (DeferredResponse, error)
 	Notify(ctx context.Context, event NamedEvent) error
+	OpenAudio(ctx context.Context, format MediaFormat) error
+	AcceptAudio(ctx context.Context) error
 	AudioStream() HandlerAudio
 	Close(ctx context.Context) error
 	State() SessionState
@@ -66,6 +68,14 @@ func (h *sessionHandlerCtx) Request(ctx context.Context, request NamedRequest) (
 
 func (h *sessionHandlerCtx) Notify(ctx context.Context, event NamedEvent) error {
 	return h.sess.EventDispatch(ctx, event)
+}
+
+func (h *sessionHandlerCtx) OpenAudio(ctx context.Context, format MediaFormat) error {
+	return h.sess.OpenAudio(ctx, format)
+}
+
+func (h *sessionHandlerCtx) AcceptAudio(ctx context.Context) error {
+	return h.sess.AcceptAudio(ctx)
 }
 
 func (h *sessionHandlerCtx) Close(ctx context.Context) error { return h.sess.Close(ctx) }

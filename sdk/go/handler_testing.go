@@ -54,7 +54,11 @@ func (t *TestingSHC) DeferResponse() (DeferredResponse, error) {
 }
 
 func (t *TestingSHC) Notify(context.Context, NamedEvent) error { return nil }
-func (t *TestingSHC) AudioStream() HandlerAudio                { return nil }
+func (t *TestingSHC) OpenAudio(context.Context, MediaFormat) error {
+	return ErrMediaUnsupported
+}
+func (t *TestingSHC) AcceptAudio(context.Context) error { return ErrMediaUnsupported }
+func (t *TestingSHC) AudioStream() HandlerAudio         { return nil }
 
 func (t *TestingSHC) Close(context.Context) error {
 	t.mu.Lock()
