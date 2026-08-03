@@ -2,7 +2,7 @@
 id: R-2
 title: Scaffold the monorepo — spec workspace and sdk/go subtree import
 pillar: Spec
-status: ready
+status: in-progress
 priority: 2
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
@@ -29,7 +29,8 @@ the Go SDK imported with its history intact, and the shared model crate that lat
 - [ ] Root `.gitignore` covers Rust and Go build output.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started; importing the pinned `rtvbp-go v0.40.0` history and scaffolding the Rust
+  specification model.
 
 ## Notes
 - Already done ahead of this story: the Docusaurus site moved `docs/` → `website/` and the Pages
