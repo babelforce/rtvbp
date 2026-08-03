@@ -2,12 +2,12 @@
 id: R-16
 title: CI drift gate, Taskfile, first release and rtvbp-go deprecation
 pillar: Proof
-status: backlog
+status: in-progress
 priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
-note: blocked on R-15; generated docs are complete and real-call acceptance remains before release
+note: R-15 live acceptance passed; implementing the unified gate and first Go module release
 ---
 
 # CI drift gate, Taskfile, first release and rtvbp-go deprecation
@@ -29,7 +29,8 @@ build — and retire the old repository cleanly now that its consumers have some
 - [ ] The roadmap's Status and Delivered sections are updated to reflect the shipped milestone.
 
 ## Progress
-- (not started)
+- 2026-08-04: Started after the separately maintained `rtvbp-openai` service passed local and Fly
+  mic/speaker acceptance with duplex audio, DTMF, speech barge-in and clean termination.
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor

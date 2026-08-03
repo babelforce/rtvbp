@@ -80,3 +80,6 @@ All notable changes to this project are documented here. The format is based on
   and conformance-vector emitters as `babelforce.v1`. A dual-profile WebSocket example routes
   `rtvbp.v1` and `rtvbp.demo.v1` to their generated handlers, with live clients proving negotiated
   and headerless-default exchanges; explicit-empty profile configuration is now idempotent.
+- Proved the new Go SDK in the separately maintained `rtvbp-openai` service: the migrated OpenAI
+  Realtime GA adapter now runs on Fly, and public mic/speaker calls verified duplex audio, DTMF,
+  speech barge-in with `audio.buffer.clear`, and clean termination over RTVBP.
