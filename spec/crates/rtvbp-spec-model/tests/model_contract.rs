@@ -4,19 +4,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 #[allow(dead_code)]
-#[derive(JsonSchema)]
+#[derive(Deserialize, JsonSchema, Serialize)]
 struct DemoRequest {
     input: String,
 }
 
 #[allow(dead_code)]
-#[derive(JsonSchema)]
+#[derive(Deserialize, JsonSchema, Serialize)]
 struct DemoResponse {
     output: String,
 }
 
 #[allow(dead_code)]
-#[derive(JsonSchema)]
+#[derive(Deserialize, JsonSchema, Serialize)]
 struct DemoEvent {
     state: String,
 }
@@ -99,4 +99,71 @@ fn nullable_serializes_null_and_marks_required_nullable_schema() {
         .expect("nullable type must be a JSON Schema type union");
     assert!(nullable_types.contains(&json!("string")));
     assert!(nullable_types.contains(&json!("null")));
+}
+
+#[test]
+fn catalog_validation_rejects_duplicates_missing_docs_and_invalid_typed_examples() {
+    let valid = Operation::new::<DemoRequest, DemoResponse>("demo.run", Role::Application)
+        .docs("Run the demo operation.")
+        .example(
+            "canonical",
+            json!({"input": "hello"}),
+            json!({"output": "world"}),
+        );
+    let duplicate = Catalog::new("demo", 1)
+        .operation(valid.clone())
+        .operation(valid.clone());
+    assert!(
+        duplicate
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate operation")
+    );
+
+    let valid_event = Event::new::<DemoEvent>("demo.updated", Role::Voice)
+        .docs("Report demo state.")
+        .example("canonical", json!({"state": "ready"}));
+    let duplicate_event = Catalog::new("demo", 1)
+        .event(valid_event.clone())
+        .event(valid_event);
+    assert!(
+        duplicate_event
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("duplicate event")
+    );
+
+    let missing_docs = Catalog::new("demo", 1).operation(
+        Operation::new::<DemoRequest, DemoResponse>("demo.run", Role::Application).example(
+            "canonical",
+            json!({"input": "hello"}),
+            json!({"output": "world"}),
+        ),
+    );
+    assert!(
+        missing_docs
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("documentation")
+    );
+
+    let invalid_example = Catalog::new("demo", 1).operation(
+        Operation::new::<DemoRequest, DemoResponse>("demo.run", Role::Application)
+            .docs("Run the demo operation.")
+            .example(
+                "canonical",
+                json!({"input": 42}),
+                json!({"output": "world"}),
+            ),
+    );
+    assert!(
+        invalid_example
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("canonical")
+    );
 }

@@ -1,5 +1,8 @@
 [workspace]
-members = ["crates/rtvbp-spec-model"]
+members = [
+    "crates/rtvbp-spec-babelforce-v1",
+    "crates/rtvbp-spec-model",
+]
 resolver = "3"
 
 [workspace.package]

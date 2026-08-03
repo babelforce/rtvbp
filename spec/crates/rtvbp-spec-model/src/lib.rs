@@ -5,7 +5,8 @@ mod envelope;
 mod nullable;
 
 pub use catalog::{
-    Catalog, CatalogId, Event, EventExample, Operation, OperationExample, Role, TypeRef,
+    Catalog, CatalogId, CatalogItemKind, CatalogValidationError, CatalogValidationErrors, Event,
+    EventExample, ExampleSide, Operation, OperationExample, Role, TypeRef,
 };
 pub use envelope::{
     CodecError, ConstantField, ControlFrame, EnvelopeSpec, ErrorSpec, FieldSpec, FrameKind,

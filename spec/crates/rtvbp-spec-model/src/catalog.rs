@@ -1,8 +1,11 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use schemars::{JsonSchema, Schema, schema_for};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use thiserror::Error;
 
 /// A versioned payload catalog and all operations and events it declares.
 #[derive(Clone, Debug, PartialEq)]
@@ -32,6 +35,82 @@ impl Catalog {
     pub fn event(mut self, event: Event) -> Self {
         self.events.push(event);
         self
+    }
+
+    /// Validate registry uniqueness, documentation, and typed examples.
+    pub fn validate(&self) -> Result<(), CatalogValidationErrors> {
+        let mut issues = Vec::new();
+        let mut operation_names = HashSet::new();
+        for operation in &self.operations {
+            if !operation_names.insert(operation.method.as_str()) {
+                issues.push(CatalogValidationError::DuplicateOperation {
+                    method: operation.method.clone(),
+                });
+            }
+            validate_item_metadata(
+                &mut issues,
+                CatalogItemKind::Operation,
+                &operation.method,
+                operation.docs.as_deref(),
+                operation
+                    .examples
+                    .iter()
+                    .map(|example| example.name.as_str()),
+            );
+            for example in &operation.examples {
+                validate_example_value(
+                    &mut issues,
+                    CatalogItemKind::Operation,
+                    &operation.method,
+                    &example.name,
+                    ExampleSide::Request,
+                    &operation.request,
+                    &example.request,
+                );
+                validate_example_value(
+                    &mut issues,
+                    CatalogItemKind::Operation,
+                    &operation.method,
+                    &example.name,
+                    ExampleSide::Response,
+                    &operation.response,
+                    &example.response,
+                );
+            }
+        }
+
+        let mut event_names = HashSet::new();
+        for event in &self.events {
+            if !event_names.insert(event.name.as_str()) {
+                issues.push(CatalogValidationError::DuplicateEvent {
+                    name: event.name.clone(),
+                });
+            }
+            validate_item_metadata(
+                &mut issues,
+                CatalogItemKind::Event,
+                &event.name,
+                event.docs.as_deref(),
+                event.examples.iter().map(|example| example.name.as_str()),
+            );
+            for example in &event.examples {
+                validate_example_value(
+                    &mut issues,
+                    CatalogItemKind::Event,
+                    &event.name,
+                    &example.name,
+                    ExampleSide::EventData,
+                    &event.data,
+                    &example.data,
+                );
+            }
+        }
+
+        if issues.is_empty() {
+            Ok(())
+        } else {
+            Err(CatalogValidationErrors { issues })
+        }
     }
 }
 
@@ -68,19 +147,45 @@ pub enum Role {
 }
 
 /// A named Rust payload type and its complete JSON Schema.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct TypeRef {
     pub name: String,
     pub schema: Schema,
+    round_trip: fn(&Value) -> serde_json::Result<Value>,
 }
 
 impl TypeRef {
     #[must_use]
-    pub fn of<T: JsonSchema>() -> Self {
+    pub fn of<T>() -> Self
+    where
+        T: DeserializeOwned + JsonSchema + Serialize,
+    {
         Self {
             name: T::schema_name().into_owned(),
             schema: schema_for!(T),
+            round_trip: round_trip::<T>,
         }
+    }
+
+    /// Deserialize and reserialize a JSON value through the concrete payload type.
+    pub fn round_trip(&self, value: &Value) -> serde_json::Result<Value> {
+        (self.round_trip)(value)
+    }
+}
+
+impl fmt::Debug for TypeRef {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("TypeRef")
+            .field("name", &self.name)
+            .field("schema", &self.schema)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for TypeRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.schema == other.schema
     }
 }
 
@@ -98,10 +203,11 @@ pub struct Operation {
 
 impl Operation {
     #[must_use]
-    pub fn new<Request: JsonSchema, Response: JsonSchema>(
-        method: impl Into<String>,
-        handled_by: Role,
-    ) -> Self {
+    pub fn new<Request, Response>(method: impl Into<String>, handled_by: Role) -> Self
+    where
+        Request: DeserializeOwned + JsonSchema + Serialize,
+        Response: DeserializeOwned + JsonSchema + Serialize,
+    {
         Self {
             method: method.into(),
             handled_by,
@@ -156,7 +262,10 @@ pub struct Event {
 
 impl Event {
     #[must_use]
-    pub fn new<Data: JsonSchema>(name: impl Into<String>, emitted_by: Role) -> Self {
+    pub fn new<Data>(name: impl Into<String>, emitted_by: Role) -> Self
+    where
+        Data: DeserializeOwned + JsonSchema + Serialize,
+    {
         Self {
             name: name.into(),
             emitted_by,
@@ -187,4 +296,178 @@ impl Event {
 pub struct EventExample {
     pub name: String,
     pub data: Value,
+}
+
+/// All issues found while validating one catalog.
+#[derive(Debug)]
+pub struct CatalogValidationErrors {
+    pub issues: Vec<CatalogValidationError>,
+}
+
+impl fmt::Display for CatalogValidationErrors {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            formatter,
+            "catalog validation failed with {} issue(s):",
+            self.issues.len()
+        )?;
+        for issue in &self.issues {
+            writeln!(formatter, "- {issue}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for CatalogValidationErrors {}
+
+/// One actionable catalog validation issue.
+#[derive(Debug, Error)]
+pub enum CatalogValidationError {
+    #[error("duplicate operation method {method:?}")]
+    DuplicateOperation { method: String },
+    #[error("duplicate event name {name:?}")]
+    DuplicateEvent { name: String },
+    #[error("{kind} {name:?} has no documentation")]
+    MissingDocumentation { kind: CatalogItemKind, name: String },
+    #[error("{kind} {name:?} has no canonical examples")]
+    MissingExamples { kind: CatalogItemKind, name: String },
+    #[error("{kind} {name:?} has a blank canonical example name")]
+    BlankExampleName { kind: CatalogItemKind, name: String },
+    #[error("{kind} {name:?} has duplicate canonical example {example:?}")]
+    DuplicateExampleName {
+        kind: CatalogItemKind,
+        name: String,
+        example: String,
+    },
+    #[error(
+        "{kind} {name:?} canonical example {example:?} {side} does not match {payload_type}: {source}"
+    )]
+    ExampleRoundTrip {
+        kind: CatalogItemKind,
+        name: String,
+        example: String,
+        side: ExampleSide,
+        payload_type: String,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error(
+        "{kind} {name:?} canonical example {example:?} {side} changes after typed round-trip: expected {expected}, got {actual}"
+    )]
+    ExampleChanged {
+        kind: CatalogItemKind,
+        name: String,
+        example: String,
+        side: ExampleSide,
+        expected: Value,
+        actual: Value,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CatalogItemKind {
+    Operation,
+    Event,
+}
+
+impl fmt::Display for CatalogItemKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Operation => "operation",
+            Self::Event => "event",
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExampleSide {
+    Request,
+    Response,
+    EventData,
+}
+
+impl fmt::Display for ExampleSide {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Request => "request",
+            Self::Response => "response",
+            Self::EventData => "event data",
+        })
+    }
+}
+
+fn round_trip<T>(value: &Value) -> serde_json::Result<Value>
+where
+    T: DeserializeOwned + Serialize,
+{
+    serde_json::from_value::<T>(value.clone()).and_then(serde_json::to_value)
+}
+
+fn validate_item_metadata<'a>(
+    issues: &mut Vec<CatalogValidationError>,
+    kind: CatalogItemKind,
+    name: &str,
+    docs: Option<&str>,
+    example_names: impl Iterator<Item = &'a str>,
+) {
+    if docs.is_none_or(|docs| docs.trim().is_empty()) {
+        issues.push(CatalogValidationError::MissingDocumentation {
+            kind,
+            name: name.to_owned(),
+        });
+    }
+
+    let mut seen = HashSet::new();
+    let mut count = 0;
+    for example in example_names {
+        count += 1;
+        if example.trim().is_empty() {
+            issues.push(CatalogValidationError::BlankExampleName {
+                kind,
+                name: name.to_owned(),
+            });
+        } else if !seen.insert(example) {
+            issues.push(CatalogValidationError::DuplicateExampleName {
+                kind,
+                name: name.to_owned(),
+                example: example.to_owned(),
+            });
+        }
+    }
+    if count == 0 {
+        issues.push(CatalogValidationError::MissingExamples {
+            kind,
+            name: name.to_owned(),
+        });
+    }
+}
+
+fn validate_example_value(
+    issues: &mut Vec<CatalogValidationError>,
+    kind: CatalogItemKind,
+    name: &str,
+    example: &str,
+    side: ExampleSide,
+    payload_type: &TypeRef,
+    value: &Value,
+) {
+    match payload_type.round_trip(value) {
+        Ok(actual) if actual != *value => issues.push(CatalogValidationError::ExampleChanged {
+            kind,
+            name: name.to_owned(),
+            example: example.to_owned(),
+            side,
+            expected: value.clone(),
+            actual,
+        }),
+        Ok(_) => {}
+        Err(source) => issues.push(CatalogValidationError::ExampleRoundTrip {
+            kind,
+            name: name.to_owned(),
+            example: example.to_owned(),
+            side,
+            payload_type: payload_type.name.clone(),
+            source,
+        }),
+    }
 }
