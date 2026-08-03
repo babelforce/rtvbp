@@ -14,8 +14,7 @@ import (
 func TestDefaultSubprotocolIsOfferedAndSelected(t *testing.T) {
 	server, accepted := subprotocolServer(t, nil)
 	config := ClientConfig{
-		Dial:       DialConfig{URL: websocketURL(server.URL)},
-		SampleRate: 8000,
+		Dial: DialConfig{URL: websocketURL(server.URL)},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -91,7 +90,6 @@ func TestClientSubprotocolPreferenceFallsBackToSupportedProfile(t *testing.T) {
 	server, accepted := subprotocolServer(t, []string{DefaultSubprotocol})
 	config := ClientConfig{
 		Dial:         DialConfig{URL: websocketURL(server.URL)},
-		SampleRate:   8000,
 		Subprotocols: []string{"future.v9", DefaultSubprotocol},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
 )
 
 func serverUpgradeHandler(
@@ -46,17 +45,11 @@ func serverUpgradeHandler(
 		log.Debug("websocket upgrade successful")
 
 		sess := rtvbp.NewSession(
-			rtvbp.WithTransportFactory(func(ctx context.Context, audio io.ReadWriter) (rtvbp.LegacyTransport, error) {
-				trans := newTransport(
-					conn,
-					audio,
-					&TransportConfig{
-						Logger: log,
-					},
-				)
-
-				go trans.process(ctx)
-				return trans, nil
+			v1classic.Envelope{},
+			rtvbp.WithTransportFactory(func(ctx context.Context, _ rtvbp.Envelope) (rtvbp.Transport, error) {
+				// A hijacked HTTP request context is not the WebSocket lifetime;
+				// the owning session closes the transport explicitly.
+				return NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{Logger: log}), nil
 			}),
 			rtvbp.WithHandler(handler),
 			rtvbp.WithLogger(log),
@@ -74,7 +67,7 @@ func serverUpgradeHandler(
 
 		select {
 		case <-ctx.Done():
-			_ = sess.Close(context.Background(), nil)
+			_ = sess.Close(context.Background())
 			return
 		case err := <-doneChan:
 			if err != nil {
@@ -88,7 +81,6 @@ func serverUpgradeHandler(
 type ServerConfig struct {
 	Addr        string
 	Path        string
-	ChunkSize   int
 	AuthHandler func(req *http.Request) error
 	Debug       bool
 	// Subprotocols lists supported RTVBP profiles in server preference order.
@@ -102,9 +94,6 @@ func (c *ServerConfig) Defaults() {
 	}
 	if c.Path == "" {
 		c.Path = "/"
-	}
-	if c.ChunkSize == 0 {
-		c.ChunkSize = 160
 	}
 	c.Subprotocols = defaultSubprotocols(c.Subprotocols)
 }
@@ -134,12 +123,15 @@ func (s *Server) removeSession(sess *rtvbp.Session) {
 }
 
 func (s *Server) Shutdown(ctx context.Context) (err error) {
-
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
+	sessions := make([]*rtvbp.Session, 0, len(s.sessions))
 	for _, sess := range s.sessions {
-		_ = sess.Close(ctx, nil)
+		sessions = append(sessions, sess)
+	}
+	s.mu.Unlock()
+
+	for _, sess := range sessions {
+		_ = sess.Close(ctx)
 	}
 
 	err = s.http.Shutdown(ctx)
@@ -156,14 +148,13 @@ func (s *Server) GetClientConfig() ClientConfig {
 		Dial: DialConfig{
 			URL: s.URL(),
 		},
-		SampleRate:   8000,
-		PingInterval: 10 * time.Second,
 		Subprotocols: append([]string(nil), s.config.Subprotocols...),
 	}
 }
 
 func (s *Server) NewClientSession(handler rtvbp.SessionHandler) *rtvbp.Session {
 	return rtvbp.NewSession(
+		v1classic.Envelope{},
 		Client(s.GetClientConfig()),
 		rtvbp.WithHandler(handler),
 	)

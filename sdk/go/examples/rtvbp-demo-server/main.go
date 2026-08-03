@@ -76,9 +76,8 @@ func main() {
 	// start server
 	srv := ws.NewServer(
 		ws.ServerConfig{
-			Addr:      "0.0.0.0:8080",
-			ChunkSize: 160,
-			Debug:     args.debug,
+			Addr:  "0.0.0.0:8080",
+			Debug: args.debug,
 		},
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{

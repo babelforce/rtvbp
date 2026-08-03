@@ -11,6 +11,7 @@ import (
 
 	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/babelforce/rtvbp/sdk/go/audio"
+	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
 	"github.com/babelforce/rtvbp/sdk/go/proto/protov1"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
@@ -86,6 +87,7 @@ func main() {
 	log.Info("starting client", slog.Any("url", args.connectURL()))
 	log.Debug("config", slog.Any("config", args.config()))
 	sess := rtvbp.NewSession(
+		v1classic.Envelope{},
 		ws.Client(args.config()),
 		rtvbp.WithHandler(handler),
 		rtvbp.WithRequestTimeout(2*time.Second),

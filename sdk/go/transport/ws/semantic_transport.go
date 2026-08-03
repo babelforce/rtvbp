@@ -82,7 +82,11 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 	go func() {
 		select {
 		case <-ctx.Done():
-			t.finish(ctx.Err())
+			// Cancellation of the lifetime supplied by the owner is an orderly
+			// local teardown, including a WebSocket close control frame.
+			closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = t.Close(closeCtx)
 		case <-t.done:
 		}
 	}()

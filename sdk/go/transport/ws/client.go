@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -15,18 +14,13 @@ import (
 )
 
 type ClientConfig struct {
-	Dial         DialConfig
-	PingInterval time.Duration
-	SampleRate   int
+	Dial DialConfig
 	// Subprotocols lists RTVBP profiles in preference order. Nil defaults to rtvbp.v1;
 	// an explicitly empty slice sends no subprotocol header for legacy peers.
 	Subprotocols []string
 }
 
 func (c *ClientConfig) Validate() error {
-	if c.SampleRate <= 0 {
-		return fmt.Errorf("invalid sample rate: %d", c.SampleRate)
-	}
 	if c.Dial.Headers.Get("Sec-WebSocket-Protocol") != "" {
 		return errors.New("configure WebSocket subprotocols through ClientConfig.Subprotocols")
 	}
@@ -34,9 +28,6 @@ func (c *ClientConfig) Validate() error {
 }
 
 func (c *ClientConfig) Defaults() {
-	if c.PingInterval == 0 {
-		c.PingInterval = 10 * time.Second
-	}
 	c.Subprotocols = defaultSubprotocols(c.Subprotocols)
 	c.Dial.Defaults()
 }
@@ -92,33 +83,7 @@ func (d *DialConfig) doDial(ctx context.Context, subprotocols []string) (*websoc
 	return dialer.DialContext(dialCtx, u.String(), header)
 }
 
-// Connect connects to the websocket endpoint
-func Connect(ctx context.Context, c ClientConfig, audio io.ReadWriter) (*WebsocketTransport, error) {
-	conn, logger, err := dialConnection(ctx, c)
-	if err != nil {
-		return nil, err
-	}
-
-	t := newTransport(
-		conn,
-		audio,
-		&TransportConfig{
-			Logger: logger,
-		},
-	)
-
-	ok := make(chan struct{})
-	go func() {
-		ok <- struct{}{}
-		t.process(ctx)
-	}()
-	<-ok
-
-	return t, nil
-}
-
-// Dial connects a semantic transport to a WebSocket endpoint. Connect remains
-// as the temporary legacy-session adapter until the R-9 session cutover.
+// Dial connects a semantic transport to a WebSocket endpoint.
 func Dial(ctx context.Context, c ClientConfig) (*Transport, error) {
 	conn, logger, err := dialConnection(ctx, c)
 	if err != nil {
@@ -163,8 +128,8 @@ func dialConnection(ctx context.Context, c ClientConfig) (*websocket.Conn, *slog
 
 func Client(config ClientConfig) rtvbp.Option {
 	return rtvbp.WithTransportFactory(
-		func(ctx context.Context, audio io.ReadWriter) (rtvbp.LegacyTransport, error) {
-			return Connect(ctx, config, audio)
+		func(ctx context.Context, _ rtvbp.Envelope) (rtvbp.Transport, error) {
+			return Dial(ctx, config)
 		},
 	)
 }

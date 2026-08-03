@@ -29,7 +29,6 @@ type cliArgs struct {
 
 func (a *cliArgs) config() ws.ClientConfig {
 	return ws.ClientConfig{
-		SampleRate: a.sampleRate,
 		Dial: ws.DialConfig{
 			URL:            a.connectURL(),
 			ConnectTimeout: 5 * time.Second,

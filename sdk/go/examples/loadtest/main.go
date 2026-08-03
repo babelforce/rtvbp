@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"sync"
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	"go.uber.org/goleak"
 )
@@ -21,69 +20,29 @@ func (t *T) Error(i ...any) {
 
 var _ goleak.TestingT = &T{}
 
-type dummyAudio struct {
-	n      int
-	closed bool
-	mu     sync.Mutex
-}
-
-func (d *dummyAudio) Close() error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.closed = true
-	return nil
-}
-
-func (d *dummyAudio) Read(p []byte) (n int, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.closed {
-		return 0, io.EOF
-	}
-
-	<-time.After(1 * time.Millisecond)
-	//println("read...")
-	n = len(p)
-	for i := 0; i < n; i++ {
-		p[i] = 0x00
-	}
-	d.n += n
-	return n, nil
-}
-
-func (d *dummyAudio) Write(p []byte) (n int, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if d.closed {
-		return 0, io.ErrClosedPipe
-	}
-	return len(p), nil
-}
-
-var _ io.ReadWriteCloser = &dummyAudio{}
-
 func runTest(ctx context.Context, cc ws.ClientConfig) error {
-	bb := &dummyAudio{}
-	defer bb.Close()
-
-	conn, err := ws.Connect(ctx, cc, bb)
+	conn, err := ws.Dial(ctx, cc)
 	if err != nil {
 		return err
 	}
 
-	sess := rtvbp.NewSession(rtvbp.WithTransport(conn), rtvbp.WithHandler(rtvbp.NewHandler(
-		rtvbp.HandlerConfig{
-			OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-				return nil
+	sess := rtvbp.NewSession(
+		v1classic.Envelope{},
+		rtvbp.WithTransport(conn),
+		rtvbp.WithHandler(rtvbp.NewHandler(
+			rtvbp.HandlerConfig{
+				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
+					return nil
+				},
 			},
-		},
-	)))
+		)),
+	)
 
 	done := sess.Run(ctx)
 
 	go func() {
 		<-time.After(5 * time.Second)
-		_ = sess.Close(context.Background(), nil)
+		_ = sess.Close(context.Background())
 	}()
 
 	<-done
