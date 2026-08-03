@@ -2,11 +2,12 @@
 id: R-3
 title: Model babelforce.v1 in the spec crate
 pillar: Spec
-status: backlog
+status: ready
+priority: 3
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
 areas: [spec]
-note: blocked on R-2 (spec workspace)
+note: next spec story; the model workspace and classic.v1 reference codec are ready
 ---
 
 # Model babelforce.v1 in the spec crate

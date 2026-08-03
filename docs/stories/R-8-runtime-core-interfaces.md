@@ -2,11 +2,12 @@
 id: R-8
 title: Go runtime core — frame, envelope and transport interfaces plus the memory transport
 pillar: SDK
-status: backlog
+status: ready
+priority: 8
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
-note: blocked on R-2; defines the seams that WebRTC, QUIC and SIP must later fit
+note: can run alongside R-3; defines the seams that WebRTC, QUIC and SIP must later fit
 ---
 
 # Go runtime core — frame, envelope and transport interfaces plus the memory transport

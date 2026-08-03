@@ -18,3 +18,6 @@ All notable changes to this project are documented here. The format is based on
   [board](docs/stories/README.md), and the design records for the spec-first re-implementation.
 - Frozen `babelforce.v1` golden wire fixtures captured from `rtvbp-go v0.40.0`, with a disposable
   capture tool and byte-exact regression tests.
+- The `rtvbp-go v0.40.0` SDK imported under `sdk/go/` with its history preserved, plus the Rust
+  specification workspace, shared catalog model, presence-aware `Nullable<T>`, and byte-exact
+  `classic.v1` reference envelope codec.
