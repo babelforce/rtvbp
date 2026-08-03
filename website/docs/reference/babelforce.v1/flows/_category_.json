@@ -1,0 +1,7 @@
+{
+  "label": "Flows",
+  "link": {
+    "type": "generated-index",
+    "description": "Generated sequence diagrams for typed babelforce.v1 conformance scenarios."
+  }
+}

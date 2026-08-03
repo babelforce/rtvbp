@@ -345,6 +345,7 @@ fn scenario_vector(scenario: &Scenario) -> Value {
     json!({
         "_generated": GENERATED_NOTICE,
         "name": scenario.name,
+        "description": scenario.description,
         "roles": scenario.roles,
         "cases": scenario.cases,
     })

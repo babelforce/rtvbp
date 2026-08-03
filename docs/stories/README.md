@@ -113,4 +113,5 @@ _The framework claims to be catalog-agnostic and to support **any transport × a
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
 - [R-13 — Docs emitter — generated protocol reference in the Docusaurus site](R-13-docs-emitter.md) · Generator · generated catalog and envelope reference now replaces the stale hand-written v1 prose
+- [R-21 — Restore generated flows and integration documentation](R-21-restore-integration-documentation.md) · Generator · generated scenario flows, split quickstarts, and tested deployment auth restore the narrative layer
 <!-- END track:board -->

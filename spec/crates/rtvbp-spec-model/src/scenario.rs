@@ -9,15 +9,17 @@ use crate::{Role, WireError};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Scenario {
     pub name: String,
+    pub description: String,
     pub roles: BTreeMap<String, Role>,
     pub cases: Vec<ScenarioCase>,
 }
 
 impl Scenario {
     #[must_use]
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            description: description.into(),
             roles: BTreeMap::new(),
             cases: Vec::new(),
         }
@@ -40,14 +42,20 @@ impl Scenario {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ScenarioCase {
     pub name: String,
+    pub description: String,
     pub steps: Vec<ScenarioStep>,
 }
 
 impl ScenarioCase {
     #[must_use]
-    pub fn new(name: impl Into<String>, steps: impl IntoIterator<Item = ScenarioStep>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        steps: impl IntoIterator<Item = ScenarioStep>,
+    ) -> Self {
         Self {
             name: name.into(),
+            description: description.into(),
             steps: steps.into_iter().collect(),
         }
     }

@@ -8,6 +8,22 @@ The deployed binding carries one RTVBP session on one WebSocket connection. Prod
 use TLS (`wss://`). The connecting peer initiates an HTTP Upgrade and profile negotiation follows
 the rules in [Profiles and negotiation](../profiles.md).
 
+```mermaid
+sequenceDiagram
+    participant connecting as Connecting peer
+    participant accepting as Accepting endpoint
+
+    connecting->>accepting: TLS connection
+    connecting->>accepting: HTTP Upgrade<br/>Authorization: Bearer …<br/>Sec-WebSocket-Protocol: rtvbp.v1
+    alt credential and profile accepted
+        accepting-->>connecting: 101 Switching Protocols<br/>Sec-WebSocket-Protocol: rtvbp.v1
+    else authorization failed
+        accepting-->>connecting: 401 Unauthorized
+    else no offered profile is supported
+        accepting-->>connecting: reject Upgrade
+    end
+```
+
 ## Authentication
 
 The connecting peer sends a bearer credential in the Upgrade request:
@@ -19,6 +35,10 @@ Authorization: Bearer <token>
 JWT signature, issuer, audience, expiry, key distribution, and rotation checks are deployment
 policy rather than catalog or envelope semantics. Servers must validate the credential before
 accepting an authenticated session.
+
+The babelforce Cloud deployment uses a specific RS256 claim contract documented separately in
+[babelforce Cloud authentication](../deployments/babelforce-cloud.md). Other deployments may use a
+different bearer format or admission policy without changing the payload catalog.
 
 ## Framing
 

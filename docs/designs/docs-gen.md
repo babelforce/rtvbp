@@ -39,10 +39,28 @@ transport binding guides, the profile/negotiation page, the outlook) stays hand-
 into the generated reference. The existing `website/docs/protov1/` prose is superseded page by page
 as the generated reference lands, and what remains shrinks to narrative only.
 
+Typed conformance scenarios are also documentation authority. Each scenario and case carries a
+required human description, and the docs emitter projects every case into a Mermaid sequence
+diagram under `reference/<catalog-id>/flows/`. Requests, correlated responses, and events are
+rendered from the same typed steps executed by SDK conformance harnesses; the page links every
+message name back to its generated operation or event reference. Transport-only steps such as TLS,
+authentication, WebSocket upgrade, and profile selection remain hand-written because they are not
+catalog payloads.
+
 Two hand-written pages are new and important, because they are what the north star promises an
 integrator: a **transport binding** page (WebSocket for M1 — framing, auth, subprotocol) and a
 **profiles & negotiation** page explaining that a profile is *(transport, envelope, catalog)*, that
 absence of a subprotocol means `rtvbp.v1`, and which combinations are supported today.
+
+The narrative layer serves two first-run paths. SDK users get a compile-tested Go endpoint and then
+the generated application-role contract. Independent implementations get the WebSocket binding,
+classic envelope, lifecycle flows, and catalog reference. Concepts explicitly distinguish
+transport client/server from protocol voice/application roles.
+
+Authentication has two layers. The WebSocket binding documents only bearer credentials and the
+pre-upgrade authorization boundary. A separate babelforce Cloud deployment guide records the
+current RS256 issuer/subject/expiry contract, account audience behavior, and out-of-band public-key
+provisioning. Those product facts must not be presented as universal RTVBP requirements.
 
 ## Alternatives considered
 

@@ -48,7 +48,7 @@ type requestResult struct {
 
 func TestGeneratedScenariosForBothRoles(t *testing.T) {
 	paths, err := filepath.Glob(vectorPath(t, "scenarios", "*.json"))
-	if err != nil || len(paths) != 3 {
+	if err != nil || len(paths) != 4 {
 		t.Fatalf("scenario vectors: paths=%v error=%v", paths, err)
 	}
 	for _, path := range paths {

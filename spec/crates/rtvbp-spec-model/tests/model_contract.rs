@@ -238,11 +238,12 @@ fn catalog_validation_rejects_operations_and_events_without_roles() {
 
 #[test]
 fn catalog_validation_checks_typed_scenario_payloads_directions_and_bindings() {
-    let valid = Scenario::new("demo-flow")
+    let valid = Scenario::new("demo-flow", "Complete the canonical demo exchange.")
         .role("voice", Role::Voice)
         .role("application", Role::Application)
         .case(ScenarioCase::new(
             "canonical",
+            "Run one request, response, and event exchange.",
             [
                 ScenarioStep::request(
                     "voice",
@@ -271,11 +272,12 @@ fn catalog_validation_checks_typed_scenario_payloads_directions_and_bindings() {
         ));
     catalog_with_scenario(valid).validate().unwrap();
 
-    let invalid_payload = Scenario::new("invalid-payload")
+    let invalid_payload = Scenario::new("invalid-payload", "Reject an invalid payload.")
         .role("voice", Role::Voice)
         .role("application", Role::Application)
         .case(ScenarioCase::new(
             "canonical",
+            "Send a payload with the wrong field type.",
             [
                 ScenarioStep::Request {
                     from: "voice".to_owned(),
@@ -301,11 +303,12 @@ fn catalog_validation_checks_typed_scenario_payloads_directions_and_bindings() {
         "{error}"
     );
 
-    let invalid_direction = Scenario::new("invalid-direction")
+    let invalid_direction = Scenario::new("invalid-direction", "Reject an invalid direction.")
         .role("voice", Role::Voice)
         .role("application", Role::Application)
         .case(ScenarioCase::new(
             "canonical",
+            "Send an operation from the wrong role.",
             [
                 ScenarioStep::request(
                     "application",
@@ -333,11 +336,12 @@ fn catalog_validation_checks_typed_scenario_payloads_directions_and_bindings() {
         "{error}"
     );
 
-    let unbound_response = Scenario::new("unbound-response")
+    let unbound_response = Scenario::new("unbound-response", "Reject an unbound response.")
         .role("voice", Role::Voice)
         .role("application", Role::Application)
         .case(ScenarioCase::new(
             "canonical",
+            "Respond to a request binding that does not exist.",
             [ScenarioStep::response(
                 "application",
                 "$missing",
@@ -352,6 +356,34 @@ fn catalog_validation_checks_typed_scenario_payloads_directions_and_bindings() {
         .to_string();
     assert!(
         error.contains("response references unknown binding \"$missing\""),
+        "{error}"
+    );
+
+    let undocumented = Scenario::new("undocumented", "")
+        .role("voice", Role::Voice)
+        .role("application", Role::Application)
+        .case(ScenarioCase::new(
+            "canonical",
+            "",
+            [ScenarioStep::event(
+                "voice",
+                "$event",
+                "demo.updated",
+                &DemoEvent {
+                    state: "ready".to_owned(),
+                },
+            )],
+        ));
+    let error = catalog_with_scenario(undocumented)
+        .validate()
+        .unwrap_err()
+        .to_string();
+    assert!(
+        error.contains("scenario description must not be empty"),
+        "{error}"
+    );
+    assert!(
+        error.contains("case description must not be empty"),
         "{error}"
     );
 }

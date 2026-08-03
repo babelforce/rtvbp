@@ -51,17 +51,21 @@ pub fn catalog() -> Catalog {
                 .docs("Report that the application observed an echoed message.")
                 .example("canonical", serde_json::to_value(&observed).unwrap()),
         )
-        .scenarios([Scenario::new("echo-observed")
-            .role("voice", Role::Voice)
-            .role("application", Role::Application)
-            .case(ScenarioCase::new(
-                "canonical",
-                [
-                    ScenarioStep::request("voice", "$echo", "demo.echo", &request),
-                    ScenarioStep::response("application", "$echo", &response),
-                    ScenarioStep::event("application", "$observed", "demo.observed", &observed),
-                ],
-            ))])
+        .scenarios([Scenario::new(
+            "echo-observed",
+            "Echo one message and publish the observation from the application peer.",
+        )
+        .role("voice", Role::Voice)
+        .role("application", Role::Application)
+        .case(ScenarioCase::new(
+            "canonical",
+            "The voice peer calls demo.echo and receives a matching observation event.",
+            [
+                ScenarioStep::request("voice", "$echo", "demo.echo", &request),
+                ScenarioStep::response("application", "$echo", &response),
+                ScenarioStep::event("application", "$observed", "demo.observed", &observed),
+            ],
+        ))])
 }
 
 #[cfg(test)]

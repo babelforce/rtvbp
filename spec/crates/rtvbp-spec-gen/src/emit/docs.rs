@@ -1,8 +1,8 @@
-use std::collections::{BTreeSet, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashSet, VecDeque};
 use std::fmt::Write as _;
 use std::path::PathBuf;
 
-use rtvbp_spec_model::{EnvelopeSpec, FrameKind, Role};
+use rtvbp_spec_model::{EnvelopeSpec, FrameKind, Role, Scenario, ScenarioStep};
 use serde_json::{Value, json};
 use thiserror::Error;
 
@@ -17,6 +17,8 @@ pub enum DocsEmitError {
     UnsafePageName { name: String },
     #[error("schema {schema:?}: {message}")]
     Schema { schema: String, message: String },
+    #[error("scenario {scenario:?}: {message}")]
+    Scenario { scenario: String, message: String },
     #[error("could not encode generated documentation metadata: {0}")]
     Json(#[from] serde_json::Error),
 }
@@ -50,6 +52,23 @@ pub fn emit_docs(
             bytes: event_page(catalog, event)?.into_bytes(),
         });
     }
+    if !catalog.scenarios.is_empty() {
+        files.push(GeneratedFile {
+            path: PathBuf::from(&catalog_id)
+                .join("flows")
+                .join("_category_.json"),
+            bytes: flow_category(&catalog_id)?.into_bytes(),
+        });
+    }
+    for scenario in &catalog.scenarios {
+        page_name(&scenario.name)?;
+        files.push(GeneratedFile {
+            path: PathBuf::from(&catalog_id)
+                .join("flows")
+                .join(format!("{}.mdx", scenario.name)),
+            bytes: flow_page(catalog, scenario)?.into_bytes(),
+        });
+    }
     for role in [Role::Application, Role::Voice] {
         files.push(GeneratedFile {
             path: PathBuf::from(&catalog_id)
@@ -77,6 +96,20 @@ fn category(catalog_id: &str) -> Result<String, DocsEmitError> {
         "link": {
             "type": "generated-index",
             "description": format!("Generated reference for the {catalog_id} payload catalog.")
+        }
+    }))?;
+    output.push('\n');
+    Ok(output)
+}
+
+fn flow_category(catalog_id: &str) -> Result<String, DocsEmitError> {
+    let mut output = serde_json::to_string_pretty(&json!({
+        "label": "Flows",
+        "link": {
+            "type": "generated-index",
+            "description": format!(
+                "Generated sequence diagrams for typed {catalog_id} conformance scenarios."
+            )
         }
     }))?;
     output.push('\n');
@@ -137,6 +170,106 @@ fn event_page(catalog: &ResolvedCatalog, event: &ResolvedEvent) -> Result<String
         output.push_str("\n```\n\n");
     }
     Ok(finish(output))
+}
+
+fn flow_page(catalog: &ResolvedCatalog, scenario: &Scenario) -> Result<String, DocsEmitError> {
+    let title = display_name(&scenario.name);
+    let mut output = page_header(&title, &title);
+    writeln!(output, "{}\n", escape_mdx(&scenario.description)).unwrap();
+
+    let mut operations = BTreeSet::new();
+    let mut events = BTreeSet::new();
+    for case in &scenario.cases {
+        writeln!(output, "## {}\n", display_name(&case.name)).unwrap();
+        writeln!(output, "{}\n", escape_mdx(&case.description)).unwrap();
+        output.push_str("```mermaid\nsequenceDiagram\n");
+        output.push_str("    participant voice as Voice peer\n");
+        output.push_str("    participant application as Application peer\n\n");
+
+        let mut requests = BTreeMap::new();
+        for step in &case.steps {
+            match step {
+                ScenarioStep::Request {
+                    from, id, method, ..
+                } => {
+                    let sender = scenario_role(scenario, from)?;
+                    let receiver = peer(sender);
+                    writeln!(output, "    {sender}->>{receiver}: REQ {method}").unwrap();
+                    requests.insert(id.as_str(), (method.as_str(), sender));
+                    operations.insert(method.as_str());
+                }
+                ScenarioStep::Response {
+                    from,
+                    response,
+                    error,
+                    ..
+                } => {
+                    let sender = scenario_role(scenario, from)?;
+                    let Some((method, requester)) = requests.remove(response.as_str()) else {
+                        return Err(DocsEmitError::Scenario {
+                            scenario: scenario.name.clone(),
+                            message: format!(
+                                "response references unknown request binding {response:?}"
+                            ),
+                        });
+                    };
+                    let label = if let Some(error) = error {
+                        format!("ERR {method} ({})", error.code)
+                    } else {
+                        format!("RES {method}")
+                    };
+                    writeln!(output, "    {sender}-->>{requester}: {label}").unwrap();
+                }
+                ScenarioStep::Event { from, event, .. } => {
+                    let sender = scenario_role(scenario, from)?;
+                    let receiver = peer(sender);
+                    writeln!(output, "    {sender}-->>{receiver}: EVT {event}").unwrap();
+                    events.insert(event.as_str());
+                }
+            }
+        }
+        output.push_str("```\n\n");
+    }
+
+    output.push_str("## Messages\n\n");
+    for method in operations {
+        let description = catalog
+            .operations
+            .iter()
+            .find(|operation| operation.method == method)
+            .map_or("", |operation| operation.docs.as_str());
+        writeln!(
+            output,
+            "- [`{method}`](../operations/{method}.mdx) — {}",
+            escape_mdx(description)
+        )
+        .unwrap();
+    }
+    for event in events {
+        let description = catalog
+            .events
+            .iter()
+            .find(|item| item.name == event)
+            .map_or("", |item| item.docs.as_str());
+        writeln!(
+            output,
+            "- [`{event}`](../events/{event}.mdx) — {}",
+            escape_mdx(description)
+        )
+        .unwrap();
+    }
+    Ok(finish(output))
+}
+
+fn scenario_role(scenario: &Scenario, peer_name: &str) -> Result<Role, DocsEmitError> {
+    scenario
+        .roles
+        .get(peer_name)
+        .copied()
+        .ok_or_else(|| DocsEmitError::Scenario {
+            scenario: scenario.name.clone(),
+            message: format!("step references unknown peer {peer_name:?}"),
+        })
 }
 
 fn role_page(catalog: &ResolvedCatalog, role: Role) -> String {
@@ -571,6 +704,20 @@ fn title_case(value: &str) -> String {
         .next()
         .map(|first| first.to_uppercase().collect::<String>() + characters.as_str())
         .unwrap_or_default()
+}
+
+fn display_name(value: &str) -> String {
+    value
+        .split(['-', '_'])
+        .enumerate()
+        .map(|(index, word)| match word {
+            "dtmf" => "DTMF".to_owned(),
+            "rtvbp" => "RTVBP".to_owned(),
+            _ if index == 0 => title_case(word),
+            _ => word.to_owned(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn page_name(name: &str) -> Result<(), DocsEmitError> {

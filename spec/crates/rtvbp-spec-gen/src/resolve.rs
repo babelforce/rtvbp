@@ -68,7 +68,8 @@ pub enum ResolveError {
 
 /// Resolve one validated catalog into the complete, emitter-facing model.
 pub fn resolve(catalog: Catalog) -> Result<ResolvedCatalog, ResolveError> {
-    let scenarios = catalog.scenarios.clone();
+    let mut scenarios = catalog.scenarios.clone();
+    scenarios.sort_by(|left, right| left.name.cmp(&right.name));
     let mut schemas = BTreeMap::new();
     let mut operations = Vec::with_capacity(catalog.operations.len());
     for mut operation in catalog.operations {

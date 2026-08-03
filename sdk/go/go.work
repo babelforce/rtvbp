@@ -2,6 +2,7 @@ go 1.25
 
 use (
 	.
+	examples/babelforce-auth
 	examples/rtvbp-demo-client
 	examples/rtvbp-demo-server
 )

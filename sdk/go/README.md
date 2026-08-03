@@ -9,8 +9,10 @@ generated and must not be edited by hand.
 
 ## Install
 
+The current public release candidate is:
+
 ```bash
-go get github.com/babelforce/rtvbp/sdk/go@v0.1.0
+go get github.com/babelforce/rtvbp/sdk/go@v0.1.0-rc.1
 ```
 
 ## WebSocket server

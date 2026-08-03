@@ -104,5 +104,5 @@ Drift becomes unmergeable.
 ## Acceptance / done
 
 Golden fixtures frozen and green at all three layers (spec-side, generated-Go, envelope frames); the
-three scenarios pass over the memory transport; interop against `rtvbp-go v0.37` passes in both role
+four scenarios pass over the memory transport; interop against `rtvbp-go v0.37` passes in both role
 directions; `rtvbp-openai` completes a real call on the new SDK; CI fails on any regenerated diff.

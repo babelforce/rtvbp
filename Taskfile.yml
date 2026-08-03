@@ -16,4 +16,5 @@ tasks:
       - task: generate
       - git diff --exit-code
       - (cd sdk/go && go test ./...)
+      - (cd sdk/go/examples/babelforce-auth && go test ./...)
       - (cd website && yarn build)

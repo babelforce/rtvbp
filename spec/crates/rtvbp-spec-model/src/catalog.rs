@@ -683,6 +683,15 @@ fn validate_scenarios(issues: &mut Vec<CatalogValidationError>, catalog: &Catalo
                 "scenario name must not be empty",
             );
         }
+        if scenario.description.trim().is_empty() {
+            scenario_issue(
+                issues,
+                &scenario.name,
+                "<description>",
+                0,
+                "scenario description must not be empty",
+            );
+        }
         if !scenario_names.insert(scenario.name.as_str()) {
             issues.push(CatalogValidationError::DuplicateScenario {
                 name: scenario.name.clone(),
@@ -717,6 +726,15 @@ fn validate_scenarios(issues: &mut Vec<CatalogValidationError>, catalog: &Catalo
                     &case.name,
                     0,
                     "case name must not be empty",
+                );
+            }
+            if case.description.trim().is_empty() {
+                scenario_issue(
+                    issues,
+                    &scenario.name,
+                    &case.name,
+                    0,
+                    "case description must not be empty",
                 );
             }
             if !case_names.insert(case.name.as_str()) {

@@ -68,6 +68,10 @@ All notable changes to this project are documented here. The format is based on
   reference pages now derive from the catalog schemas, comments, examples and envelope declaration.
   Replaced the stale v1 prose with WebSocket binding and profile-negotiation guides, including the
   `rtvbp.v1` compatibility default and reserved `transport.*` operation namespace.
+- Restored the documentation's integration layer with generated Mermaid pages for every typed
+  conformance scenario, a proven barge-in flow, separate Go SDK and wire-protocol quickstarts,
+  clarified role/transport concepts, and a deployment-specific babelforce RS256 authentication
+  guide backed by a tested Go validator example.
 - Added spec-authored conformance scenarios and generated language-neutral payload, classic-envelope
   and multi-message vectors. A hand-written Go harness consumes the committed monorepo artifacts,
   checks exact encoded bytes, normalizes generated IDs structurally, and executes every scenario

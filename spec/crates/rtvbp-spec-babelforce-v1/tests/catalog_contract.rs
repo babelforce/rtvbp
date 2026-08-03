@@ -103,7 +103,7 @@ fn catalog_and_every_typed_example_validate() {
 }
 
 #[test]
-fn catalog_owns_the_three_typed_conformance_scenarios() {
+fn catalog_owns_the_four_typed_conformance_scenarios() {
     let catalog = catalog();
     let scenarios = catalog
         .scenarios
@@ -113,11 +113,19 @@ fn catalog_owns_the_three_typed_conformance_scenarios() {
     assert_eq!(
         scenarios,
         BTreeMap::from([
+            ("barge-in", 1),
             ("initialize-updated-dtmf", 1),
             ("ping", 1),
             ("termination", 3),
         ])
     );
+    assert!(catalog.scenarios.iter().all(|scenario| {
+        !scenario.description.trim().is_empty()
+            && scenario
+                .cases
+                .iter()
+                .all(|case| !case.description.trim().is_empty())
+    }));
 
     let reverse = catalog
         .scenarios
