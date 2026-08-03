@@ -165,7 +165,7 @@ type OutputTranscriptDeltaEvent struct {
 // Data emitted by `output.transcript.done` when an agent utterance finishes.
 type OutputTranscriptDoneEvent struct {
 	// Text: Optional complete text; absence means retain the accumulated deltas.
-	Text string `json:"text,omitempty"`
+	Text *string `json:"text,omitempty"`
 }
 
 // PingRequest is generated from the protocol catalog.

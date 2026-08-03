@@ -163,6 +163,16 @@ pub(crate) fn fixtures() -> Vec<CatalogFixture> {
             "variants/events/call.hangup-no-reason.json",
             bytes!("variants/events/call.hangup-no-reason.json"),
         ),
+        event(
+            "output.transcript.done",
+            "variants/events/output.transcript.done-text-empty.json",
+            bytes!("variants/events/output.transcript.done-text-empty.json"),
+        ),
+        event(
+            "output.transcript.done",
+            "variants/events/output.transcript.done-text.json",
+            bytes!("variants/events/output.transcript.done-text.json"),
+        ),
         request(
             "application.move",
             "variants/payloads/application.move.request-empty.json",

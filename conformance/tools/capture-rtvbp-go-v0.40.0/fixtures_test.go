@@ -55,10 +55,12 @@ var expectedFixtures = []string{
 }
 
 var additiveEventFixtures = map[string]struct{}{
-	"events/agent.tool.call.json":         {},
-	"events/input.transcript.json":        {},
-	"events/output.transcript.delta.json": {},
-	"events/output.transcript.done.json":  {},
+	"events/agent.tool.call.json":                            {},
+	"events/input.transcript.json":                           {},
+	"events/output.transcript.delta.json":                    {},
+	"events/output.transcript.done.json":                     {},
+	"variants/events/output.transcript.done-text-empty.json": {},
+	"variants/events/output.transcript.done-text.json":       {},
 }
 
 func goldenRoot(t *testing.T) string {

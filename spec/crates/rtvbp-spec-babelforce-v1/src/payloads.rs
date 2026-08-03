@@ -267,6 +267,7 @@ pub struct OutputTranscriptDeltaEvent {
 pub struct OutputTranscriptDoneEvent {
     /// Optional complete text; absence means retain the accumulated deltas.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("x-go-type" = "*string"))]
     pub text: Option<String>,
 }
 

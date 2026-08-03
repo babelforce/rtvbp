@@ -1,6 +1,6 @@
 # Frozen `babelforce.v1` golden wire fixtures
 
-These 46 compact JSON files are the byte authority for `babelforce.v1`. They have no trailing
+These 48 compact JSON files are the byte authority for `babelforce.v1`. They have no trailing
 newline, and every source-specific capture has an exact inventory and byte-reproduction test.
 
 ## Authority and provenance
@@ -11,13 +11,15 @@ Forty-two fixtures come from the deployed Go implementation. They are captured b
 `9370abb8d18cf3c89837d4d1c63564f6218e354d`: 20 canonical operation payloads, five canonical event
 payloads, ten `classic.v1` envelope frames, and seven presence/float payload variants.
 
-Four additive browser-feedback events do not exist in rtvbp-go. Their payloads are captured by
-[`capture-private-source.invalid-v0.33.0`](../../tools/capture-private-source.invalid-v0.33.0/) from the
-released Rust `rtvbp` crate in `private-source.invalid v0.33.0`, commit
+Four additive browser-feedback events do not exist in rtvbp-go. Their six payload shapes are
+captured by [`capture-private-source.invalid-v0.33.0`](../../tools/capture-private-source.invalid-v0.33.0/)
+from the released Rust `rtvbp` crate in `private-source.invalid v0.33.0`, commit
 `408b9bc17e925b41a2e9d4fbf97dc93cdbe60b8c`. That tool also exercises the upstream production
 `Event::of` → `Message::Event` → `to_json_string` path with deterministic ids, proving event names,
-data placement, and field order. Its GitLab source is private, so a fresh reproduction requires
-repository read access.
+data placement, field order, and `output.transcript.done.text` presence. At the pin, the sole
+production bridge callsite sends `text: None`, yielding the canonical `{}` payload. The public
+payload type also permits present non-empty and empty strings; both are pinned as variants. Its
+GitLab source is private, so a fresh reproduction requires repository read access.
 
 The original 29 v0.40.0 fixtures remain byte-identical. Adding coverage records previously
 unpinned behavior; changing any existing fixture byte changes the frozen wire contract and requires
@@ -29,6 +31,9 @@ a new catalog rather than an edit to `babelforce.v1`.
   sorted keys; `session.get` therefore remains a bare, sorted map.
 - Required nullable fields emit `null`; optional fields with `omitempty` disappear. The variants
   include every optional payload field in its absent form.
+- `output.transcript.done.text` distinguishes absence from a present empty string. Generated Go
+  therefore uses an optional string pointer for this Rust-sourced field; both present spellings and
+  the production bridge's absent spelling are byte-pinned.
 - A request with parameters pins `params` and its position after `method`. Success responses pin the
   distinction between an absent `result` and a typed-nil `"result":null`.
 - Error frames pin codes `-1`, `400`, `500`, and `501`, both with and without the legacy `"any"`
@@ -57,4 +62,4 @@ go test ./...
 
 The last tool captures the 40 fixtures common to rtvbp-go v0.37.2 and v0.40.0 and compares them to
 this directory byte-for-byte. The two excluded Go fixtures are `audio.info`, which was added after
-v0.37.2; the four Rust-only events are outside both Go releases.
+v0.37.2; the six fixture shapes for four Rust-only events are outside both Go releases.

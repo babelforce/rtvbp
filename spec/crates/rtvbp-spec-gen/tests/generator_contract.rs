@@ -338,6 +338,7 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     assert!(types.contains("Metadata *map[string]any `json:\"metadata\"`"));
     assert!(!types.contains("metadata,omitempty"));
     assert!(types.contains("Reason string `json:\"reason,omitempty\"`"));
+    assert!(types.contains("Text *string `json:\"text,omitempty\"`"));
     assert!(types.contains("type SessionGetResponse map[string]any"));
     assert!(types.contains("const MethodSessionInitialize = \"session.initialize\""));
     assert!(types.contains("func (*SessionUpdatedEvent) EventName() string"));
@@ -357,7 +358,12 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
             .clone(),
     )
     .unwrap();
-    assert_eq!(tests.matches("\t{name: \"").count(), 36);
+    assert_eq!(tests.matches("\t{name: \"").count(), 38);
+    assert!(tests.contains("events/output.transcript.done.json"));
+    assert!(tests.contains("variants/events/output.transcript.done-text-empty.json"));
+    assert!(tests.contains("variants/events/output.transcript.done-text.json"));
+    assert!(tests.contains("Text: ptr(\"\")"));
+    assert!(tests.contains("Text: ptr(\"Hi there\")"));
     assert!(tests.contains("/round_trip"));
     assert!(tests.contains("/construct"));
 

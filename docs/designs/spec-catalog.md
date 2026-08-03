@@ -120,6 +120,12 @@ and re-emitting Go's fractional `float64` spelling is exact. The full inventory 
 optional payload field absent, request params present, errors without `any`, and the deployed -1,
 400, 500, and 501 code spellings.
 
+R-19 adds two source-pinned `output.transcript.done.text` variants, bringing the inventory to 48.
+The released producer sends `text: None`, while its public serializer permits both non-empty and
+empty present strings. The field therefore keeps Rust `Option<String>` semantics and carries the
+narrow `x-go-type: "*string"` hint: generated Go uses `*string` with `omitempty` so absence,
+present-empty, and present-nonempty remain byte-distinct.
+
 ### Frozen semantic constraints
 
 R-18 resolves the semantics that bytes alone do not state:

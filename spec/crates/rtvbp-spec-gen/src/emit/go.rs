@@ -54,7 +54,7 @@ struct GoField {
     go_type: String,
     schema: Value,
     optional: bool,
-    nullable: bool,
+    pointer: bool,
 }
 
 pub fn emit_go(catalog: &ResolvedCatalog) -> Result<Vec<GeneratedFile>, GoEmitError> {
@@ -170,6 +170,13 @@ fn resolve_field(
         ));
     }
     let optional = !required;
+    let optional_pointer = object.get("x-go-type").and_then(Value::as_str) == Some("*string");
+    if optional_pointer && !optional {
+        return Err(schema_error(
+            owner,
+            format!("field {wire_name:?} uses *string but is not optional"),
+        ));
+    }
     let normalized = if optional || nullable {
         remove_null(schema).unwrap_or_else(|| schema.clone())
     } else {
@@ -197,7 +204,7 @@ fn resolve_field(
         go_type: field_type,
         schema: normalized,
         optional,
-        nullable,
+        pointer: nullable || optional_pointer,
     })
 }
 
@@ -224,9 +231,12 @@ fn go_type(
         return Err(schema_error(owner, "unsupported union schema".to_owned()));
     }
     let type_name = object.get("type").and_then(Value::as_str);
-    let hint = object.get("x-go-type");
+    let hint = object.get("x-go-type").and_then(Value::as_str);
     if hint.is_some()
-        && !(type_name == Some("integer") && hint == Some(&Value::String("int".into())))
+        && !matches!(
+            (type_name, hint),
+            (Some("integer"), Some("int")) | (Some("string"), Some("*string"))
+        )
     {
         return Err(schema_error(
             owner,
@@ -234,9 +244,10 @@ fn go_type(
         ));
     }
     match type_name {
+        Some("string") if hint == Some("*string") => Ok("*string".to_owned()),
         Some("string") => Ok("string".to_owned()),
         Some("boolean") => Ok("bool".to_owned()),
-        Some("integer") if hint.is_some() => Ok("int".to_owned()),
+        Some("integer") if hint == Some("int") => Ok("int".to_owned()),
         Some("integer") => Ok("int64".to_owned()),
         Some("number") => Ok("float64".to_owned()),
         Some("array") => {
@@ -444,7 +455,7 @@ fn render_value(
                     schemas,
                 )?;
                 let mut rendered = render_value(owner, &field.schema, field_value, schemas, None)?;
-                if field.nullable && !field_value.is_null() {
+                if field.pointer && !field_value.is_null() {
                     rendered = format!("ptr({rendered})");
                 }
                 fields.push(format!("{}: {}", field.name, rendered));
@@ -685,5 +696,40 @@ fn schema_error(schema: &str, message: String) -> GoEmitError {
     GoEmitError::Schema {
         schema: schema.to_owned(),
         message,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn pointer_string_hint_is_restricted_to_optional_string_fields() {
+        let schemas = BTreeMap::new();
+        let required = json!({"type": "string", "x-go-type": "*string"});
+        let error = resolve_field("Payload", "text", &required, true, &schemas).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("uses *string but is not optional")
+        );
+
+        let nullable = json!({
+            "type": ["string", "null"],
+            "x-go-type": "*string",
+            "x-rtvbp-presence": "nullable"
+        });
+        let error = resolve_field("Payload", "text", &nullable, true, &schemas).unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("uses *string but is not optional")
+        );
+
+        let wrong_type = json!({"type": ["boolean", "null"], "x-go-type": "*string"});
+        let error = resolve_field("Payload", "text", &wrong_type, false, &schemas).unwrap_err();
+        assert!(error.to_string().contains("invalid x-go-type extension"));
     }
 }

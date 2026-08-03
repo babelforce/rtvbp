@@ -57,9 +57,17 @@ const PAYLOAD_VARIANTS: [(&str, &str, bool); 5] = [
     ),
 ];
 
-const EVENT_VARIANTS: [(&str, &str); 2] = [
+const EVENT_VARIANTS: [(&str, &str); 4] = [
     ("variants/events/audio.info-nonzero.json", "audio.info"),
     ("variants/events/call.hangup-no-reason.json", "call.hangup"),
+    (
+        "variants/events/output.transcript.done-text-empty.json",
+        "output.transcript.done",
+    ),
+    (
+        "variants/events/output.transcript.done-text.json",
+        "output.transcript.done",
+    ),
 ];
 
 fn golden_root() -> PathBuf {
@@ -88,7 +96,7 @@ fn every_frozen_fixture_is_owned_by_the_bidirectional_spec_proof() {
     expected.extend(EVENT_VARIANTS.map(|(path, _)| path.to_owned()));
 
     assert_eq!(fixture_inventory(&golden_root()), expected);
-    assert_eq!(expected.len(), 46);
+    assert_eq!(expected.len(), 48);
 }
 
 #[test]

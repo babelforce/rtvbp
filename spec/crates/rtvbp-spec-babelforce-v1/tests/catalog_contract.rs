@@ -112,7 +112,7 @@ fn catalog_names_the_open_map_response_and_owns_every_payload_fixture() {
         .unwrap();
 
     assert_eq!(session_get.response.name, "SessionGetResponse");
-    assert_eq!(catalog.fixtures.len(), 36);
+    assert_eq!(catalog.fixtures.len(), 38);
 
     let declared = catalog
         .fixtures
@@ -266,6 +266,12 @@ fn presence_and_go_type_hints_match_the_legacy_contract() {
             assert_eq!(schema["properties"][field]["x-go-type"], "int", "{field}");
         }
     }
+
+    let transcript_done: Value = schema_for!(OutputTranscriptDoneEvent).to_value();
+    assert_eq!(
+        transcript_done["properties"]["text"]["x-go-type"],
+        "*string"
+    );
 
     let audio_info: Value = schema_for!(AudioInfoEvent).to_value();
     assert_eq!(

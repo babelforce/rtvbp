@@ -58,6 +58,8 @@ var notInV0372FixturePaths = []string{
 	"events/output.transcript.delta.json",
 	"events/output.transcript.done.json",
 	"variants/events/audio.info-nonzero.json",
+	"variants/events/output.transcript.done-text-empty.json",
+	"variants/events/output.transcript.done-text.json",
 }
 
 func TestCommonInventoryIsExplicitAndComplete(t *testing.T) {

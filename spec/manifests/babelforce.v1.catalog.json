@@ -728,7 +728,8 @@
             "string",
             "null"
           ],
-          "description": "Optional complete text; absence means retain the accumulated deltas."
+          "description": "Optional complete text; absence means retain the accumulated deltas.",
+          "x-go-type": "*string"
         }
       },
       "description": "Data emitted by `output.transcript.done` when an agent utterance finishes."
