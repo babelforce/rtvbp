@@ -2,7 +2,7 @@
 id: R-6
 title: Go emitter — payload types and name constants
 pillar: Generator
-status: ready
+status: in-progress
 priority: 7
 design: docs/designs/go-sdk.md
 epic: go-sdk
@@ -30,7 +30,8 @@ the frozen fixtures — the moment the "spec generates the SDK" claim becomes re
 - [ ] Output is gofmt-clean and every file carries a DO-NOT-EDIT banner.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started by inventorying the frozen payload/schema shapes and the legacy Go structs;
+  defining the failing-first generated package contract before extending the pure emitter pipeline.
 
 ## Notes
 - Shared named types (`AudioCodec`, `CallInfo`, …) are emitted once and referenced, not duplicated
