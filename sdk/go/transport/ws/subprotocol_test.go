@@ -50,7 +50,10 @@ func TestAbsentSubprotocolUsesDefaultWithoutEchoingIt(t *testing.T) {
 	t.Cleanup(func() { _ = peer.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
-	transport := NewTransport(ctx, client, nil)
+	transport, err := NewTransport(ctx, client, nil)
+	if err != nil {
+		t.Fatalf("NewTransport() error = %v", err)
+	}
 	t.Cleanup(func() {
 		_ = transport.Close(context.Background())
 		cancel()

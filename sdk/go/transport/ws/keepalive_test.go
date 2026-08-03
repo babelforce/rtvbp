@@ -137,6 +137,47 @@ func TestKeepaliveStopsCleanlyWithTransport(t *testing.T) {
 	awaitPeerStop(t, peerDone)
 }
 
+func TestConcurrentKeepaliveWaiterHonorsContext(t *testing.T) {
+	transport, peer := semanticPair(t)
+	var pings atomic.Int32
+	peer.SetPingHandler(func(payload string) error {
+		pings.Add(1)
+		return peer.WriteControl(websocket.PongMessage, []byte(payload), time.Now().Add(time.Second))
+	})
+	peerDone, _ := readKeepalivePeer(peer)
+
+	policy := rtvbp.KeepalivePolicy{
+		Interval:  2 * time.Millisecond,
+		Timeout:   20 * time.Millisecond,
+		MaxMisses: 2,
+	}
+	firstDone := make(chan error, 1)
+	go func() {
+		firstDone <- transport.MonitorKeepalive(context.Background(), policy)
+	}()
+	deadline := time.Now().Add(time.Second)
+	for pings.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if pings.Load() == 0 {
+		t.Fatal("first keepalive monitor did not start")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := transport.MonitorKeepalive(ctx, policy); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("concurrent MonitorKeepalive() error = %v, want context deadline", err)
+	}
+
+	if err := transport.Close(context.Background()); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := <-firstDone; err != nil && !errors.Is(err, io.EOF) {
+		t.Fatalf("first MonitorKeepalive() error after Close = %v", err)
+	}
+	awaitPeerStop(t, peerDone)
+}
+
 func readKeepalivePeer(peer *websocket.Conn) (<-chan struct{}, *atomic.Int32) {
 	done := make(chan struct{})
 	dataMessages := &atomic.Int32{}

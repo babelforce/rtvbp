@@ -105,6 +105,21 @@ func TestTransportConfigPreconfiguresStaticAudioBeforeAccept(t *testing.T) {
 	}
 }
 
+func TestNewTransportRejectsInvalidConfiguredAudioFormat(t *testing.T) {
+	client, peer := websocketPair(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	defer client.Close()
+	defer peer.Close()
+
+	_, err := NewTransport(ctx, client, &TransportConfig{
+		AudioFormat: rtvbp.MediaFormat{Encoding: "PCMU"},
+	})
+	if err == nil {
+		t.Fatal("NewTransport() accepted invalid nonzero AudioFormat")
+	}
+}
+
 func TestSemanticCloseFlushesEveryAdmittedControlFrame(t *testing.T) {
 	transport, peer := semanticPair(t)
 	const count = 128
@@ -138,6 +153,88 @@ func TestSemanticCloseFlushesEveryAdmittedControlFrame(t *testing.T) {
 	}
 }
 
+func TestSemanticConcurrentSendAndCloseFlushesEveryAdmittedFrame(t *testing.T) {
+	transport, peer := semanticPair(t)
+
+	received := make(chan string, 256)
+	got := make(map[string]struct{})
+	receivedDone := make(chan struct{})
+	go func() {
+		defer close(receivedDone)
+		for payload := range received {
+			got[payload] = struct{}{}
+		}
+	}()
+	peerDone := make(chan error, 1)
+	go func() {
+		defer close(received)
+		for {
+			messageType, data, err := peer.ReadMessage()
+			if err != nil {
+				peerDone <- err
+				return
+			}
+			if messageType == websocket.TextMessage {
+				received <- string(data)
+			}
+		}
+	}()
+
+	raceStart := make(chan struct{})
+	ready := make(chan struct{})
+	admitted := make(chan string, 256)
+	senderDone := make(chan error, 1)
+	go func() {
+		defer close(admitted)
+		for index := 0; ; index++ {
+			if index == 64 {
+				close(ready)
+				<-raceStart
+			}
+			payload := fmt.Sprintf("concurrent-%06d", index)
+			if err := transport.Control().Send(context.Background(), []byte(payload)); err != nil {
+				senderDone <- err
+				return
+			}
+			admitted <- payload
+		}
+	}()
+
+	<-ready
+	closeDone := make(chan error, 1)
+	go func() {
+		<-raceStart
+		closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		closeDone <- transport.Close(closeCtx)
+	}()
+	close(raceStart)
+
+	want := make(map[string]struct{})
+	for payload := range admitted {
+		want[payload] = struct{}{}
+	}
+	if err := <-senderDone; !errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("concurrent Send() terminal error = %v, want io.ErrClosedPipe", err)
+	}
+	if err := <-closeDone; err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	if err := <-peerDone; err == nil {
+		t.Fatal("peer did not observe websocket close")
+	}
+	<-receivedDone
+
+	if len(got) != len(want) {
+		t.Fatalf("peer received %d admitted frames, want %d", len(got), len(want))
+	}
+	for payload := range want {
+		if _, ok := got[payload]; !ok {
+			t.Fatalf("peer did not receive admitted frame %q", payload)
+		}
+	}
+}
+
 func TestUnreadBinaryDoesNotBlockControl(t *testing.T) {
 	transport, peer := semanticPair(t)
 	for index := 0; index < 256; index++ {
@@ -160,11 +257,63 @@ func TestUnreadBinaryDoesNotBlockControl(t *testing.T) {
 	}
 }
 
+func TestBlockedMediaReadStopsWhenTransportCloses(t *testing.T) {
+	transport, _ := semanticPair(t)
+	media, err := transport.OpenMedia(context.Background(), staticAudioID, defaultAudioFormat())
+	if err != nil {
+		t.Fatalf("OpenMedia() error = %v", err)
+	}
+
+	started := make(chan struct{})
+	readDone := make(chan error, 1)
+	go func() {
+		close(started)
+		_, err := media.ReadFrame()
+		readDone <- err
+	}()
+	<-started
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := transport.Close(closeCtx); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	select {
+	case err := <-readDone:
+		if !errors.Is(err, io.EOF) {
+			t.Fatalf("blocked ReadFrame() error = %v, want io.EOF", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("blocked ReadFrame() goroutine did not stop with transport")
+	}
+}
+
 func semanticPair(t *testing.T) (*Transport, *websocket.Conn) {
 	return semanticPairWithConfig(t, nil)
 }
 
 func semanticPairWithConfig(t *testing.T, config *TransportConfig) (*Transport, *websocket.Conn) {
+	t.Helper()
+	client, peer := websocketPair(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	transport, err := NewTransport(ctx, client, config)
+	if err != nil {
+		_ = client.Close()
+		_ = peer.Close()
+		cancel()
+		t.Fatalf("NewTransport() error = %v", err)
+	}
+	t.Cleanup(func() {
+		closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
+		defer closeCancel()
+		_ = transport.Close(closeCtx)
+		_ = peer.Close()
+		cancel()
+	})
+	return transport, peer
+}
+
+func websocketPair(t *testing.T) (*websocket.Conn, *websocket.Conn) {
 	t.Helper()
 	accepted := make(chan *websocket.Conn, 1)
 	upgrader := websocket.Upgrader{}
@@ -183,14 +332,5 @@ func semanticPairWithConfig(t *testing.T, config *TransportConfig) (*Transport, 
 		t.Fatalf("Dial() error = %v", err)
 	}
 	peer := <-accepted
-	ctx, cancel := context.WithCancel(context.Background())
-	transport := NewTransport(ctx, client, config)
-	t.Cleanup(func() {
-		closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
-		defer closeCancel()
-		_ = transport.Close(closeCtx)
-		_ = peer.Close()
-		cancel()
-	})
-	return transport, peer
+	return client, peer
 }

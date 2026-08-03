@@ -27,6 +27,13 @@ func serverUpgradeHandler(
 		)
 		log.Debug("handling websocket upgrade", slog.Any("request", r))
 
+		endAdmission, admitted := srv.beginAdmission()
+		if !admitted {
+			http.Error(w, "Server shutting down", http.StatusServiceUnavailable)
+			return
+		}
+		defer endAdmission()
+
 		// if auth function is specified validate here
 		if config.AuthHandler != nil {
 			if err := config.AuthHandler(r); err != nil {
@@ -43,17 +50,24 @@ func serverUpgradeHandler(
 			return
 		}
 		log.Debug("websocket upgrade successful")
+		if srv.afterUpgrade != nil {
+			srv.afterUpgrade()
+		}
 
 		sess := rtvbp.NewSession(
 			v1classic.Envelope{},
 			rtvbp.WithTransportFactory(func(ctx context.Context, _ rtvbp.Envelope) (rtvbp.Transport, error) {
 				// A hijacked HTTP request context is not the WebSocket lifetime;
 				// the owning session closes the transport explicitly.
-				return NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{Logger: log}), nil
+				return NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{
+					Logger:      log,
+					AudioFormat: config.AudioFormat,
+				})
 			}),
 			rtvbp.WithHandler(handler),
 			rtvbp.WithLogger(log),
 			rtvbp.WithDebug(srv.config.Debug),
+			rtvbp.WithKeepalivePolicy(config.KeepalivePolicy),
 		)
 
 		// run session
@@ -65,7 +79,11 @@ func serverUpgradeHandler(
 
 		doneChan := sess.Run(ctx)
 
-		srv.addSession(sess)
+		if !srv.addSession(sess) {
+			_ = sess.Close(context.Background())
+			return
+		}
+		endAdmission()
 		defer srv.removeSession(sess)
 
 		select {
@@ -86,9 +104,25 @@ type ServerConfig struct {
 	Path        string
 	AuthHandler func(req *http.Request) error
 	Debug       bool
+	// AudioFormat preconfigures accepted transports for voice-server sessions.
+	// Zero leaves audio unconfigured so application servers can select it dynamically.
+	AudioFormat rtvbp.MediaFormat
+	// KeepalivePolicy enables transport-native Ping/Pong monitoring for accepted sessions.
+	// Zero disables keepalive.
+	KeepalivePolicy rtvbp.KeepalivePolicy
 	// Subprotocols lists supported RTVBP profiles in server preference order.
 	// Nil defaults to rtvbp.v1; clients that send no offer use that profile implicitly.
 	Subprotocols []string
+}
+
+func (c ServerConfig) Validate() error {
+	if err := validateOptionalAudioFormat(c.AudioFormat); err != nil {
+		return err
+	}
+	if err := c.KeepalivePolicy.Validate(); err != nil {
+		return fmt.Errorf("invalid keepalive policy: %w", err)
+	}
+	return nil
 }
 
 func (c *ServerConfig) Defaults() {
@@ -109,13 +143,49 @@ type Server struct {
 	listener net.Listener
 	mu       sync.Mutex
 	sessions map[string]*rtvbp.Session
+
+	shuttingDown  bool
+	admissions    int
+	admissionIdle chan struct{}
+
+	// afterUpgrade is a deterministic test barrier for the hijack-to-admission window.
+	afterUpgrade func()
 }
 
-func (s *Server) addSession(sess *rtvbp.Session) {
+func (s *Server) beginAdmission() (func(), bool) {
+	s.mu.Lock()
+	if s.shuttingDown {
+		s.mu.Unlock()
+		return nil, false
+	}
+	if s.admissions == 0 {
+		s.admissionIdle = make(chan struct{})
+	}
+	s.admissions++
+	s.mu.Unlock()
+
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			s.mu.Lock()
+			s.admissions--
+			if s.admissions == 0 {
+				close(s.admissionIdle)
+			}
+			s.mu.Unlock()
+		})
+	}, true
+}
+
+func (s *Server) addSession(sess *rtvbp.Session) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.shuttingDown {
+		return false
+	}
 	s.sessions[sess.ID()] = sess
 	s.logger.Info("session added", slog.String("session", sess.ID()))
+	return true
 }
 
 func (s *Server) removeSession(sess *rtvbp.Session) {
@@ -127,17 +197,30 @@ func (s *Server) removeSession(sess *rtvbp.Session) {
 
 func (s *Server) Shutdown(ctx context.Context) (err error) {
 	s.mu.Lock()
+	s.shuttingDown = true
 	sessions := make([]*rtvbp.Session, 0, len(s.sessions))
 	for _, sess := range s.sessions {
 		sessions = append(sessions, sess)
 	}
+	admissionIdle := s.admissionIdle
 	s.mu.Unlock()
 
+	var closeErr error
 	for _, sess := range sessions {
-		_ = sess.Close(ctx)
+		closeErr = errors.Join(closeErr, sess.Close(ctx))
 	}
 
-	err = s.http.Shutdown(ctx)
+	httpErr := s.http.Shutdown(ctx)
+	if admissionIdle != nil {
+		select {
+		case <-admissionIdle:
+		case <-ctx.Done():
+			err = errors.Join(closeErr, httpErr, ctx.Err())
+			s.logger.Info("shutdown complete", slog.Any("err", err))
+			return err
+		}
+	}
+	err = errors.Join(closeErr, httpErr)
 	s.logger.Info("shutdown complete", slog.Any("err", err))
 	return err
 }
@@ -151,6 +234,7 @@ func (s *Server) GetClientConfig() ClientConfig {
 		Dial: DialConfig{
 			URL: s.URL(),
 		},
+		AudioFormat:  s.config.AudioFormat,
 		Subprotocols: append([]string(nil), s.config.Subprotocols...),
 	}
 }
@@ -164,6 +248,9 @@ func (s *Server) NewClientSession(handler rtvbp.SessionHandler) *rtvbp.Session {
 }
 
 func (s *Server) Listen() error {
+	if err := s.config.Validate(); err != nil {
+		return err
+	}
 	var err error
 	s.listener, err = net.Listen("tcp", s.config.Addr)
 	if err != nil {

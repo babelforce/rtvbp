@@ -37,7 +37,7 @@ type Transport struct {
 	pongs    chan string
 
 	writeMu    sync.Mutex
-	monitorMu  sync.Mutex
+	monitor    chan struct{}
 	pingSerial uint64
 
 	finishOnce sync.Once
@@ -49,10 +49,13 @@ type Transport struct {
 }
 
 // NewTransport starts a semantic transport over an already upgraded WebSocket.
-func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportConfig) *Transport {
+func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportConfig) (*Transport, error) {
 	resolvedConfig := TransportConfig{}
 	if config != nil {
 		resolvedConfig = *config
+	}
+	if err := resolvedConfig.Validate(); err != nil {
+		return nil, err
 	}
 
 	logger := slog.Default()
@@ -70,8 +73,10 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 		done:                 make(chan struct{}),
 		outgoing:             newOutboundQueue(),
 		pongs:                make(chan string, 64),
+		monitor:              make(chan struct{}, 1),
 		closeAck:             make(chan error, 1),
 	}
+	t.monitor <- struct{}{}
 	t.control = &semanticControlChannel{transport: t, incoming: newInbox[rtvbp.Received]()}
 	t.media = &staticMediaChannel{transport: t, incoming: newInbox[rtvbp.MediaFrame]()}
 	if resolvedConfig.AudioFormat != (rtvbp.MediaFormat{}) {
@@ -98,7 +103,7 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 		case <-t.done:
 		}
 	}()
-	return t
+	return t, nil
 }
 
 // MonitorKeepalive monitors the connection using native WebSocket Ping/Pong
@@ -111,8 +116,14 @@ func (t *Transport) MonitorKeepalive(ctx context.Context, policy rtvbp.Keepalive
 		return nil
 	}
 
-	t.monitorMu.Lock()
-	defer t.monitorMu.Unlock()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.done:
+		return keepaliveCloseResult(t.terminalError())
+	case <-t.monitor:
+	}
+	defer func() { t.monitor <- struct{}{} }()
 
 	misses := 0
 	interval := time.NewTimer(policy.Interval)

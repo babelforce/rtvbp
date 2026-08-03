@@ -97,7 +97,12 @@ func Dial(ctx context.Context, c ClientConfig) (*Transport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewTransport(ctx, conn, &TransportConfig{Logger: logger, AudioFormat: c.AudioFormat}), nil
+	transport, err := NewTransport(ctx, conn, &TransportConfig{Logger: logger, AudioFormat: c.AudioFormat})
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return transport, nil
 }
 
 func dialConnection(ctx context.Context, c ClientConfig) (*websocket.Conn, *slog.Logger, error) {
@@ -145,10 +150,15 @@ func Client(config ClientConfig) rtvbp.Option {
 			}
 			// TransportFactory's context bounds construction. Session owns the
 			// returned transport lifetime and closes it explicitly during teardown.
-			return NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{
+			transport, err := NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{
 				Logger:      logger,
 				AudioFormat: resolved.AudioFormat,
-			}), nil
+			})
+			if err != nil {
+				_ = conn.Close()
+				return nil, err
+			}
+			return transport, nil
 		},
 	)
 }
