@@ -100,7 +100,7 @@ How each binding degrades:
 | Dispatch | one goroutine per inbound message; no ordering | responses resolved on the reader (never blocks); requests + events through **one serial dispatcher**. Nested requests still work because responses bypass the queue |
 | Slow handlers | n/a | deferred-response escape hatch: don't auto-reply, answer later via `SHC` |
 | Pending on close | dangle until timeout (Rust: forever — no timeout at all) | resolved with `ErrSessionClosed` |
-| Termination | `OnAfterReply` side-effect hooks; voice side 501s `session.terminate` | `SHC.RespondThenClose` + the transport's flush-on-close guarantee; spec-level `terminal: true` drives it; voice side implements `session.terminate` properly |
+| Termination | `OnAfterReply` side-effect hooks; reverse application→voice `session.terminate` gets 501 | `SHC.RespondThenClose` + the transport's flush-on-close guarantee; spec-level `terminal: true` drives the voice→application path; reverse application→voice requests preserve the deployed 501 |
 | Keepalive | WS ping every 5s **and** app-level `ping` every 10s, no defined failure action | one `KeepalivePolicy{Interval, Timeout, MaxMisses}` per transport; breach ⇒ `ErrKeepaliveTimeout` ⇒ `Failed`, pending resolved, hooks run. Catalog `ping` remains an RTT/OWD *measurement*, no longer auto-run |
 | Lifecycle | `inactive→active→closing→closed`/`failed` | adds `Connecting` (factory + `OnBegin` window) |
 | Audio chunking | hardcoded 320 bytes; `ChunkSize` config is dead code | `Format().PTime` worth of bytes |

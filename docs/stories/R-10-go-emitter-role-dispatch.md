@@ -3,6 +3,7 @@ id: R-10
 title: Go emitter — role interfaces, dispatch adapters and typed peer clients
 pillar: Generator
 status: backlog
+priority: 11
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [generator, sdk-go]

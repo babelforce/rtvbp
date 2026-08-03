@@ -69,4 +69,5 @@ wrong and this story has found the bug — which is its purpose.
 `demo.v1` is emitted by the same generator with no catalog-specific code paths; one Go example serves
 both `babelforce.v1` and `demo.v1` over a single endpoint selected by subprotocol; a client of each
 completes an exchange; the negotiation rules (including the "absence means `rtvbp.v1`" default) are
-documented on the generated profiles page.
+documented on the hand-written profiles page whose supported-profile facts are checked against the
+generated catalog references.

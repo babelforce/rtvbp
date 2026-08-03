@@ -3,6 +3,7 @@ id: R-15
 title: Port rtvbp-openai to the new SDK as the acceptance test
 pillar: Proof
 status: backlog
+priority: 16
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance]

@@ -3,11 +3,11 @@ id: R-5
 title: Generator skeleton and manifest emitter
 pillar: Generator
 status: ready
-priority: 5
+priority: 6
 design: docs/designs/spec-catalog.md
 epic: spec-catalog
 areas: [generator]
-note: can run alongside R-4; the cheapest emitter forces the model to be complete
+note: typed catalog and byte proof are ready; the cheapest emitter forces the model to be complete
 ---
 
 # Generator skeleton and manifest emitter
@@ -28,6 +28,9 @@ emitters will need.
       produces no diff (a test asserts this).
 - [ ] `--check` re-emits and exits non-zero on any difference, ready for the CI drift gate.
 - [ ] Emitters are pure `model → [(path, bytes)]` functions; writing is the only side effect.
+- [ ] A minimal CI job runs the Rust tests and `rtvbp-spec-gen --check`, so spec/generated drift is
+      unmergeable as soon as the first emitted artifact lands; R-16 later expands this to the full
+      cross-language release gate.
 
 ## Progress
 - (not started)

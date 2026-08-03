@@ -1,6 +1,6 @@
 # Design: conformance vectors, interop, and acceptance
 
-**Status:** accepted · **Pillar:** Proof · **Stories:** R-1, R-11, R-12, R-15, R-16
+**Status:** accepted · **Pillar:** Proof · **Stories:** R-1, R-11, R-12, R-15, R-16, R-17
 
 ## Why
 
@@ -16,7 +16,7 @@ working against anything we ship.
 
 ### Golden fixtures — the authority (R-1)
 
-A one-shot capture program, run against the *current* `rtvbp-go`, marshals canonical instances of
+A one-shot capture program, pinned to `rtvbp-go v0.40.0`, marshals canonical instances of
 every payload and every envelope frame shape (request, response-ok, response-error including the
 `"any"` key, event) and writes the exact bytes to `conformance/babelforce.v1/golden/`. Committed
 **frozen**: changes require deliberate review, because a change here means a wire change.
@@ -65,8 +65,10 @@ path — no vendoring, no copies to drift.
 ### Interop (R-12)
 
 Separate from vectors, because vectors only prove self-consistency: stand up the new SDK against the
-**published `rtvbp-go v0.37`** over a real WebSocket, exercising both role directions. This is what
-actually proves deployed telephony peers are unaffected.
+**published `rtvbp-go v0.37.2`** over a real WebSocket, exercising both role directions. R-12 first
+mechanically compares the fixture-relevant v0.37.2 and v0.40.0 encodings and records the exact
+equivalence scope; live interop then proves the behavioral contract. Together these show deployed
+telephony peers are unaffected rather than assuming the two old releases speak identical bytes.
 
 ### Acceptance (R-15)
 

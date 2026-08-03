@@ -3,6 +3,7 @@ id: R-11
 title: Conformance vector emitter and the Go harness
 pillar: Proof
 status: backlog
+priority: 12
 design: docs/designs/conformance.md
 epic: conformance
 areas: [generator, conformance, sdk-go]

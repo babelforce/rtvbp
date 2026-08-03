@@ -3,10 +3,11 @@ id: R-7
 title: EnvelopeSpec and the generated Go classic.v1 codec
 pillar: Generator
 status: backlog
+priority: 8
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [generator, sdk-go]
-note: blocked on R-6; the envelope codec is generated, not hand-written
+note: blocked on R-6, R-8 and R-18; the generated codec implements settled runtime interfaces
 ---
 
 # EnvelopeSpec and the generated Go classic.v1 codec

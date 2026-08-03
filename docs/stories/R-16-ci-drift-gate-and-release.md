@@ -3,6 +3,7 @@ id: R-16
 title: CI drift gate, Taskfile, first release and rtvbp-go deprecation
 pillar: Proof
 status: backlog
+priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
@@ -22,7 +23,7 @@ build — and retire the old repository cleanly now that its consumers have some
       once, then reverted).
 - [ ] Generated output is committed, so `go get` works without running the generator.
 - [ ] `sdk/go` is tagged `sdk/go/v0.1.0`.
-- [ ] `rtvbp-go` gets a final `v0.38.0` release whose README points at the monorepo and states that
+- [ ] `rtvbp-go` gets a final `v0.41.0` release whose README points at the monorepo and states that
       published versions remain available from the module proxy indefinitely; the repository is then
       archived.
 - [ ] The roadmap's Status and Delivered sections are updated to reflect the shipped milestone.
@@ -32,5 +33,7 @@ build — and retire the old repository cleanly now that its consumers have some
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor
-  `v0.37` and record the decision rather than dropping the test.
+  `v0.37.2` and record the decision rather than dropping the test.
+- R-8 makes `go test ./...` literal by fixing module/workspace paths; do not reintroduce a
+  `GOWORK=off` carve-out in CI.
 - Do not archive `rtvbp-go` before the `rtvbp-openai` branch from R-15 is merged and deployed.

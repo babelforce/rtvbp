@@ -23,3 +23,6 @@ All notable changes to this project are documented here. The format is based on
   `classic.v1` reference envelope codec.
 - The complete typed `babelforce.v1` catalog: ten operations, nine events, roles, terminality,
   canonical examples, target-language type hints, and typed catalog validation.
+- Bidirectional spec-side byte parity for all 29 frozen `babelforce.v1` fixtures: every payload and
+  event passes through its concrete Rust type, every `classic.v1` envelope decodes and re-encodes
+  identically, and an inventory guard prevents fixture coverage from drifting silently.

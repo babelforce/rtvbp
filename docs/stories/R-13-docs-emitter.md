@@ -3,6 +3,7 @@ id: R-13
 title: Docs emitter — generated protocol reference in the Docusaurus site
 pillar: Generator
 status: backlog
+priority: 14
 design: docs/designs/docs-gen.md
 epic: docs-gen
 areas: [generator, website]
@@ -29,6 +30,8 @@ per-role view that is the most useful thing to read.
 - [ ] Two hand-written pages are added and linked: the **WebSocket transport binding** (framing,
       auth, subprotocol) and **profiles & negotiation** (a profile is transport × envelope × catalog;
       absence of a subprotocol means `rtvbp.v1`).
+- [ ] The public transport/profile prose reserves the `transport.*` method namespace across every
+      catalog and envelope, and the catalog validator rejects operations in that namespace.
 - [ ] The Docusaurus site builds; superseded pages under `website/docs/protov1/` are removed or
       reduced to narrative that links into the generated reference.
 - [ ] Regenerating produces no diff.

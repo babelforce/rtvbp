@@ -3,10 +3,11 @@ id: R-9
 title: Session rewrite and WebSocket transport port
 pillar: SDK
 status: backlog
+priority: 10
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
-note: blocked on R-7 and R-8; changes runtime semantics but not a single byte on the wire
+note: blocked on R-7 and R-8; keeps encodings frozen while traffic semantics change under interop
 ---
 
 # Session rewrite and WebSocket transport port
@@ -25,7 +26,9 @@ the new transport interface.
       to time out (test).
 - [ ] `SHC.RespondThenClose` replaces the `OnAfterReply` hooks, which are deleted; a test proves the
       response reaches the peer before the connection closes, for a `terminal` operation.
-- [ ] The voice role implements `session.terminate` properly rather than answering 501.
+- [ ] `session.terminate` remains voice→application (`handled_by: Application`): the terminal
+      application handler responds then closes, and a reverse application→voice request preserves
+      the deployed explicit 501 behavior.
 - [ ] One `KeepalivePolicy{Interval, Timeout, MaxMisses}`; a breach surfaces as
       `ErrKeepaliveTimeout`, moves the session to `Failed`, and resolves pending requests. The
       catalog `ping` operation is no longer run automatically.
@@ -36,7 +39,8 @@ the new transport interface.
 - [ ] The `ws` transport implements the new interface: text frames as the control channel, one
       static duplex `"audio"` media channel over binary frames, flush-on-close, keepalive wiring, and
       subprotocol negotiation (absence means `rtvbp.v1`).
-- [ ] `ClearReadBuffer` and the audio observer still work; the load test is `goleak`-clean.
+- [ ] `ClearReadBuffer` and the audio observer still work; the runtime's own concurrency and close
+      tests are `goleak`-clean.
 
 ## Progress
 - (not started)

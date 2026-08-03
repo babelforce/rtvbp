@@ -3,7 +3,7 @@ id: R-8
 title: Go runtime core — frame, envelope and transport interfaces plus the memory transport
 pillar: SDK
 status: ready
-priority: 8
+priority: 9
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
@@ -30,6 +30,9 @@ bindings can satisfy without the session or the catalog noticing.
       in-process media channel — and is used by the runtime's own tests.
 - [ ] A test asserts the flush-on-close contract: a control frame written immediately before `Close`
       is observed by the peer.
+- [ ] The Go module is renamed to `github.com/babelforce/rtvbp/sdk/go`; workspace and example-module
+      replacements are updated so the repository gate is the literal `go test ./...` without a
+      `GOWORK=off` exception.
 
 ## Progress
 - (not started)
@@ -37,5 +40,5 @@ bindings can satisfy without the session or the catalog noticing.
 ## Notes
 - Deliberately replaces today's `Transport{Write, ReadChan, Close}` plus audio-as-`io.ReadWriter`,
   which cannot express "no media", "two media streams", or timed media.
-- Reserve the `transport.*` method namespace in code comments and, later, in the published spec, so
-  no catalog can claim it.
+- Reserve the `transport.*` method namespace in code comments. R-13 owns publishing the reservation,
+  so no catalog can claim it.

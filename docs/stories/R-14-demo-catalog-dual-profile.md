@@ -3,10 +3,11 @@ id: R-14
 title: demo.v1 catalog and a dual-profile example
 pillar: Spec
 status: backlog
+priority: 15
 design: docs/designs/multi-catalog.md
 epic: multi-catalog
 areas: [spec, generator, sdk-go]
-note: blocked on R-10; deliberately runs before the Rust SDK so a failure is unambiguous
+note: blocked on R-10, R-11 and R-13; exercises emitted role glue, vectors and docs together
 ---
 
 # demo.v1 catalog and a dual-profile example
@@ -32,6 +33,6 @@ adding a second, throwaway catalog and serving it beside the frozen one over a s
 
 ## Notes
 - Settle the subprotocol naming convention for non-default profiles here and document it on the
-  generated profiles page from R-13.
+  hand-written profiles page from R-13.
 - Keep the multi-catalog routing seam in the example, not the runtime, until a second *real* catalog
   exists.

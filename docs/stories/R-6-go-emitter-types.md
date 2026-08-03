@@ -3,10 +3,11 @@ id: R-6
 title: Go emitter — payload types and name constants
 pillar: Generator
 status: backlog
+priority: 7
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [generator, sdk-go]
-note: blocked on R-4 and R-5; proves byte parity in Go
+note: blocked on R-4, R-5, R-17 and R-18; emits only after wire authority and semantics are complete
 ---
 
 # Go emitter — payload types and name constants
@@ -36,3 +37,5 @@ the frozen fixtures — the moment the "spec generates the SDK" claim becomes re
   per operation.
 - The types must be usable before the new runtime exists, so this story depends on nothing in
   `sdk/go` beyond the module itself.
+- R-17 must settle the four additive event fixtures and R-18 must formalize frozen semantic
+  constraints before this story freezes either shape into generated Go APIs.

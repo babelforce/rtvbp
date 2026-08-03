@@ -1,6 +1,6 @@
 # Design: RTVBP architecture — spec-first, any transport × any envelope
 
-**Status:** accepted · **Pillar:** Spec · **Stories:** all of M1 (R-1 … R-16)
+**Status:** accepted · **Pillar:** Spec · **Stories:** all of M1 (R-1 … R-18)
 
 ## Why
 
@@ -80,8 +80,9 @@ three wire behaviors — and getting this wrong silently changes bytes:
 | `Option<T>` | omitted when absent | `omitempty` |
 | `Nullable<T>` | always serialized; `null` when absent | pointer, **no** `omitempty` |
 
-`Nullable<T>` is load-bearing today: `SessionInitializeResponse.audio_codec` and
-`SessionInitializeRequest.metadata` both emit `null` rather than disappearing.
+`Nullable<T>` is load-bearing today: all three `SessionInitializeRequest.metadata` fields,
+`SessionInitializeResponse.audio_codec`, and `SessionUpdatedEvent.audio_codec` emit `null` rather
+than disappearing.
 
 Field **declaration order is part of the contract** — Go marshals struct fields in declaration order,
 so the spec's order is the wire's order.
@@ -138,7 +139,7 @@ WebSocket, in both role directions.
 - **Trait-based operation registry** (`trait RequestPayload { const METHOD }`, as the Rust port has).
   Rust cannot enumerate trait impls, so an explicit list is required regardless — better to make that
   list the spec than to hide it. Those trait impls become *generated* SDK ergonomics instead.
-- **Attribute proc-macro.** Most work, most opacity, for a catalog of ~11 operations and ~9 events.
+- **Attribute proc-macro.** Most work, most opacity, for a catalog of 10 operations and 9 events.
 - **Off-the-shelf OpenAPI/AsyncAPI generators.** Produce unidiomatic output and cannot express the
   byte-level quirks or the role model. We may emit AsyncAPI as an artifact; we won't consume it.
 - **Keeping audio on the `Transport` interface as an `io.ReadWriter`** (today's Go design). It cannot
