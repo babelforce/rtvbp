@@ -137,7 +137,18 @@ func dialConnection(ctx context.Context, c ClientConfig) (*websocket.Conn, *slog
 func Client(config ClientConfig) rtvbp.Option {
 	return rtvbp.WithTransportFactory(
 		func(ctx context.Context, _ rtvbp.Envelope) (rtvbp.Transport, error) {
-			return Dial(ctx, config)
+			resolved := config
+			resolved.Defaults()
+			conn, logger, err := dialConnection(ctx, resolved)
+			if err != nil {
+				return nil, err
+			}
+			// TransportFactory's context bounds construction. Session owns the
+			// returned transport lifetime and closes it explicitly during teardown.
+			return NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{
+				Logger:      logger,
+				AudioFormat: resolved.AudioFormat,
+			}), nil
 		},
 	)
 }

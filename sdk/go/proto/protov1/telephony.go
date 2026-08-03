@@ -62,9 +62,19 @@ func (f *FakeTelephonyAdapter) Run(ctx context.Context) {
 			case d := <-f.events:
 				switch e := d.(type) {
 				case *DTMFEvent:
-					f.dtmfHandler(e)
+					f.mu.Lock()
+					handler := f.dtmfHandler
+					f.mu.Unlock()
+					if handler != nil {
+						handler(e)
+					}
 				case *CallHangupEvent:
-					f.hangupHandler(e)
+					f.mu.Lock()
+					handler := f.hangupHandler
+					f.mu.Unlock()
+					if handler != nil {
+						handler(e)
+					}
 				}
 			}
 		}

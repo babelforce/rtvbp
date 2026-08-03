@@ -153,6 +153,8 @@ func testScenario(
 	case <-srvDoneChan:
 		// server scenario is done, we terminate
 		require.NoError(t, clientHdl.Terminate("end_of_test"))
+	case err := <-clientDoneChan:
+		t.Fatalf("client session stopped before server scenario completed: %v", err)
 	case <-ctx.Done():
 		t.Fatal("timeout", ctx.Err())
 	}

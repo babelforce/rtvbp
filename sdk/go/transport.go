@@ -59,6 +59,9 @@ type Transport interface {
 	Close(ctx context.Context) error
 }
 
-// TransportFactory creates a transport. The envelope is supplied so composite transports can
-// exchange reserved transport.* signaling without coupling the transport to a specific codec.
+// TransportFactory creates a transport. Its context bounds construction only; Session owns and
+// explicitly closes a successfully returned transport. Implementations must stop construction
+// promptly when the context is canceled and must not use that context as the transport lifetime.
+// The envelope is supplied so composite transports can exchange reserved transport.* signaling
+// without coupling the transport to a specific codec.
 type TransportFactory func(ctx context.Context, envelope Envelope) (Transport, error)
