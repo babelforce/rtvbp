@@ -2,7 +2,7 @@
 id: R-8
 title: Go runtime core — frame, envelope and transport interfaces plus the memory transport
 pillar: SDK
-status: ready
+status: in-progress
 priority: 9
 design: docs/designs/go-sdk.md
 epic: go-sdk
@@ -35,7 +35,9 @@ bindings can satisfy without the session or the catalog noticing.
       `GOWORK=off` exception.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started by separating the new semantic frame/envelope/transport seams from the legacy
+  session-facing byte transport so R-9 can migrate behavior without blocking the R-8 interfaces,
+  memory transport, and module-path correction.
 
 ## Notes
 - Deliberately replaces today's `Transport{Write, ReadChan, Close}` plus audio-as-`io.ReadWriter`,

@@ -14,8 +14,8 @@ Milestone 1 — **spec + generator + a Go SDK at wire parity** — is underway. 
 the complete typed catalog, and R-4 proved all 29 existing fixtures byte-identical through concrete
 spec types. R-17 closed the soundness review's wire-authority gap with 46 source-pinned fixtures,
 R-18 made the remaining semantic constraints explicit and tested, R-5 delivered the generator core
-plus its first committed manifest, and R-6 now emits byte-proven Go payload types. R-8 is the
-highest-priority ready story; R-13 remains independently ready.
+plus its first committed manifest, and R-6 now emits byte-proven Go payload types. R-8 is building
+the new runtime transport seams; R-13 remains independently ready.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -32,7 +32,9 @@ cross-language release gate and release automation.
 
 ## Now (in progress)
 
-_None._
+### the Go SDK — runtime and emitted glue
+_The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
+- [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · independent of R-4/R-5; defines the seams that WebRTC, QUIC and SIP must later fit
 
 ## Next (ready — take the top one unless the user named a story)
 
@@ -41,7 +43,6 @@ _Before anything can be generated there must be a source of truth that is provab
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
-- [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · independent of R-4/R-5; defines the seams that WebRTC, QUIC and SIP must later fit
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
