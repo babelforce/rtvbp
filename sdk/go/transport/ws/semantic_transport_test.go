@@ -50,7 +50,13 @@ func TestSemanticControlRoundTripAndCancellation(t *testing.T) {
 
 func TestSemanticStaticAudioRoundTrip(t *testing.T) {
 	transport, peer := semanticPair(t)
-	format := defaultAudioFormat()
+	format := rtvbp.MediaFormat{
+		Encoding:   "L16",
+		SampleRate: 16000,
+		BitDepth:   16,
+		Channels:   1,
+		PTime:      20 * time.Millisecond,
+	}
 	media, err := transport.OpenMedia(context.Background(), "audio", format)
 	if err != nil {
 		t.Fatalf("OpenMedia() error = %v", err)
@@ -87,13 +93,14 @@ func TestSemanticStaticAudioRoundTrip(t *testing.T) {
 	}
 }
 
-func TestTransportConfigDefaultsStaticAudioBeforeAccept(t *testing.T) {
-	transport, _ := semanticPair(t)
+func TestTransportConfigPreconfiguresStaticAudioBeforeAccept(t *testing.T) {
+	want := defaultAudioFormat()
+	transport, _ := semanticPairWithConfig(t, &TransportConfig{AudioFormat: want})
 	media, err := transport.AcceptMedia(context.Background())
 	if err != nil {
 		t.Fatalf("AcceptMedia() error = %v", err)
 	}
-	if got, want := media.Format(), defaultAudioFormat(); got != want {
+	if got := media.Format(); got != want {
 		t.Fatalf("Format() = %#v, want %#v", got, want)
 	}
 }
@@ -154,6 +161,10 @@ func TestUnreadBinaryDoesNotBlockControl(t *testing.T) {
 }
 
 func semanticPair(t *testing.T) (*Transport, *websocket.Conn) {
+	return semanticPairWithConfig(t, nil)
+}
+
+func semanticPairWithConfig(t *testing.T, config *TransportConfig) (*Transport, *websocket.Conn) {
 	t.Helper()
 	accepted := make(chan *websocket.Conn, 1)
 	upgrader := websocket.Upgrader{}
@@ -173,7 +184,7 @@ func semanticPair(t *testing.T) (*Transport, *websocket.Conn) {
 	}
 	peer := <-accepted
 	ctx, cancel := context.WithCancel(context.Background())
-	transport := NewTransport(ctx, client, nil)
+	transport := NewTransport(ctx, client, config)
 	t.Cleanup(func() {
 		closeCtx, closeCancel := context.WithTimeout(context.Background(), time.Second)
 		defer closeCancel()

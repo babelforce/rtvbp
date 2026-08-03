@@ -92,6 +92,7 @@ func (d *DialConfig) doDial(ctx context.Context, subprotocols []string) (*websoc
 
 // Dial connects a semantic transport to a WebSocket endpoint.
 func Dial(ctx context.Context, c ClientConfig) (*Transport, error) {
+	c.Defaults()
 	conn, logger, err := dialConnection(ctx, c)
 	if err != nil {
 		return nil, err

@@ -12,12 +12,6 @@ type TransportConfig struct {
 	AudioFormat rtvbp.MediaFormat
 }
 
-func (c *TransportConfig) Defaults() {
-	if c.AudioFormat == (rtvbp.MediaFormat{}) {
-		c.AudioFormat = defaultAudioFormat()
-	}
-}
-
 func defaultAudioFormat() rtvbp.MediaFormat {
 	return rtvbp.MediaFormat{
 		Encoding:   "L16",

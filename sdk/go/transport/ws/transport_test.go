@@ -69,13 +69,15 @@ func TestClientServer(t *testing.T) {
 	defer cancel()
 
 	var (
-		srvOnBeginCalled atomic.Bool
-		srvOnBeginErr    = make(chan error, 1)
+		srvOnBeginCalled  atomic.Bool
+		srvOnBeginErr     = make(chan error, 1)
+		clientBeginCalled atomic.Bool
+		clientBeginErr    = make(chan error, 1)
 	)
 
 	handler := rtvbp.NewHandler(rtvbp.HandlerConfig{
 		OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-			err := h.AcceptAudio(ctx)
+			err := h.OpenAudio(ctx, defaultAudioFormat())
 			srvOnBeginErr <- err
 			srvOnBeginCalled.Store(true)
 			return err
@@ -94,13 +96,19 @@ func TestClientServer(t *testing.T) {
 	// Connect client transport
 	client := srv.NewClientSession(rtvbp.NewHandler(rtvbp.HandlerConfig{
 		OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-			return h.OpenAudio(ctx, defaultAudioFormat())
+			err := h.AcceptAudio(ctx)
+			clientBeginErr <- err
+			clientBeginCalled.Store(true)
+			return err
 		},
 	}))
 	done := client.Run(ctx)
 	require.Eventually(t, srvOnBeginCalled.Load, time.Second, 10*time.Millisecond,
 		"server on begin handler not called")
 	require.NoError(t, <-srvOnBeginErr)
+	require.Eventually(t, clientBeginCalled.Load, time.Second, 10*time.Millisecond,
+		"client on begin handler not called")
+	require.NoError(t, <-clientBeginErr)
 
 	// --- closing session ---
 	require.NoError(t, client.Close(context.Background()))

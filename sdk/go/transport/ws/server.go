@@ -57,7 +57,10 @@ func serverUpgradeHandler(
 		)
 
 		// run session
-		ctx, cancel := context.WithCancel(r.Context())
+		// Gorilla hijacks the HTTP connection during upgrade, so the request
+		// context is not a reliable WebSocket lifetime. The server registry and
+		// Session own teardown from this point onward.
+		ctx, cancel := context.WithCancel(context.WithoutCancel(r.Context()))
 		defer cancel()
 
 		doneChan := sess.Run(ctx)

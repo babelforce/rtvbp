@@ -54,7 +54,6 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 	if config != nil {
 		resolvedConfig = *config
 	}
-	resolvedConfig.Defaults()
 
 	logger := slog.Default()
 	if resolvedConfig.Logger != nil {
@@ -75,7 +74,9 @@ func NewTransport(ctx context.Context, conn *websocket.Conn, config *TransportCo
 	}
 	t.control = &semanticControlChannel{transport: t, incoming: newInbox[rtvbp.Received]()}
 	t.media = &staticMediaChannel{transport: t, incoming: newInbox[rtvbp.MediaFrame]()}
-	_ = t.media.configure(resolvedConfig.AudioFormat)
+	if resolvedConfig.AudioFormat != (rtvbp.MediaFormat{}) {
+		_ = t.media.configure(resolvedConfig.AudioFormat)
+	}
 	conn.SetPongHandler(func(payload string) error {
 		select {
 		case t.pongs <- payload:
