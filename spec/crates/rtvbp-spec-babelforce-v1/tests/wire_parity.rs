@@ -2,8 +2,7 @@ use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use rtvbp_spec_babelforce_v1::catalog;
-use rtvbp_spec_model::classic_v1;
+use rtvbp_spec_babelforce_v1::{catalog, envelope};
 
 const EVENTS: [&str; 9] = [
     "agent.tool.call",
@@ -165,7 +164,7 @@ fn every_payload_fixture_deserializes_and_reserializes_to_identical_bytes() {
 
 #[test]
 fn every_envelope_fixture_decodes_and_reencodes_to_identical_bytes() {
-    let codec = classic_v1();
+    let codec = envelope();
 
     for name in ENVELOPES {
         let fixture_name = format!("envelope/classic.v1/{name}");

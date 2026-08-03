@@ -10,7 +10,8 @@ pub use catalog::{
     OperationExample, RESERVED_TRANSPORT_METHOD_PREFIX, Role, TypeRef,
 };
 pub use envelope::{
-    CodecError, ConstantField, ControlFrame, EnvelopeSpec, ErrorCodeSpec, ErrorSpec, FieldSpec,
-    FrameKind, FrameSpec, WireError, classic_v1,
+    CodecError, ConstantField, ControlFrame, EnvelopeFixture, EnvelopeSpec,
+    EnvelopeValidationError, EnvelopeValidationErrors, ErrorCodeSpec, ErrorSpec, FieldSpec,
+    FrameKind, FrameSpec, WireError,
 };
 pub use nullable::Nullable;

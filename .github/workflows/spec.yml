@@ -19,6 +19,6 @@ jobs:
           go-version-file: sdk/go/go.mod
       - run: cargo test --locked --manifest-path spec/Cargo.toml
       - run: cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --check
-      - run: test -z "$(gofmt -l sdk/go/catalog)"
+      - run: test -z "$(gofmt -l sdk/go/catalog sdk/go/envelope)"
       - run: go test ./...
         working-directory: sdk/go

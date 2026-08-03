@@ -8,8 +8,11 @@ use rtvbp_spec_gen::catalogs;
 use rtvbp_spec_gen::emit::{GeneratedFile, Target};
 use rtvbp_spec_gen::resolve::resolve;
 use rtvbp_spec_gen::write::{check_files, check_owned_files, synchronize_files, write_files};
-use rtvbp_spec_gen::{ResolveError, generate};
-use rtvbp_spec_model::{Catalog, Event, Operation, Role};
+use rtvbp_spec_gen::{ResolveError, emit_go_envelope, generate};
+use rtvbp_spec_model::{
+    Catalog, ConstantField, EnvelopeSpec, ErrorSpec, Event, FieldSpec, FrameKind, FrameSpec,
+    Operation, Role,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -292,22 +295,26 @@ fn manifest_emitter_is_deterministic_and_ends_with_one_newline() {
 #[test]
 fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     assert_eq!(Target::from_str("go").unwrap(), Target::Go);
-    assert_eq!(Target::Go.canonical_out_dir(), "sdk/go/catalog");
-    assert!(Target::Go.owns_output_path(Path::new("babelforcev1/zz_generated.types.go")));
-    assert!(!Target::Go.owns_output_path(Path::new("babelforcev1/handwritten.go")));
+    assert_eq!(Target::Go.canonical_out_dir(), "sdk/go");
+    assert!(Target::Go.owns_output_path(Path::new("catalog/babelforcev1/zz_generated.types.go")));
+    assert!(Target::Go.owns_output_path(Path::new("envelope/v1classic/zz_generated.codec.go")));
+    assert!(!Target::Go.owns_output_path(Path::new("catalog/babelforcev1/handwritten.go")));
+    assert!(!Target::Go.owns_output_path(Path::new("zz_generated.runtime.go")));
 
     let first = generate(Target::Go).unwrap();
     let second = generate(Target::Go).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 2);
+    assert_eq!(first.len(), 4);
     assert_eq!(
         first
             .iter()
             .map(|file| file.path.as_path())
             .collect::<Vec<_>>(),
         [
-            Path::new("babelforcev1/zz_generated.golden_test.go"),
-            Path::new("babelforcev1/zz_generated.types.go"),
+            Path::new("catalog/babelforcev1/zz_generated.golden_test.go"),
+            Path::new("catalog/babelforcev1/zz_generated.types.go"),
+            Path::new("envelope/v1classic/zz_generated.codec.go"),
+            Path::new("envelope/v1classic/zz_generated.golden_test.go"),
         ]
     );
     for file in &first {
@@ -353,6 +360,114 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     assert_eq!(tests.matches("\t{name: \"").count(), 36);
     assert!(tests.contains("/round_trip"));
     assert!(tests.contains("/construct"));
+
+    let codec = String::from_utf8(
+        first
+            .iter()
+            .find(|file| file.path.ends_with("zz_generated.codec.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+    assert!(codec.contains("const envelopeName = \"classic.v1\""));
+    assert!(codec.contains("var _ rtvbp.Envelope = Envelope{}"));
+    assert!(
+        codec.find("discriminator: \"event\"").unwrap()
+            < codec.find("discriminator: \"method\"").unwrap()
+    );
+
+    let envelope_tests = String::from_utf8(
+        first
+            .iter()
+            .find(|file| file.path == Path::new("envelope/v1classic/zz_generated.golden_test.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+    assert_eq!(envelope_tests.matches("\t{name: \"").count(), 10);
+    assert!(envelope_tests.contains("response-ok-null-result.json"));
+    assert!(envelope_tests.contains("TestStructuralPrecedenceAndMalformedInput"));
+}
+
+#[test]
+fn go_envelope_emitter_is_driven_by_a_synthetic_second_spec() {
+    let envelope = EnvelopeSpec {
+        id: "compact__CONSTANTS__.v2".to_owned(),
+        constants: vec![ConstantField {
+            name: "protocol".to_owned(),
+            value: "two__FRAMES__".to_owned(),
+        }],
+        frames: vec![
+            FrameSpec {
+                kind: FrameKind::Request,
+                discriminator: FieldSpec::required("call__ERROR_SPEC__"),
+                id: Some(FieldSpec::required("token")),
+                payload: FieldSpec::optional("input"),
+                error: None,
+            },
+            FrameSpec {
+                kind: FrameKind::Event,
+                discriminator: FieldSpec::required("notice"),
+                id: Some(FieldSpec::required("token")),
+                payload: FieldSpec::optional("body"),
+                error: None,
+            },
+            FrameSpec {
+                kind: FrameKind::Response,
+                discriminator: FieldSpec::required("answer"),
+                id: None,
+                payload: FieldSpec::optional("output"),
+                error: Some(FieldSpec::required("failure")),
+            },
+        ],
+        error: ErrorSpec {
+            code: FieldSpec::required("status"),
+            message: FieldSpec::required("detail"),
+            data: FieldSpec::optional("context"),
+        },
+        error_codes: vec![],
+        fixtures: vec![],
+    };
+
+    let files = emit_go_envelope(&envelope).unwrap();
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("envelope/v2compactconstants/zz_generated.codec.go"),
+            Path::new("envelope/v2compactconstants/zz_generated.golden_test.go"),
+        ]
+    );
+    let codec = String::from_utf8(files[0].bytes.clone()).unwrap();
+    for value in [
+        "compact__CONSTANTS__.v2",
+        "protocol",
+        "two__FRAMES__",
+        "call__ERROR_SPEC__",
+        "token",
+        "input",
+        "notice",
+        "body",
+        "answer",
+        "output",
+        "failure",
+        "status",
+        "detail",
+        "context",
+    ] {
+        assert!(codec.contains(value), "missing synthetic value {value}");
+    }
+    assert!(!codec.contains("classic.v1"));
+    assert!(!codec.contains("discriminator: \"event\""));
+    assert!(
+        codec.find("discriminator: \"call__ERROR_SPEC__\"").unwrap()
+            < codec.find("discriminator: \"notice\"").unwrap()
+    );
+    assert!(codec.contains("error: \"failure\", omitError: false"));
 }
 
 #[test]
@@ -368,13 +483,24 @@ fn go_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_fil
             .success()
     );
     fs::write(
-        temp.path().join("babelforcev1/zz_generated.old.go"),
+        temp.path().join("catalog/babelforcev1/zz_generated.old.go"),
         b"stale\n",
     )
     .unwrap();
     fs::write(
-        temp.path().join("babelforcev1/handwritten.go"),
+        temp.path().join("catalog/babelforcev1/handwritten.go"),
         b"package babelforcev1\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path()
+            .join("envelope/v1classic/zz_generated.obsolete.go"),
+        b"stale\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path().join("envelope/v1classic/handwritten.go"),
+        b"package v1classic\n",
     )
     .unwrap();
     let stale = Command::new(binary)
@@ -383,6 +509,7 @@ fn go_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_fil
         .unwrap();
     assert!(!stale.status.success());
     assert!(String::from_utf8_lossy(&stale.stderr).contains("zz_generated.old.go"));
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("zz_generated.obsolete.go"));
     assert!(
         Command::new(binary)
             .args(["--emit=go", &out])
@@ -393,10 +520,25 @@ fn go_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_fil
     assert!(
         !temp
             .path()
-            .join("babelforcev1/zz_generated.old.go")
+            .join("catalog/babelforcev1/zz_generated.old.go")
             .exists()
     );
-    assert!(temp.path().join("babelforcev1/handwritten.go").exists());
+    assert!(
+        temp.path()
+            .join("catalog/babelforcev1/handwritten.go")
+            .exists()
+    );
+    assert!(
+        !temp
+            .path()
+            .join("envelope/v1classic/zz_generated.obsolete.go")
+            .exists()
+    );
+    assert!(
+        temp.path()
+            .join("envelope/v1classic/handwritten.go")
+            .exists()
+    );
 }
 
 fn assert_schema_refs_resolve(value: &Value, schemas: &serde_json::Map<String, Value>) {

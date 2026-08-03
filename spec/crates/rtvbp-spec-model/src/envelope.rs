@@ -1,10 +1,14 @@
+use std::collections::HashSet;
+use std::fmt;
+use std::path::{Component, Path};
+
 use serde::ser::{SerializeMap, Serializer};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 
 /// One semantic control frame, independent of any envelope encoding.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ControlFrame {
     Request {
         id: String,
@@ -24,7 +28,7 @@ pub enum ControlFrame {
 }
 
 /// An envelope-independent response error.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireError {
     pub code: i64,
     pub message: String,
@@ -32,7 +36,7 @@ pub struct WireError {
 }
 
 /// The semantic frame kind represented by an envelope shape.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FrameKind {
     Request,
@@ -55,17 +59,38 @@ pub struct FieldSpec {
 }
 
 impl FieldSpec {
-    fn required(name: &str) -> Self {
+    #[must_use]
+    pub fn required(name: impl Into<String>) -> Self {
         Self {
-            name: name.to_owned(),
+            name: name.into(),
             omit_when_none: false,
         }
     }
 
-    fn optional(name: &str) -> Self {
+    #[must_use]
+    pub fn optional(name: impl Into<String>) -> Self {
         Self {
-            name: name.to_owned(),
+            name: name.into(),
             omit_when_none: true,
+        }
+    }
+}
+
+/// One frozen envelope fixture and its target-neutral semantic meaning.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnvelopeFixture {
+    pub path: String,
+    pub bytes: Vec<u8>,
+    pub frame: ControlFrame,
+}
+
+impl EnvelopeFixture {
+    #[must_use]
+    pub fn new(path: impl Into<String>, bytes: impl Into<Vec<u8>>, frame: ControlFrame) -> Self {
+        Self {
+            path: path.into(),
+            bytes: bytes.into(),
+            frame,
         }
     }
 }
@@ -106,11 +131,76 @@ pub struct EnvelopeSpec {
     pub error: ErrorSpec,
     /// Known conventions; decoders still accept any non-zero integer code.
     pub error_codes: Vec<ErrorCodeSpec>,
+    /// Frozen wire witnesses used by generators and conformance harnesses.
+    pub fixtures: Vec<EnvelopeFixture>,
 }
 
 impl EnvelopeSpec {
+    /// Validate the complete envelope declaration and every frozen fixture.
+    pub fn validate(&self) -> Result<(), EnvelopeValidationErrors> {
+        let mut issues = self.structure_issues();
+        if issues.is_empty() {
+            let mut fixture_paths = HashSet::new();
+            for fixture in &self.fixtures {
+                if fixture.path.is_empty()
+                    || !Path::new(&fixture.path)
+                        .components()
+                        .all(|component| matches!(component, Component::Normal(_)))
+                {
+                    issues.push(EnvelopeValidationError::InvalidFixturePath {
+                        path: fixture.path.clone(),
+                    });
+                }
+                if !fixture_paths.insert(fixture.path.as_str()) {
+                    issues.push(EnvelopeValidationError::DuplicateFixturePath {
+                        path: fixture.path.clone(),
+                    });
+                }
+                match self.encode_unvalidated(&fixture.frame) {
+                    Ok(bytes) if bytes != fixture.bytes => {
+                        issues.push(EnvelopeValidationError::FixtureEncodingChanged {
+                            path: fixture.path.clone(),
+                            expected: fixture.bytes.clone(),
+                            actual: bytes,
+                        });
+                    }
+                    Ok(_) => {}
+                    Err(error) => issues.push(EnvelopeValidationError::InvalidFixture {
+                        path: fixture.path.clone(),
+                        message: error.to_string(),
+                    }),
+                }
+                match self.decode_unvalidated(&fixture.bytes) {
+                    Ok(frame) if frame != fixture.frame => {
+                        issues.push(EnvelopeValidationError::FixtureSemanticChanged {
+                            path: fixture.path.clone(),
+                            expected: Box::new(fixture.frame.clone()),
+                            actual: Box::new(frame),
+                        });
+                    }
+                    Ok(_) => {}
+                    Err(error) => issues.push(EnvelopeValidationError::InvalidFixture {
+                        path: fixture.path.clone(),
+                        message: error.to_string(),
+                    }),
+                }
+            }
+        }
+
+        if issues.is_empty() {
+            Ok(())
+        } else {
+            Err(EnvelopeValidationErrors { issues })
+        }
+    }
+
     /// Encode a semantic control frame in this envelope.
     pub fn encode(&self, frame: &ControlFrame) -> Result<Vec<u8>, CodecError> {
+        self.validate_structure()?;
+        self.encode_unvalidated(frame)
+    }
+
+    fn encode_unvalidated(&self, frame: &ControlFrame) -> Result<Vec<u8>, CodecError> {
         let mut bytes = Vec::new();
         let mut serializer = serde_json::Serializer::new(&mut bytes);
         let mut map = serializer.serialize_map(None)?;
@@ -124,7 +214,7 @@ impl EnvelopeSpec {
                 require_non_empty("request id", id)?;
                 require_non_empty("request method", method)?;
                 let shape = self.frame(FrameKind::Request)?;
-                let id_field = shape.id.as_ref().ok_or(CodecError::InvalidSpec(
+                let id_field = shape.id.as_ref().ok_or(CodecError::InvalidMapping(
                     "request frame must define an id field",
                 ))?;
                 map.serialize_entry(&id_field.name, id)?;
@@ -140,11 +230,11 @@ impl EnvelopeSpec {
                 let shape = self.frame(FrameKind::Response)?;
                 map.serialize_entry(&shape.discriminator.name, correlation_id)?;
                 serialize_optional(&mut map, &shape.payload, result.as_ref())?;
+                let error_field = shape.error.as_ref().ok_or(CodecError::InvalidMapping(
+                    "response frame must define an error field",
+                ))?;
                 if let Some(error) = error {
                     validate_wire_error(error)?;
-                    let error_field = shape.error.as_ref().ok_or(CodecError::InvalidSpec(
-                        "response frame must define an error field",
-                    ))?;
                     map.serialize_entry(
                         &error_field.name,
                         &EncodedError {
@@ -152,13 +242,15 @@ impl EnvelopeSpec {
                             spec: &self.error,
                         },
                     )?;
+                } else if !error_field.omit_when_none {
+                    map.serialize_entry(&error_field.name, &Value::Null)?;
                 }
             }
             ControlFrame::Event { id, event, data } => {
                 require_non_empty("event id", id)?;
                 require_non_empty("event name", event)?;
                 let shape = self.frame(FrameKind::Event)?;
-                let id_field = shape.id.as_ref().ok_or(CodecError::InvalidSpec(
+                let id_field = shape.id.as_ref().ok_or(CodecError::InvalidMapping(
                     "event frame must define an id field",
                 ))?;
                 map.serialize_entry(&id_field.name, id)?;
@@ -173,6 +265,11 @@ impl EnvelopeSpec {
 
     /// Decode and validate one envelope frame.
     pub fn decode(&self, bytes: &[u8]) -> Result<ControlFrame, CodecError> {
+        self.validate_structure()?;
+        self.decode_unvalidated(bytes)
+    }
+
+    fn decode_unvalidated(&self, bytes: &[u8]) -> Result<ControlFrame, CodecError> {
         let value: Value = serde_json::from_slice(bytes)?;
         let object = value
             .as_object()
@@ -262,75 +359,244 @@ impl EnvelopeSpec {
             data: optional_value(object, &self.error.data),
         })
     }
-}
 
-/// The frozen legacy flat JSON envelope.
-#[must_use]
-pub fn classic_v1() -> EnvelopeSpec {
-    EnvelopeSpec {
-        id: "classic.v1".to_owned(),
-        constants: vec![ConstantField {
-            name: "version".to_owned(),
-            value: "1".to_owned(),
-        }],
-        frames: vec![
-            FrameSpec {
-                kind: FrameKind::Event,
-                discriminator: FieldSpec::required("event"),
-                id: Some(FieldSpec::required("id")),
-                payload: FieldSpec::optional("data"),
-                error: None,
-            },
-            FrameSpec {
-                kind: FrameKind::Request,
-                discriminator: FieldSpec::required("method"),
-                id: Some(FieldSpec::required("id")),
-                payload: FieldSpec::optional("params"),
-                error: None,
-            },
-            FrameSpec {
-                kind: FrameKind::Response,
-                discriminator: FieldSpec::required("response"),
-                id: None,
-                payload: FieldSpec::optional("result"),
-                error: Some(FieldSpec::optional("error")),
-            },
-        ],
-        error: ErrorSpec {
-            code: FieldSpec::required("code"),
-            message: FieldSpec::required("message"),
-            data: FieldSpec::optional("any"),
-        },
-        error_codes: vec![
-            ErrorCodeSpec {
-                name: "unknown".to_owned(),
-                code: -1,
-                description: "Unclassified failure.".to_owned(),
-            },
-            ErrorCodeSpec {
-                name: "bad_request".to_owned(),
-                code: 400,
-                description: "The request is invalid.".to_owned(),
-            },
-            ErrorCodeSpec {
-                name: "internal_server_error".to_owned(),
-                code: 500,
-                description: "The handler failed internally.".to_owned(),
-            },
-            ErrorCodeSpec {
-                name: "not_implemented".to_owned(),
-                code: 501,
-                description: "The requested operation is not implemented.".to_owned(),
-            },
-        ],
+    fn validate_structure(&self) -> Result<(), CodecError> {
+        let issues = self.structure_issues();
+        if issues.is_empty() {
+            Ok(())
+        } else {
+            Err(CodecError::InvalidSpec(EnvelopeValidationErrors { issues }))
+        }
+    }
+
+    fn structure_issues(&self) -> Vec<EnvelopeValidationError> {
+        let mut issues = Vec::new();
+        if self.id.is_empty() {
+            issues.push(EnvelopeValidationError::EmptyId);
+        }
+
+        let mut constants = HashSet::new();
+        for constant in &self.constants {
+            validate_field_name(&mut issues, "constant", &constant.name);
+            if !constants.insert(constant.name.as_str()) {
+                issues.push(EnvelopeValidationError::DuplicateConstant {
+                    name: constant.name.clone(),
+                });
+            }
+        }
+
+        let mut kinds = HashSet::new();
+        let mut discriminators = HashSet::new();
+        for frame in &self.frames {
+            if !kinds.insert(frame.kind) {
+                issues.push(EnvelopeValidationError::DuplicateFrame { kind: frame.kind });
+            }
+            validate_field_name(
+                &mut issues,
+                "frame discriminator",
+                &frame.discriminator.name,
+            );
+            if frame.discriminator.omit_when_none {
+                issues.push(EnvelopeValidationError::InvalidFrameShape {
+                    kind: frame.kind,
+                    message: "the discriminator must be required",
+                });
+            }
+            if !discriminators.insert(frame.discriminator.name.as_str()) {
+                issues.push(EnvelopeValidationError::DuplicateDiscriminator {
+                    name: frame.discriminator.name.clone(),
+                });
+            }
+            validate_field_name(&mut issues, "frame payload", &frame.payload.name);
+            if let Some(id) = &frame.id {
+                validate_field_name(&mut issues, "frame id", &id.name);
+            }
+            if let Some(error) = &frame.error {
+                validate_field_name(&mut issues, "frame error", &error.name);
+            }
+
+            match frame.kind {
+                FrameKind::Request | FrameKind::Event => {
+                    if frame.id.is_none() {
+                        issues.push(EnvelopeValidationError::InvalidFrameShape {
+                            kind: frame.kind,
+                            message: "request and event frames must map an id",
+                        });
+                    } else if frame.id.as_ref().is_some_and(|id| id.omit_when_none) {
+                        issues.push(EnvelopeValidationError::InvalidFrameShape {
+                            kind: frame.kind,
+                            message: "request and event ids must be required",
+                        });
+                    }
+                    if frame.error.is_some() {
+                        issues.push(EnvelopeValidationError::InvalidFrameShape {
+                            kind: frame.kind,
+                            message: "only response frames may map an error",
+                        });
+                    }
+                }
+                FrameKind::Response => {
+                    if frame.id.is_some() {
+                        issues.push(EnvelopeValidationError::InvalidFrameShape {
+                            kind: frame.kind,
+                            message: "response correlation is carried by its discriminator, not an id",
+                        });
+                    }
+                    if frame.error.is_none() {
+                        issues.push(EnvelopeValidationError::InvalidFrameShape {
+                            kind: frame.kind,
+                            message: "response frames must map an error",
+                        });
+                    }
+                }
+            }
+
+            let mut wire_fields = constants.clone();
+            for field in [
+                Some(&frame.discriminator),
+                frame.id.as_ref(),
+                Some(&frame.payload),
+                frame.error.as_ref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                if !wire_fields.insert(field.name.as_str()) {
+                    issues.push(EnvelopeValidationError::DuplicateWireField {
+                        kind: frame.kind,
+                        name: field.name.clone(),
+                    });
+                }
+            }
+        }
+        for kind in [FrameKind::Event, FrameKind::Request, FrameKind::Response] {
+            if !kinds.contains(&kind) {
+                issues.push(EnvelopeValidationError::MissingFrame { kind });
+            }
+        }
+
+        for (context, field) in [
+            ("error code", &self.error.code),
+            ("error message", &self.error.message),
+            ("error data", &self.error.data),
+        ] {
+            validate_field_name(&mut issues, context, &field.name);
+        }
+        if self.error.code.omit_when_none || self.error.message.omit_when_none {
+            issues.push(EnvelopeValidationError::InvalidErrorShape {
+                message: "error code and message must be required",
+            });
+        }
+        let mut error_fields = HashSet::new();
+        for field in [&self.error.code, &self.error.message, &self.error.data] {
+            if !error_fields.insert(field.name.as_str()) {
+                issues.push(EnvelopeValidationError::DuplicateErrorField {
+                    name: field.name.clone(),
+                });
+            }
+        }
+
+        let mut error_names = HashSet::new();
+        let mut error_values = HashSet::new();
+        for error in &self.error_codes {
+            if error.name.is_empty() || error.description.is_empty() || error.code == 0 {
+                issues.push(EnvelopeValidationError::InvalidErrorCode {
+                    name: error.name.clone(),
+                    code: error.code,
+                });
+            }
+            if !error_names.insert(error.name.as_str()) {
+                issues.push(EnvelopeValidationError::DuplicateErrorCodeName {
+                    name: error.name.clone(),
+                });
+            }
+            if !error_values.insert(error.code) {
+                issues.push(EnvelopeValidationError::DuplicateErrorCodeValue { code: error.code });
+            }
+        }
+        issues
     }
 }
+
+/// One invalid part of an envelope declaration.
+#[derive(Clone, Debug, PartialEq, Eq, Error)]
+pub enum EnvelopeValidationError {
+    #[error("envelope id must not be empty")]
+    EmptyId,
+    #[error("{context} field name must not be empty")]
+    EmptyFieldName { context: &'static str },
+    #[error("duplicate constant field {name:?}")]
+    DuplicateConstant { name: String },
+    #[error("envelope has no {kind:?} frame")]
+    MissingFrame { kind: FrameKind },
+    #[error("envelope has more than one {kind:?} frame")]
+    DuplicateFrame { kind: FrameKind },
+    #[error("duplicate structural discriminator {name:?}")]
+    DuplicateDiscriminator { name: String },
+    #[error("invalid {kind:?} frame: {message}")]
+    InvalidFrameShape {
+        kind: FrameKind,
+        message: &'static str,
+    },
+    #[error("{kind:?} frame emits wire field {name:?} more than once")]
+    DuplicateWireField { kind: FrameKind, name: String },
+    #[error("invalid error shape: {message}")]
+    InvalidErrorShape { message: &'static str },
+    #[error("duplicate error field {name:?}")]
+    DuplicateErrorField { name: String },
+    #[error("invalid conventional error code {name:?}={code}")]
+    InvalidErrorCode { name: String, code: i64 },
+    #[error("duplicate conventional error code name {name:?}")]
+    DuplicateErrorCodeName { name: String },
+    #[error("duplicate conventional error code value {code}")]
+    DuplicateErrorCodeValue { code: i64 },
+    #[error("invalid envelope fixture path {path:?}")]
+    InvalidFixturePath { path: String },
+    #[error("duplicate envelope fixture path {path:?}")]
+    DuplicateFixturePath { path: String },
+    #[error("envelope fixture {path:?} is invalid: {message}")]
+    InvalidFixture { path: String, message: String },
+    #[error("envelope fixture {path:?} changed bytes")]
+    FixtureEncodingChanged {
+        path: String,
+        expected: Vec<u8>,
+        actual: Vec<u8>,
+    },
+    #[error("envelope fixture {path:?} changed semantic frame")]
+    FixtureSemanticChanged {
+        path: String,
+        expected: Box<ControlFrame>,
+        actual: Box<ControlFrame>,
+    },
+}
+
+/// All issues found while validating one envelope declaration.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnvelopeValidationErrors {
+    pub issues: Vec<EnvelopeValidationError>,
+}
+
+impl fmt::Display for EnvelopeValidationErrors {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (index, issue) in self.issues.iter().enumerate() {
+            if index != 0 {
+                formatter.write_str("; ")?;
+            }
+            write!(formatter, "{issue}")?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for EnvelopeValidationErrors {}
 
 /// A reference codec failure.
 #[derive(Debug, Error)]
 pub enum CodecError {
     #[error("invalid envelope specification: {0}")]
-    InvalidSpec(&'static str),
+    InvalidSpec(EnvelopeValidationErrors),
+    #[error("invalid envelope mapping: {0}")]
+    InvalidMapping(&'static str),
     #[error("envelope specification has no {0:?} frame")]
     MissingFrameSpec(FrameKind),
     #[error("invalid control frame: {0}")]
@@ -356,6 +622,16 @@ impl Serialize for EncodedError<'_> {
     }
 }
 
+fn validate_field_name(
+    issues: &mut Vec<EnvelopeValidationError>,
+    context: &'static str,
+    name: &str,
+) {
+    if name.is_empty() {
+        issues.push(EnvelopeValidationError::EmptyFieldName { context });
+    }
+}
+
 fn serialize_optional<M: SerializeMap>(
     map: &mut M,
     field: &FieldSpec,
@@ -378,7 +654,7 @@ fn required_frame_id(
     shape: &FrameSpec,
     kind: &str,
 ) -> Result<String, CodecError> {
-    let field = shape.id.as_ref().ok_or(CodecError::InvalidSpec(
+    let field = shape.id.as_ref().ok_or(CodecError::InvalidMapping(
         "request and event frames must define an id field",
     ))?;
     object
