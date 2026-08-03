@@ -2,12 +2,12 @@
 id: R-9
 title: Session rewrite and WebSocket transport port
 pillar: SDK
-status: backlog
+status: ready
 priority: 10
 design: docs/designs/go-sdk.md
 epic: go-sdk
 areas: [sdk-go]
-note: blocked on R-7; keeps encodings frozen while traffic semantics change under interop
+note: unblocked; generated classic.v1 bytes now guard the runtime rewrite and WebSocket port
 ---
 
 # Session rewrite and WebSocket transport port
@@ -39,6 +39,8 @@ the new transport interface.
 - [ ] The `ws` transport implements the new interface: text frames as the control channel, one
       static duplex `"audio"` media channel over binary frames, flush-on-close, keepalive wiring, and
       subprotocol negotiation (absence means `rtvbp.v1`).
+- [ ] The transitional `LegacyTransport` API and imported hand-written `proto` envelope parser are
+      removed after the session and WebSocket transport use `ControlFrame` plus the generated codec.
 - [ ] `ClearReadBuffer` and the audio observer still work; the runtime's own concurrency and close
       tests are `goleak`-clean.
 

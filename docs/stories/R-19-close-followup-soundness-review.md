@@ -7,7 +7,7 @@ priority: 11
 design: docs/reviews/2026-08-03-soundness-review-2.md
 epic: conformance
 areas: [spec, conformance, generator, website]
-note: take after R-8/R-9 runtime seams and before R-11/R-13 compatibility outputs
+note: take after R-9 runtime migration and before R-11/R-13 compatibility outputs
 ---
 
 # Close follow-up soundness review residuals before vectors and public reference

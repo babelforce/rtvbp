@@ -42,3 +42,7 @@ All notable changes to this project are documented here. The format is based on
   a drain-safe in-memory transport with optional duplex media. Renamed the module to
   `github.com/babelforce/rtvbp/sdk/go`, migrated workspace imports and examples, and made the Go gate
   run directly in workspace mode.
+- Added a validated target-neutral envelope model and frozen fixture registry, then generated the Go
+  `classic.v1` codec from that declaration. The codec byte-round-trips all ten envelope fixtures,
+  preserves deployed precedence/null/error quirks, and includes data-driven malformed and semantic
+  regression tests plus a synthetic second-envelope emitter proof.
