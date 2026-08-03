@@ -35,3 +35,6 @@ All notable changes to this project are documented here. The format is based on
 - Added the deterministic `rtvbp-spec-gen` load → validate → resolve → emit pipeline, its committed
   `babelforce.v1` catalog manifest, non-mutating drift checks, stale-output synchronization, and a
   minimal Rust CI gate that prevents spec/generated drift from merging.
+- Added generated Go `babelforce.v1` payload types, method/event constants and name methods, plus
+  standard-library golden tests that construct and round-trip all 36 payload/event fixtures
+  byte-for-byte. CI now checks Go formatting, generated drift, and the full imported SDK test suite.
