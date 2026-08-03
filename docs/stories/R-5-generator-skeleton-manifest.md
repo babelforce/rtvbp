@@ -35,6 +35,9 @@ emitters will need.
 ## Progress
 - 2026-08-03: Started; defining the failing-first end-to-end manifest contract and the pure
   load → validate → resolve → emit boundary before adding filesystem writes or CLI behavior.
+- 2026-08-03: Implemented optional-role source validation, required-role resolution, deterministic
+  schema registry and manifest emission, isolated write/check behavior, and end-to-end CLI tests.
+  The committed artifact and minimal CI drift check are being wired into the final gate.
 
 ## Notes
 - The generator links the catalog crates and walks the `Catalog` value in process — the manifest is

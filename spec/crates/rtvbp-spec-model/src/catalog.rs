@@ -45,6 +45,12 @@ impl Catalog {
         let mut issues = Vec::new();
         let mut operation_names = HashSet::new();
         for operation in &self.operations {
+            if operation.handled_by.is_none() {
+                issues.push(CatalogValidationError::MissingRole {
+                    kind: CatalogItemKind::Operation,
+                    name: operation.method.clone(),
+                });
+            }
             if operation
                 .method
                 .starts_with(RESERVED_TRANSPORT_METHOD_PREFIX)
@@ -92,6 +98,12 @@ impl Catalog {
 
         let mut event_names = HashSet::new();
         for event in &self.events {
+            if event.emitted_by.is_none() {
+                issues.push(CatalogValidationError::MissingRole {
+                    kind: CatalogItemKind::Event,
+                    name: event.name.clone(),
+                });
+            }
             if !event_names.insert(event.name.as_str()) {
                 issues.push(CatalogValidationError::DuplicateEvent {
                     name: event.name.clone(),
@@ -211,7 +223,7 @@ impl PartialEq for TypeRef {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Operation {
     pub method: String,
-    pub handled_by: Role,
+    pub handled_by: Option<Role>,
     pub request: TypeRef,
     pub response: TypeRef,
     pub terminal: bool,
@@ -228,7 +240,7 @@ impl Operation {
     {
         Self {
             method: method.into(),
-            handled_by,
+            handled_by: Some(handled_by),
             request: TypeRef::of::<Request>(),
             response: TypeRef::of::<Response>(),
             terminal: false,
@@ -272,7 +284,7 @@ pub struct OperationExample {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {
     pub name: String,
-    pub emitted_by: Role,
+    pub emitted_by: Option<Role>,
     pub data: TypeRef,
     pub docs: Option<String>,
     pub examples: Vec<EventExample>,
@@ -286,7 +298,7 @@ impl Event {
     {
         Self {
             name: name.into(),
-            emitted_by,
+            emitted_by: Some(emitted_by),
             data: TypeRef::of::<Data>(),
             docs: None,
             examples: Vec::new(),
@@ -347,6 +359,8 @@ pub enum CatalogValidationError {
     DuplicateOperation { method: String },
     #[error("duplicate event name {name:?}")]
     DuplicateEvent { name: String },
+    #[error("{kind} {name:?} has no role")]
+    MissingRole { kind: CatalogItemKind, name: String },
     #[error("{kind} {name:?} has no documentation")]
     MissingDocumentation { kind: CatalogItemKind, name: String },
     #[error("{kind} {name:?} has no canonical examples")]

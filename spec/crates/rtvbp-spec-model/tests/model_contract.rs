@@ -50,7 +50,7 @@ fn catalog_records_typed_operations_events_and_examples() {
     assert_eq!(catalog.id.to_string(), "demo.v1");
     assert_eq!(catalog.operations.len(), 1);
     assert_eq!(catalog.operations[0].method, "demo.run");
-    assert_eq!(catalog.operations[0].handled_by, Role::Application);
+    assert_eq!(catalog.operations[0].handled_by, Some(Role::Application));
     assert_eq!(catalog.operations[0].request.name, "DemoRequest");
     assert_eq!(catalog.operations[0].response.name, "DemoResponse");
     assert!(catalog.operations[0].terminal);
@@ -58,7 +58,7 @@ fn catalog_records_typed_operations_events_and_examples() {
 
     assert_eq!(catalog.events.len(), 1);
     assert_eq!(catalog.events[0].name, "demo.updated");
-    assert_eq!(catalog.events[0].emitted_by, Role::Voice);
+    assert_eq!(catalog.events[0].emitted_by, Some(Role::Voice));
     assert_eq!(catalog.events[0].data.name, "DemoEvent");
     assert_eq!(
         catalog.events[0].examples[0].data,
@@ -165,6 +165,39 @@ fn catalog_validation_rejects_duplicates_missing_docs_and_invalid_typed_examples
             .unwrap_err()
             .to_string()
             .contains("canonical")
+    );
+}
+
+#[test]
+fn catalog_validation_rejects_operations_and_events_without_roles() {
+    let mut operation = Operation::new::<DemoRequest, DemoResponse>("demo.run", Role::Application)
+        .docs("Run the demo operation.")
+        .example(
+            "canonical",
+            json!({"input": "hello"}),
+            json!({"output": "world"}),
+        );
+    operation.handled_by = None;
+
+    let mut event = Event::new::<DemoEvent>("demo.updated", Role::Voice)
+        .docs("Report demo state.")
+        .example("canonical", json!({"state": "ready"}));
+    event.emitted_by = None;
+
+    let error = Catalog::new("demo", 1)
+        .operation(operation)
+        .event(event)
+        .validate()
+        .unwrap_err()
+        .to_string();
+
+    assert!(
+        error.contains("operation \"demo.run\" has no role"),
+        "{error}"
+    );
+    assert!(
+        error.contains("event \"demo.updated\" has no role"),
+        "{error}"
     );
 }
 

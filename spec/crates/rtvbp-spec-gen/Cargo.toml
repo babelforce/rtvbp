@@ -1,0 +1,15 @@
+[package]
+name = "rtvbp-spec-gen"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+rtvbp-spec-babelforce-v1 = { path = "../rtvbp-spec-babelforce-v1" }
+rtvbp-spec-model = { path = "../rtvbp-spec-model" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+schemars.workspace = true

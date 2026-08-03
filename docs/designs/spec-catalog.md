@@ -38,12 +38,12 @@ pub struct Catalog { id: CatalogId /* babelforce.v1 */, operations: Vec<Operatio
 
 pub struct Operation {
     method: &'static str,          // "session.initialize"
-    handled_by: Role,              // Voice | Application | Both
+    handled_by: Option<Role>,      // validated, then resolved to Voice | Application | Both
     request: TypeRef, response: TypeRef,
     terminal: bool,                // closes the session after replying
     docs: Option<&'static str>, examples: Vec<Example>,
 }
-pub struct Event { name: &'static str, emitted_by: Role, data: TypeRef, /* … */ }
+pub struct Event { name: &'static str, emitted_by: Option<Role>, data: TypeRef, /* … */ }
 ```
 
 Registration is one hand-maintained table — the *whole* role/direction model, nothing hidden in
@@ -134,6 +134,25 @@ CLI `rtvbp-spec-gen --emit=<manifest|go|docs|vectors> --out=<dir>`, plus a `--ch
 Stages are load → validate → resolve → emit → write, as in [architecture.md](architecture.md). The
 manifest emitter comes first: it is the cheapest emitter and it forces the model to be complete
 before any language-specific work starts.
+
+The authored catalog is the unresolved model: operation and event roles are optional there so the
+validation stage can report omissions together with duplicate names, missing metadata, and invalid
+examples. Resolution converts that state to emitter-facing operations and events with required
+roles, stable name ordering, and a shared schema registry. Local `#/$defs/…` references are rewritten
+to `#/schemas/…`; conflicting definitions with the same name fail resolution.
+
+Emitters are pure functions returning relative paths and bytes. The manifest emitter returns
+`<catalog-id>.catalog.json`; `--out` selects its destination directory, while manifest output defaults
+to `spec/manifests`. The writer is the only filesystem-mutating stage. `--check` performs the same
+pipeline and compares bytes without writing; bare `--check` checks every registered emitter at its
+canonical destination (only the manifest in R-5) when invoked from the repository root. Each target
+declares which output paths it owns so stale generated files are detected and synchronized without
+touching handwritten files in mixed output trees.
+
+The manifest is deterministic pretty JSON with a generated-file notice and one trailing newline. It
+contains a format version, catalog id/name/major, sorted operations and events, roles, operation
+terminality, documentation, canonical examples, schema references, and the sorted embedded schema
+registry. Events do not have terminality in the protocol model, so only operations carry that flag.
 
 ## Alternatives considered
 

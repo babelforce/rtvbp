@@ -8,7 +8,7 @@ use crate::*;
 /// Build the complete frozen `babelforce.v1` payload catalog.
 #[must_use]
 pub fn catalog() -> Catalog {
-    let catalog = Catalog::new("babelforce", 1)
+    Catalog::new("babelforce", 1)
         .operation(operation(
             Operation::new::<SessionInitializeRequest, SessionInitializeResponse>(
                 "session.initialize",
@@ -121,12 +121,7 @@ pub fn catalog() -> Catalog {
             Event::new::<AgentToolCallEvent>("agent.tool.call", Role::Application)
                 .docs("Publish the redaction-safe name of a tool invoked by the agent."),
             examples::agent_tool_call(),
-        ));
-
-    catalog
-        .validate()
-        .expect("babelforce.v1 catalog must validate");
-    catalog
+        ))
 }
 
 fn operation<Request: Serialize, Response: Serialize>(

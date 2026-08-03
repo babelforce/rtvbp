@@ -28,7 +28,10 @@ fn catalog_declares_every_operation_role_terminal_flag_doc_and_example() {
         .map(|operation| {
             (
                 operation.method.as_str(),
-                (operation.handled_by, operation.terminal),
+                (
+                    operation.handled_by.expect("validated operation role"),
+                    operation.terminal,
+                ),
             )
         })
         .collect::<BTreeMap<_, _>>();
@@ -63,7 +66,12 @@ fn catalog_declares_every_event_role_doc_and_example() {
     let events = catalog
         .events
         .iter()
-        .map(|event| (event.name.as_str(), event.emitted_by))
+        .map(|event| {
+            (
+                event.name.as_str(),
+                event.emitted_by.expect("validated event role"),
+            )
+        })
         .collect::<BTreeMap<_, _>>();
 
     assert_eq!(

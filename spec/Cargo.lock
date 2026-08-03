@@ -91,6 +91,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtvbp-spec-gen"
+version = "0.1.0"
+dependencies = [
+ "rtvbp-spec-babelforce-v1",
+ "rtvbp-spec-model",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "rtvbp-spec-model"
 version = "0.1.0"
 dependencies = [
