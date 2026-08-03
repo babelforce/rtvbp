@@ -413,6 +413,29 @@ func TestCloseDiscardsQueuedDispatchBeforeBlockingTransportClose(t *testing.T) {
 	}
 }
 
+func TestCloseJoinsTransportAndCloseHandlerFailures(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	transportFailure := errors.New("transport close failed")
+	handlerFailure := errors.New("close handler failed")
+	left, _ := memory.NewPair()
+	transport := &failingCloseTransport{Transport: left, failure: transportFailure}
+	session, done := runSession(t, transport, rtvbp.NewHandler(rtvbp.HandlerConfig{}))
+	session.OnClose(func(context.Context) error { return handlerFailure })
+	if err := session.Close(testContext(t)); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	err := awaitDone(t, done)
+	for _, want := range []error{transportFailure, handlerFailure} {
+		if !errors.Is(err, want) {
+			t.Fatalf("Run() error = %v, want joined %v", err, want)
+		}
+	}
+	if session.State() != rtvbp.SessionStateFailed {
+		t.Fatalf("state = %s, want failed", session.State())
+	}
+}
+
 func TestCloseCancelsTransportFactoryWhileConnecting(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -551,6 +574,15 @@ type trackingCloseTransport struct {
 	rtvbp.Transport
 	closed chan struct{}
 	once   sync.Once
+}
+
+type failingCloseTransport struct {
+	rtvbp.Transport
+	failure error
+}
+
+func (t *failingCloseTransport) Close(ctx context.Context) error {
+	return errors.Join(t.Transport.Close(ctx), t.failure)
 }
 
 func (t *trackingCloseTransport) Close(ctx context.Context) error {

@@ -1,7 +1,9 @@
 package rtvbp
 
 import (
+	"context"
 	"errors"
+	"sync"
 	"testing"
 )
 
@@ -82,5 +84,62 @@ func TestPendingFailureAndCancellationHaveExactlyOneWinner(t *testing.T) {
 		} else if got := <-pending.result; !errors.Is(got.err, want) {
 			t.Fatalf("iteration %d: failure = %v, want %v", iteration, got.err, want)
 		}
+	}
+}
+
+func TestConcurrentGracefulCloseAndFailuresAreArbitratedBeforeShutdown(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		failures []stopRequest
+		want     []error
+	}{
+		{
+			name:     "keepalive failure upgrades graceful close",
+			failures: []stopRequest{{cause: ErrKeepaliveTimeout, failed: true}},
+			want:     []error{ErrKeepaliveTimeout},
+		},
+		{
+			name: "reader and send failures are joined with graceful close",
+			failures: []stopRequest{
+				stopFromTransport(context.Canceled),
+				{cause: ErrRequestFailed, failed: true},
+			},
+			want: []error{context.Canceled, ErrRequestFailed},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			const iterations = 1_000
+			for iteration := 0; iteration < iterations; iteration++ {
+				session := &Session{stop: make(chan struct{}, 1)}
+				start := make(chan struct{})
+				var reports sync.WaitGroup
+				reports.Add(1 + len(test.failures))
+				go func() {
+					defer reports.Done()
+					<-start
+					session.requestStop(nil, false)
+				}()
+				for _, failure := range test.failures {
+					failure := failure
+					go func() {
+						defer reports.Done()
+						<-start
+						session.requestStop(failure.cause, failure.failed)
+					}()
+				}
+				close(start)
+				reports.Wait()
+
+				terminal := session.commitStopRequests(stopRequest{})
+				if !terminal.failed {
+					t.Fatalf("iteration %d: concurrent failure did not upgrade graceful close", iteration)
+				}
+				for _, want := range test.want {
+					if !errors.Is(terminal.cause, want) {
+						t.Fatalf("iteration %d: terminal error %v does not include %v", iteration, terminal.cause, want)
+					}
+				}
+			}
+		})
 	}
 }

@@ -32,8 +32,11 @@ type Session struct {
 	runStarted bool
 	done       chan error
 	finalized  chan struct{}
-	stop       chan stopRequest
+	stop       chan struct{}
 	closing    atomic.Bool
+	stopMu     sync.Mutex
+	stopQueue  []stopRequest
+	stopCommit bool
 
 	transportMu sync.RWMutex
 	transport   Transport
@@ -77,7 +80,7 @@ func NewSession(envelope Envelope, options ...Option) *Session {
 		state:         SessionStateInactive,
 		done:          make(chan error, 1),
 		finalized:     make(chan struct{}),
-		stop:          make(chan stopRequest, 1),
+		stop:          make(chan struct{}, 1),
 		factory:       config.transport,
 		handler:       config.handler,
 		dispatch:      newDispatchQueue(),
@@ -158,7 +161,6 @@ func (s *Session) supervise(parent context.Context) {
 	s.transportMu.Unlock()
 
 	taskCtx, cancelTasks := context.WithCancel(context.WithoutCancel(parent))
-	workerResult := make(chan stopRequest, 4)
 	var workers sync.WaitGroup
 	workers.Add(2)
 	go func() {
@@ -168,7 +170,8 @@ func (s *Session) supervise(parent context.Context) {
 			if err == nil {
 				err = errors.New("rtvbp: control reader stopped without an error")
 			}
-			workerResult <- stopFromTransport(err)
+			stopped := stopFromTransport(err)
+			s.requestStop(stopped.cause, stopped.failed)
 		}
 	}()
 	go func() {
@@ -184,7 +187,7 @@ func (s *Session) supervise(parent context.Context) {
 				if err == nil {
 					err = errors.New("rtvbp: keepalive monitor stopped without an error")
 				}
-				workerResult <- stopRequest{cause: err, failed: true}
+				s.requestStop(err, true)
 			}
 		}()
 	}
@@ -203,21 +206,20 @@ func (s *Session) supervise(parent context.Context) {
 		} else {
 			s.setState(SessionStateActive)
 		}
-	case terminal = <-workerResult:
-	case terminal = <-s.stop:
+	case <-s.stop:
 	case <-parent.Done():
 		terminal = stopRequest{}
 	}
 
 	if terminal.cause == nil && !terminal.failed && s.State() == SessionStateActive {
 		select {
-		case terminal = <-workerResult:
-		case terminal = <-s.stop:
+		case <-s.stop:
 		case <-parent.Done():
 			terminal = stopRequest{}
 		}
 	}
 
+	terminal = s.commitStopRequests(terminal)
 	terminal = s.beginShutdown(terminal)
 	cancelTasks()
 	s.dispatch.close()
@@ -232,14 +234,13 @@ func (s *Session) supervise(parent context.Context) {
 	select {
 	case <-workersDone:
 	case <-time.After(s.teardownTimeout()):
-		if !terminal.failed {
-			terminal = stopRequest{cause: errors.New("rtvbp: session workers did not stop"), failed: true}
-		}
+		terminal = mergeStopRequests(terminal, stopRequest{cause: errors.New("rtvbp: session workers did not stop"), failed: true})
 	}
 	s.complete(terminal)
 }
 
 func (s *Session) shutdown(terminal stopRequest, transport Transport) stopRequest {
+	terminal = s.commitStopRequests(terminal)
 	terminal = s.beginShutdown(terminal)
 	s.dispatch.close()
 	return s.closeResources(terminal, transport)
@@ -280,6 +281,7 @@ func (s *Session) closeResources(terminal stopRequest, transport Transport) stop
 		ctx, cancel := context.WithTimeout(context.Background(), s.teardownTimeout())
 		if err := handler(ctx); err != nil {
 			s.logger.Error("session close handler failed", slog.Any("err", err))
+			terminal = mergeStopRequests(terminal, stopRequest{cause: fmt.Errorf("session close handler: %w", err), failed: true})
 		}
 		cancel()
 	}
@@ -313,9 +315,9 @@ func (s *Session) createTransport(parent context.Context) (Transport, stopReques
 	case created := <-result:
 		cancel()
 		return s.acceptTransportResult(created, parent)
-	case terminal := <-s.stop:
+	case <-s.stop:
 		cancel()
-		return nil, s.joinCanceledTransportFactory(ctx, result, abandoned, terminal)
+		return nil, s.joinCanceledTransportFactory(ctx, result, abandoned, stopRequest{})
 	case <-parent.Done():
 		cancel()
 		return nil, s.joinCanceledTransportFactory(ctx, result, abandoned, stopRequest{})
@@ -410,10 +412,38 @@ func (s *Session) Close(ctx context.Context) error {
 
 func (s *Session) requestStop(cause error, failed bool) {
 	s.closing.Store(true)
+	s.stopMu.Lock()
+	if s.stopCommit {
+		s.stopMu.Unlock()
+		return
+	}
+	s.stopQueue = append(s.stopQueue, stopRequest{cause: cause, failed: failed})
+	s.stopMu.Unlock()
 	select {
-	case s.stop <- stopRequest{cause: cause, failed: failed}:
+	case s.stop <- struct{}{}:
 	default:
 	}
+}
+
+// commitStopRequests is called only by the supervisor. It atomically marks the
+// start of resource shutdown and folds every stop observed before that point
+// into one terminal result. Failures upgrade graceful stops and are all joined.
+func (s *Session) commitStopRequests(terminal stopRequest) stopRequest {
+	s.stopMu.Lock()
+	s.stopCommit = true
+	queued := s.stopQueue
+	s.stopQueue = nil
+	s.stopMu.Unlock()
+	for _, stopped := range queued {
+		terminal = mergeStopRequests(terminal, stopped)
+	}
+	return terminal
+}
+
+func mergeStopRequests(terminal, observed stopRequest) stopRequest {
+	terminal.failed = terminal.failed || observed.failed
+	terminal.cause = errors.Join(terminal.cause, observed.cause)
+	return terminal
 }
 
 func (s *Session) OnClose(handler CloseHandler) {
