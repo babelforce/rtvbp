@@ -13,9 +13,10 @@ glue, the classic.v1 envelope codec, the published protocol reference, and langu
 conformance vectors. The Go SDK runs on the semantic session, negotiated audio, and WebSocket
 transport seams delivered by R-8/R-9, and its memory-transport harness executes the generated
 scenarios for both roles. Live WebSocket sessions now pass in both directions against published
-`rtvbp-go v0.37.2`; R-15's real-call acceptance remains before R-16 tags the first Go SDK release.
-The Docusaurus site lives under [`website/`](../website), leaving `docs/` for contributor material
-and this backlog.
+`rtvbp-go v0.37.2`, and `demo.v1` proves that every emitter plus WebSocket profile routing works for
+a second catalog without session or envelope coupling. R-15's real-call acceptance remains before
+R-16 tags the first Go SDK release. The Docusaurus site lives under [`website/`](../website), leaving
+`docs/` for contributor material and this backlog.
 
 ## Delivered
 

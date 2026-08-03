@@ -17,7 +17,9 @@ func defaultSubprotocols(protocols []string) []string {
 	if protocols == nil {
 		return []string{DefaultSubprotocol}
 	}
-	return append([]string(nil), protocols...)
+	cloned := make([]string, len(protocols))
+	copy(cloned, protocols)
+	return cloned
 }
 
 func effectiveSubprotocol(selected string) string {

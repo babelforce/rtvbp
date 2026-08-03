@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/rtvbp-spec-babelforce-v1",
+    "crates/rtvbp-spec-demo-v1",
     "crates/rtvbp-spec-gen",
     "crates/rtvbp-spec-model",
 ]

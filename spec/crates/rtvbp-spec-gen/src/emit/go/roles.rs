@@ -275,16 +275,20 @@ fn render_peer_test(output: &mut String, catalog: &ResolvedCatalog) {
     for role in LocalRole::ALL {
         let variable = role.name().to_ascii_lowercase();
         let name = role.name();
+        let operations = catalog
+            .operations
+            .iter()
+            .filter(|operation| role.owns(operation.handled_by))
+            .collect::<Vec<_>>();
+        if operations.is_empty() {
+            continue;
+        }
         writeln!(
             output,
             "\t{variable} := New{name}Peer(&roleTestRequester{{}})"
         )
         .unwrap();
-        for operation in catalog
-            .operations
-            .iter()
-            .filter(|operation| role.owns(operation.handled_by))
-        {
+        for operation in operations {
             writeln!(
                 output,
                 "\tif _, err := {variable}.{}(ctx, roleTestValue[{}](roleTestRequests[{}])); err != nil {{\n\t\tt.Fatalf({:?}, err)\n\t}}",
@@ -311,16 +315,20 @@ fn render_event_test(output: &mut String, catalog: &ResolvedCatalog) {
     for role in LocalRole::ALL {
         let variable = role.name().to_ascii_lowercase();
         let name = role.name();
-        writeln!(
-            output,
-            "\t{variable}Notifier := &roleTestNotifier{{}}\n\t{variable} := New{name}Events({variable}Notifier)"
-        )
-        .unwrap();
-        for event in catalog
+        let events = catalog
             .events
             .iter()
             .filter(|event| role.owns(event.emitted_by))
-        {
+            .collect::<Vec<_>>();
+        writeln!(output, "\t{variable}Notifier := &roleTestNotifier{{}}").unwrap();
+        if !events.is_empty() {
+            writeln!(
+                output,
+                "\t{variable} := New{name}Events({variable}Notifier)"
+            )
+            .unwrap();
+        }
+        for event in events {
             expected += 1;
             writeln!(
                 output,

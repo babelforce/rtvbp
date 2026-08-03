@@ -76,3 +76,7 @@ All notable changes to this project are documented here. The format is based on
   module in both role directions, covering codec negotiation, binary audio both ways, DTMF, the
   legacy application pinger, headerless profile fallback and termination. Added leak-guarded demo
   wiring tests and fixed the demo endpoint, no-audio and graceful-exit paths found while running it.
+- Added the typed `demo.v1` catalog and projected it through the same manifest, Go, documentation
+  and conformance-vector emitters as `babelforce.v1`. A dual-profile WebSocket example routes
+  `rtvbp.v1` and `rtvbp.demo.v1` to their generated handlers, with live clients proving negotiated
+  and headerless-default exchanges; explicit-empty profile configuration is now idempotent.

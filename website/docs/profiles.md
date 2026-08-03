@@ -27,7 +27,10 @@ WebSocket peers negotiate profiles with `Sec-WebSocket-Protocol`:
 - For compatibility with deployed peers, absence of the header means the effective profile is
   `rtvbp.v1`; the server does not echo a subprotocol the client did not offer.
 
-Future profile names will identify different combinations without changing the meaning of an
+The demonstration catalog uses `rtvbp.demo.v1`: WebSocket `ws.v1`, the same `classic.v1` envelope,
+and the generated [`demo.v1` catalog](./reference/demo.v1/operations/demo.echo.mdx). Non-default
+profiles use `rtvbp.<catalog-name>.<catalog-major>` while the transport and envelope remain the
+profile's documented fixed components. New combinations receive new names rather than changing an
 existing profile.
 
 ## Reserved transport signaling

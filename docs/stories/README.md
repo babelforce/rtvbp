@@ -23,7 +23,7 @@ public reference pages are emitted. R-10 completed role-specific generated dispa
 validation and the Go voice-bridge cutover, R-13 now generates the published catalog and envelope
 reference, and R-11 generates language-neutral conformance vectors exercised through both Go roles.
 R-12 now proves live WebSocket compatibility in both directions against published v0.37.2; the
-real-service acceptance and release gate remain.
+`demo.v1` second-catalog proof is complete, and the real-service acceptance and release gate remain.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -55,7 +55,6 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 
 ### multi-catalog operation and profile negotiation
 _The framework claims to be catalog-agnostic and to support **any transport × any envelope**. A claim_
-- [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · role, docs and vector emitters are complete; ready after the higher-priority interop proof
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
@@ -103,6 +102,10 @@ _The Go SDK is the first target and the parity benchmark: it must speak the wire
 - [R-8 — Go runtime core — frame, envelope and transport interfaces plus the memory transport](R-8-runtime-core-interfaces.md) · SDK · semantic frame and transport seams, drain-safe memory transport, and canonical Go module path are complete
 - [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · semantic session, negotiated audio and WebSocket transport are complete with frozen wire parity
 - [R-10 — Go emitter — role interfaces, dispatch adapters and typed peer clients](R-10-go-emitter-role-dispatch.md) · Generator · generated role APIs and the v1 voice bridge now replace hand-written protocol glue
+
+### multi-catalog operation and profile negotiation
+_The framework claims to be catalog-agnostic and to support **any transport × any envelope**. A claim_
+- [R-14 — demo.v1 catalog and a dual-profile example](R-14-demo-catalog-dual-profile.md) · Spec · demo.v1 now proves common emitters and dual-profile routing with one idempotence fix
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_

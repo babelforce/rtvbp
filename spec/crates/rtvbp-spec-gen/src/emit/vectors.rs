@@ -134,16 +134,16 @@ fn invalid_cases(schema: &Value, canonical: &Value) -> Vec<Value> {
                 "min_length",
             );
         }
-        if let Some(minimum) = rule.get("minimum").and_then(Value::as_i64) {
-            if let Some(below_minimum) = minimum.checked_sub(1) {
-                push_invalid(
-                    &mut cases,
-                    canonical,
-                    field,
-                    Value::Number(Number::from(below_minimum)),
-                    "minimum",
-                );
-            }
+        if let Some(minimum) = rule.get("minimum").and_then(Value::as_i64)
+            && let Some(below_minimum) = minimum.checked_sub(1)
+        {
+            push_invalid(
+                &mut cases,
+                canonical,
+                field,
+                Value::Number(Number::from(below_minimum)),
+                "minimum",
+            );
         }
         if rule.get("x-rtvbp-nonzero") == Some(&Value::Bool(true)) {
             push_invalid(

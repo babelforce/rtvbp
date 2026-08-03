@@ -247,8 +247,9 @@ fn resolve_deduplicates_a_type_used_as_both_a_root_and_a_definition() {
 #[test]
 fn manifest_contains_the_complete_catalog_roles_terminality_and_embedded_schemas() {
     let files = generate(Target::Manifest).unwrap();
-    assert_eq!(files.len(), 1);
+    assert_eq!(files.len(), 2);
     assert_eq!(files[0].path, Path::new("babelforce.v1.catalog.json"));
+    assert_eq!(files[1].path, Path::new("demo.v1.catalog.json"));
     let manifest: Value = serde_json::from_slice(&files[0].bytes).unwrap();
 
     assert_eq!(manifest["catalog"]["id"], "babelforce.v1");
@@ -301,8 +302,8 @@ fn manifest_emitter_is_deterministic_and_ends_with_one_newline() {
     let second = generate(Target::Manifest).unwrap();
 
     assert_eq!(first, second);
-    assert!(first[0].bytes.ends_with(b"\n"));
-    assert!(!first[0].bytes.ends_with(b"\n\n"));
+    assert!(first.iter().all(|file| file.bytes.ends_with(b"\n")));
+    assert!(first.iter().all(|file| !file.bytes.ends_with(b"\n\n")));
 }
 
 #[test]
@@ -317,7 +318,7 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     let first = generate(Target::Go).unwrap();
     let second = generate(Target::Go).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 6);
+    assert_eq!(first.len(), 10);
     assert_eq!(
         first
             .iter()
@@ -328,6 +329,10 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
             Path::new("catalog/babelforcev1/zz_generated.roles.go"),
             Path::new("catalog/babelforcev1/zz_generated.roles_test.go"),
             Path::new("catalog/babelforcev1/zz_generated.types.go"),
+            Path::new("catalog/demov1/zz_generated.golden_test.go"),
+            Path::new("catalog/demov1/zz_generated.roles.go"),
+            Path::new("catalog/demov1/zz_generated.roles_test.go"),
+            Path::new("catalog/demov1/zz_generated.types.go"),
             Path::new("envelope/v1classic/zz_generated.codec.go"),
             Path::new("envelope/v1classic/zz_generated.golden_test.go"),
         ]
@@ -452,7 +457,7 @@ fn docs_emitter_projects_the_catalog_roles_examples_and_envelope() {
     let first = generate(Target::Docs).unwrap();
     let second = generate(Target::Docs).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 23);
+    assert_eq!(first.len(), 29);
     for file in &first {
         assert!(file.bytes.ends_with(b"\n"));
         assert!(!file.bytes.ends_with(b"\n\n"));
@@ -519,7 +524,7 @@ fn vector_emitter_projects_payloads_envelope_cases_and_typed_scenarios() {
     let first = generate(Target::Vectors).unwrap();
     let second = generate(Target::Vectors).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 14);
+    assert_eq!(first.len(), 17);
 
     let payload: Value = serde_json::from_str(generated_text(
         &first,
@@ -568,6 +573,36 @@ fn vector_emitter_projects_payloads_envelope_cases_and_typed_scenarios() {
     .unwrap();
     assert_eq!(termination["cases"].as_array().unwrap().len(), 3);
     assert_eq!(termination["cases"][2]["steps"][1]["error"]["code"], 501);
+}
+
+#[test]
+fn every_target_projects_the_loaded_demo_catalog_through_the_common_pipeline() {
+    let expected = [
+        (Target::Manifest, "demo.v1.catalog.json"),
+        (Target::Go, "catalog/demov1/zz_generated.types.go"),
+        (Target::Docs, "demo.v1/operations/demo.echo.mdx"),
+        (Target::Vectors, "demo.v1/payloads/demo.echo.json"),
+    ];
+    for (target, path) in expected {
+        let files = generate(target).unwrap();
+        assert!(
+            files.iter().any(|file| file.path == Path::new(path)),
+            "{target:?} did not emit {path}"
+        );
+    }
+
+    let profiles = fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../website/docs/profiles.md"),
+    )
+    .unwrap();
+    for fact in [
+        "`rtvbp.v1`",
+        "reference/babelforce.v1",
+        "`rtvbp.demo.v1`",
+        "reference/demo.v1",
+    ] {
+        assert!(profiles.contains(fact), "profiles page is missing {fact}");
+    }
 }
 
 #[test]

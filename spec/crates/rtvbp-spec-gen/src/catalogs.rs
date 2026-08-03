@@ -4,7 +4,10 @@ use thiserror::Error;
 /// Link all authored catalogs into the generator process.
 #[must_use]
 pub fn load() -> Vec<Catalog> {
-    vec![rtvbp_spec_babelforce_v1::catalog()]
+    vec![
+        rtvbp_spec_babelforce_v1::catalog(),
+        rtvbp_spec_demo_v1::catalog(),
+    ]
 }
 
 /// Link all authored envelope descriptions into the generator process.

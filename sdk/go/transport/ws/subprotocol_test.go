@@ -69,6 +69,32 @@ func TestAbsentSubprotocolUsesDefaultWithoutEchoingIt(t *testing.T) {
 	}
 }
 
+func TestExplicitlyEmptyClientProfilesRemainHeaderlessAcrossDefaulting(t *testing.T) {
+	server, accepted := subprotocolServer(t, nil)
+	config := ClientConfig{
+		Dial:         DialConfig{URL: websocketURL(server.URL)},
+		Subprotocols: []string{},
+	}
+	config.Defaults()
+	config.Defaults()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	transport, err := Dial(ctx, config)
+	if err != nil {
+		t.Fatalf("Dial() error = %v", err)
+	}
+	t.Cleanup(func() { _ = transport.Close(context.Background()) })
+	peer := <-accepted
+	t.Cleanup(func() { _ = peer.Close() })
+
+	if got := transport.WireSubprotocol(); got != "" {
+		t.Fatalf("WireSubprotocol() = %q, want empty", got)
+	}
+	if got := transport.Subprotocol(); got != DefaultSubprotocol {
+		t.Fatalf("Subprotocol() = %q, want %q", got, DefaultSubprotocol)
+	}
+}
+
 func TestExplicitUnsupportedSubprotocolIsRejected(t *testing.T) {
 	server, _ := subprotocolServer(t, []string{DefaultSubprotocol})
 	dialer := *websocket.DefaultDialer

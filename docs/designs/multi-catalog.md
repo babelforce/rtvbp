@@ -64,6 +64,15 @@ wrong and this story has found the bug — which is its purpose.
 - A server accepting multiple catalogs needs a routing seam between "negotiated profile" and "handler
   set"; keep it in the example rather than the runtime until a second real catalog exists.
 
+## Implementation finding
+
+The dual-profile test found one transport configuration defect: defaulting an explicitly empty
+client subprotocol slice twice changed it from “send no header” to the default `rtvbp.v1` offer.
+`defaultSubprotocols` now preserves empty-but-non-nil slices while copying them. This is an
+idempotence fix to the existing compatibility contract, covered directly and through the
+headerless dual-profile client. No session or envelope behavior changed; profile-to-handler routing
+remains entirely in the example.
+
 ## Acceptance / done
 
 `demo.v1` is emitted by the same generator with no catalog-specific code paths; one Go example serves
