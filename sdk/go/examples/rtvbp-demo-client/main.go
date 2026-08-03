@@ -11,8 +11,9 @@ import (
 
 	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/babelforce/rtvbp/sdk/go/audio"
+	v1bridge "github.com/babelforce/rtvbp/sdk/go/bridge/babelforcev1"
+	v1 "github.com/babelforce/rtvbp/sdk/go/catalog/babelforcev1"
 	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
-	"github.com/babelforce/rtvbp/sdk/go/proto/protov1"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
 	"github.com/google/uuid"
@@ -57,16 +58,16 @@ func main() {
 		log.With(slog.String("phone_system", "dummy")),
 	)
 
-	handler := protov1.NewClientHandler(
+	handler := v1bridge.NewVoiceHandler(
 		phone,
-		&protov1.ClientHandlerConfig{
-			Call: protov1.CallInfo{
+		v1bridge.HandlerConfig{
+			Call: v1.CallInfo{
 				ID:        uuid.NewString(),
 				SessionID: uuid.NewString(),
 				From:      "+4910002000",
 				To:        "+4910003000",
 			},
-			App: protov1.AppInfo{
+			Application: v1.AppInfo{
 				ID: "1234",
 			},
 			Metadata: map[string]any{
@@ -77,7 +78,7 @@ func main() {
 				SampleRate: sr,
 				BitDepth:   16,
 				Channels:   1,
-				PTime:      protov1.DefaultPTime,
+				PTime:      v1bridge.DefaultPTime,
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {

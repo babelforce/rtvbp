@@ -11,6 +11,7 @@
       "method": "application.move",
       "handledBy": "voice",
       "terminal": true,
+      "rejections": [],
       "description": "Advance the IVR flow to another application node after replying.",
       "request": {
         "$ref": "#/schemas/ApplicationMoveRequest"
@@ -35,6 +36,7 @@
       "method": "audio.buffer.clear",
       "handledBy": "voice",
       "terminal": false,
+      "rejections": [],
       "description": "Discard buffered audio that has not yet been played.",
       "request": {
         "$ref": "#/schemas/AudioBufferClearRequest"
@@ -56,6 +58,7 @@
       "method": "call.hangup",
       "handledBy": "voice",
       "terminal": true,
+      "rejections": [],
       "description": "Hang up the telephony call after replying.",
       "request": {
         "$ref": "#/schemas/CallHangupRequest"
@@ -77,6 +80,7 @@
       "method": "ping",
       "handledBy": "both",
       "terminal": false,
+      "rejections": [],
       "description": "Measure application-layer latency and optionally echo arbitrary data.",
       "request": {
         "$ref": "#/schemas/PingRequest"
@@ -110,6 +114,7 @@
       "method": "recording.start",
       "handledBy": "voice",
       "terminal": false,
+      "rejections": [],
       "description": "Start recording the telephony call.",
       "request": {
         "$ref": "#/schemas/RecordingStartRequest"
@@ -136,6 +141,7 @@
       "method": "recording.stop",
       "handledBy": "voice",
       "terminal": false,
+      "rejections": [],
       "description": "Stop a recording by identifier.",
       "request": {
         "$ref": "#/schemas/RecordingStopRequest"
@@ -157,6 +163,7 @@
       "method": "session.get",
       "handledBy": "voice",
       "terminal": false,
+      "rejections": [],
       "description": "Get selected session variables, or all variables when keys is empty.",
       "request": {
         "$ref": "#/schemas/SessionGetRequest"
@@ -184,6 +191,7 @@
       "method": "session.initialize",
       "handledBy": "application",
       "terminal": false,
+      "rejections": [],
       "description": "Negotiate the audio codec and initialize a real-time voice session.",
       "request": {
         "$ref": "#/schemas/SessionInitializeRequest"
@@ -225,6 +233,7 @@
       "method": "session.set",
       "handledBy": "voice",
       "terminal": false,
+      "rejections": [],
       "description": "Set free-form variables on the voice session.",
       "request": {
         "$ref": "#/schemas/SessionSetRequest"
@@ -249,6 +258,13 @@
       "method": "session.terminate",
       "handledBy": "application",
       "terminal": true,
+      "rejections": [
+        {
+          "role": "voice",
+          "code": 501,
+          "message": "session.terminate is not supported. please use application.move or call.hangup instead"
+        }
+      ],
       "description": "Terminate the real-time voice session after replying.",
       "request": {
         "$ref": "#/schemas/SessionTerminateRequest"
@@ -622,7 +638,8 @@
       "properties": {
         "reason": {
           "type": "string",
-          "description": "Reason the call should be hung up."
+          "description": "Reason the call should be hung up.",
+          "minLength": 1
         }
       },
       "required": [
@@ -665,21 +682,25 @@
           "type": "integer",
           "format": "int64",
           "description": "Monotonic event sequence number within the session.",
+          "minimum": 0,
           "x-go-type": "int"
         },
         "pressed_at": {
           "type": "integer",
           "format": "int64",
-          "description": "Epoch timestamp in milliseconds when the key was pressed."
+          "description": "Epoch timestamp in milliseconds when the key was pressed.",
+          "minimum": 0
         },
         "released_at": {
           "type": "integer",
           "format": "int64",
-          "description": "Epoch timestamp in milliseconds when the key was released."
+          "description": "Epoch timestamp in milliseconds when the key was released.",
+          "minimum": 0
         },
         "digit": {
           "type": "string",
-          "description": "DTMF digit that was pressed."
+          "description": "DTMF digit that was pressed.",
+          "minLength": 1
         }
       },
       "required": [
@@ -688,7 +709,13 @@
         "released_at",
         "digit"
       ],
-      "description": "Data emitted by `dtmf` when the caller releases a key."
+      "description": "Data emitted by `dtmf` when the caller releases a key.",
+      "x-rtvbp-field-order": [
+        {
+          "lower": "pressed_at",
+          "upper": "released_at"
+        }
+      ]
     },
     "EmptyResponse": {
       "type": "object",
@@ -740,7 +767,8 @@
         "t0": {
           "type": "integer",
           "format": "int64",
-          "description": "Sender timestamp in epoch milliseconds."
+          "description": "Sender timestamp in epoch milliseconds.",
+          "x-rtvbp-nonzero": true
         },
         "rtt": {
           "type": [
@@ -765,17 +793,20 @@
         "t0": {
           "type": "integer",
           "format": "int64",
-          "description": "Echo of the request sender timestamp."
+          "description": "Echo of the request sender timestamp.",
+          "x-rtvbp-nonzero": true
         },
         "t1": {
           "type": "integer",
           "format": "int64",
-          "description": "Transport receive timestamp in epoch milliseconds."
+          "description": "Transport receive timestamp in epoch milliseconds.",
+          "x-rtvbp-nonzero": true
         },
         "t2": {
           "type": "integer",
           "format": "int64",
-          "description": "Application handling timestamp in epoch milliseconds."
+          "description": "Application handling timestamp in epoch milliseconds.",
+          "x-rtvbp-nonzero": true
         },
         "owd": {
           "type": "integer",
@@ -815,7 +846,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "New recording identifier."
+          "description": "New recording identifier.",
+          "minLength": 1
         }
       },
       "required": [
@@ -828,7 +860,8 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Recording identifier to stop."
+          "description": "Recording identifier to stop.",
+          "minLength": 1
         }
       },
       "required": [
@@ -933,7 +966,8 @@
       "properties": {
         "reason": {
           "type": "string",
-          "description": "Reason the session is ending."
+          "description": "Reason the session is ending.",
+          "minLength": 1
         }
       },
       "required": [

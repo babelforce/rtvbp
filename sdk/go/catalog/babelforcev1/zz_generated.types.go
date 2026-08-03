@@ -2,6 +2,8 @@
 
 package babelforcev1
 
+import "errors"
+
 // AgentToolCallEvent is generated from the protocol catalog.
 //
 // Data emitted by `agent.tool.call` when the agent invokes a tool.
@@ -111,6 +113,17 @@ type CallHangupRequest struct {
 	Reason string `json:"reason"`
 }
 
+// Validate checks the semantic constraints declared for CallHangupRequest.
+func (value *CallHangupRequest) Validate() error {
+	if value == nil {
+		return errors.New("CallHangupRequest is nil")
+	}
+	if len(value.Reason) < 1 {
+		return errors.New("reason must contain at least 1 character(s)")
+	}
+	return nil
+}
+
 // CallInfo is generated from the protocol catalog.
 //
 // Telephony call metadata supplied when a session starts.
@@ -137,6 +150,29 @@ type DtmfEvent struct {
 	ReleasedAt int64 `json:"released_at"`
 	// Digit: DTMF digit that was pressed.
 	Digit string `json:"digit"`
+}
+
+// Validate checks the semantic constraints declared for DtmfEvent.
+func (value *DtmfEvent) Validate() error {
+	if value == nil {
+		return errors.New("DtmfEvent is nil")
+	}
+	if value.Seq < 0 {
+		return errors.New("seq must be at least 0")
+	}
+	if value.PressedAt < 0 {
+		return errors.New("pressed_at must be at least 0")
+	}
+	if value.ReleasedAt < 0 {
+		return errors.New("released_at must be at least 0")
+	}
+	if len(value.Digit) < 1 {
+		return errors.New("digit must contain at least 1 character(s)")
+	}
+	if value.PressedAt > value.ReleasedAt {
+		return errors.New("released_at must be greater than or equal to pressed_at")
+	}
+	return nil
 }
 
 // EmptyResponse is generated from the protocol catalog.
@@ -180,6 +216,17 @@ type PingRequest struct {
 	Data any `json:"data,omitempty"`
 }
 
+// Validate checks the semantic constraints declared for PingRequest.
+func (value *PingRequest) Validate() error {
+	if value == nil {
+		return errors.New("PingRequest is nil")
+	}
+	if value.T0 == 0 {
+		return errors.New("t0 must be non-zero")
+	}
+	return nil
+}
+
 // PingResponse is generated from the protocol catalog.
 //
 // Result of ordinary catalog operation `ping`.
@@ -194,6 +241,23 @@ type PingResponse struct {
 	OWD int64 `json:"owd"`
 	// Data: Optional arbitrary data echoed from the request.
 	Data any `json:"data,omitempty"`
+}
+
+// Validate checks the semantic constraints declared for PingResponse.
+func (value *PingResponse) Validate() error {
+	if value == nil {
+		return errors.New("PingResponse is nil")
+	}
+	if value.T0 == 0 {
+		return errors.New("t0 must be non-zero")
+	}
+	if value.T1 == 0 {
+		return errors.New("t1 must be non-zero")
+	}
+	if value.T2 == 0 {
+		return errors.New("t2 must be non-zero")
+	}
+	return nil
 }
 
 // RecordingStartRequest is generated from the protocol catalog.
@@ -212,12 +276,34 @@ type RecordingStartResponse struct {
 	ID string `json:"id"`
 }
 
+// Validate checks the semantic constraints declared for RecordingStartResponse.
+func (value *RecordingStartResponse) Validate() error {
+	if value == nil {
+		return errors.New("RecordingStartResponse is nil")
+	}
+	if len(value.ID) < 1 {
+		return errors.New("id must contain at least 1 character(s)")
+	}
+	return nil
+}
+
 // RecordingStopRequest is generated from the protocol catalog.
 //
 // Parameters for `recording.stop`.
 type RecordingStopRequest struct {
 	// ID: Recording identifier to stop.
 	ID string `json:"id"`
+}
+
+// Validate checks the semantic constraints declared for RecordingStopRequest.
+func (value *RecordingStopRequest) Validate() error {
+	if value == nil {
+		return errors.New("RecordingStopRequest is nil")
+	}
+	if len(value.ID) < 1 {
+		return errors.New("id must contain at least 1 character(s)")
+	}
+	return nil
 }
 
 // SessionGetRequest is generated from the protocol catalog.
@@ -269,6 +355,17 @@ type SessionSetRequest struct {
 type SessionTerminateRequest struct {
 	// Reason: Reason the session is ending.
 	Reason string `json:"reason"`
+}
+
+// Validate checks the semantic constraints declared for SessionTerminateRequest.
+func (value *SessionTerminateRequest) Validate() error {
+	if value == nil {
+		return errors.New("SessionTerminateRequest is nil")
+	}
+	if len(value.Reason) < 1 {
+		return errors.New("reason must contain at least 1 character(s)")
+	}
+	return nil
 }
 
 // SessionUpdatedEvent is generated from the protocol catalog.

@@ -11,7 +11,8 @@ import (
 
 	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/babelforce/rtvbp/sdk/go/audio"
-	"github.com/babelforce/rtvbp/sdk/go/proto/protov1"
+	v1bridge "github.com/babelforce/rtvbp/sdk/go/bridge/babelforcev1"
+	v1 "github.com/babelforce/rtvbp/sdk/go/catalog/babelforcev1"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
 	"github.com/gordonklaus/portaudio"
@@ -40,6 +41,112 @@ func (s *serverCLI) level() slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+type applicationHandler struct {
+	args *serverCLI
+}
+
+func (handler *applicationHandler) OnBegin(ctx context.Context, shc rtvbp.SHC) error {
+	peer := v1.NewVoicePeer(shc)
+	if handler.args.moveAfterSeconds != 0 {
+		go func() {
+			<-time.After(time.Duration(handler.args.moveAfterSeconds) * time.Second)
+			_, _ = peer.ApplicationMove(ctx, &v1.ApplicationMoveRequest{
+				Reason: "auto move", ApplicationID: "1234",
+			})
+		}()
+	}
+	if handler.args.terminateAfterSeconds != 0 {
+		go func() {
+			<-time.After(time.Duration(handler.args.terminateAfterSeconds) * time.Second)
+			// This reverse request intentionally exercises babelforce.v1's frozen 501 rejection.
+			_, _ = shc.Request(ctx, &v1.SessionTerminateRequest{Reason: "auto terminate"})
+		}()
+	}
+	if handler.args.hangupAfterSeconds != 0 {
+		go func() {
+			<-time.After(time.Duration(handler.args.hangupAfterSeconds) * time.Second)
+			_, _ = peer.CallHangup(ctx, &v1.CallHangupRequest{Reason: "auto hangup"})
+		}()
+	}
+	return nil
+}
+
+func (*applicationHandler) Ping(
+	ctx context.Context,
+	_ rtvbp.SHC,
+	request *v1.PingRequest,
+) (*v1.PingResponse, error) {
+	inbound, ok := rtvbp.InboundRequest(ctx)
+	if !ok {
+		return nil, fmt.Errorf("missing inbound request")
+	}
+	now := time.Now().UnixMilli()
+	return &v1.PingResponse{
+		T0: request.T0, T1: inbound.ReceivedAt.UnixMilli(), T2: now, OWD: now - request.T0, Data: request.Data,
+	}, nil
+}
+
+func (handler *applicationHandler) SessionInitialize(
+	ctx context.Context,
+	shc rtvbp.SHC,
+	request *v1.SessionInitializeRequest,
+) (*v1.SessionInitializeResponse, error) {
+	if len(request.AudioCodecOfferings) == 0 {
+		return nil, fmt.Errorf("no audio codec offerings")
+	}
+	selected := &request.AudioCodecOfferings[0]
+	format, err := v1bridge.MediaFormat(selected, v1bridge.DefaultPTime)
+	if err != nil {
+		return nil, err
+	}
+	if err := shc.OpenAudio(ctx, format); err != nil {
+		return nil, err
+	}
+	frameBytes, err := format.FrameBytes()
+	if err != nil {
+		return nil, err
+	}
+	switch handler.args.audio {
+	case "loopback":
+		loopback := audio.NewLoopback()
+		audio.DuplexCopy(loopback, frameBytes*10, shc.AudioStream(), frameBytes*10)
+	case "device":
+		audioDevice, err := audiogo.NewDevice(handler.args.audioSampleRate, 1)
+		if err != nil {
+			return nil, fmt.Errorf("failed to setup server audio: %w", err)
+		}
+		audio.DuplexCopy(shc.AudioStream(), frameBytes, audioDevice, frameBytes)
+	case "file":
+		// TODO: add a file-backed audio source.
+	}
+	return &v1.SessionInitializeResponse{AudioCodec: selected}, nil
+}
+
+func (*applicationHandler) SessionTerminate(
+	context.Context,
+	rtvbp.SHC,
+	*v1.SessionTerminateRequest,
+) (*v1.EmptyResponse, error) {
+	return &v1.EmptyResponse{}, nil
+}
+
+func (*applicationHandler) AudioInfo(context.Context, rtvbp.SHC, *v1.AudioInfoEvent) error {
+	return nil
+}
+
+func (*applicationHandler) CallHangup(context.Context, rtvbp.SHC, *v1.CallHangupEvent) error {
+	return nil
+}
+
+func (*applicationHandler) Dtmf(_ context.Context, _ rtvbp.SHC, event *v1.DtmfEvent) error {
+	slog.Info("DTMF", slog.String("digit", event.Digit), slog.Int("sequence", event.Seq))
+	return nil
+}
+
+func (*applicationHandler) SessionUpdated(context.Context, rtvbp.SHC, *v1.SessionUpdatedEvent) error {
+	return nil
 }
 
 func main() {
@@ -73,90 +180,18 @@ func main() {
 		defer portaudio.Terminate()
 	}
 
-	// start server
+	handler := &applicationHandler{args: &args}
+	registrations := v1.ApplicationHandlers(handler)
+	registrations = append(registrations, v1.ApplicationEventHandlers(handler)...)
+
 	srv := ws.NewServer(
 		ws.ServerConfig{
 			Addr:  "0.0.0.0:8080",
 			Debug: args.debug,
 		},
 		rtvbp.NewHandler(
-			rtvbp.HandlerConfig{
-				OnBegin: func(ctx context.Context, h rtvbp.SHC) error {
-
-					if args.moveAfterSeconds != 0 {
-						go func() {
-							<-time.After(time.Duration(args.moveAfterSeconds) * time.Second)
-							_, _ = h.Request(ctx, &protov1.ApplicationMoveRequest{
-								Reason:        "auto move",
-								ApplicationID: "1234",
-							})
-						}()
-					}
-
-					if args.terminateAfterSeconds != 0 {
-						go func() {
-							<-time.After(time.Duration(args.terminateAfterSeconds) * time.Second)
-							_, _ = h.Request(ctx, &protov1.SessionTerminateRequest{
-								Reason: "auto terminate",
-							})
-						}()
-					}
-
-					if args.hangupAfterSeconds != 0 {
-						go func() {
-							<-time.After(time.Duration(args.hangupAfterSeconds) * time.Second)
-							_, _ = h.Request(ctx, &protov1.CallHangupRequest{
-								Reason: "auto hangup",
-							})
-						}()
-					}
-
-					return nil
-				},
-			},
-			rtvbp.HandleRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionInitializeRequest) (*protov1.SessionInitializeResponse, error) {
-				if req.AudioCodecOfferings == nil || len(req.AudioCodecOfferings) == 0 {
-					return nil, fmt.Errorf("no audio codec offerings")
-				}
-				selected := &req.AudioCodecOfferings[0]
-				format, err := protov1.MediaFormat(selected, protov1.DefaultPTime)
-				if err != nil {
-					return nil, err
-				}
-				if err := hc.OpenAudio(ctx, format); err != nil {
-					return nil, err
-				}
-				frameBytes, err := format.FrameBytes()
-				if err != nil {
-					return nil, err
-				}
-
-				// start audio
-				if args.audio == "loopback" {
-					lb := audio.NewLoopback()
-					audio.DuplexCopy(lb, frameBytes*10, hc.AudioStream(), frameBytes*10)
-				} else if args.audio == "device" {
-					audioDev, err := audiogo.NewDevice(args.audioSampleRate, 1)
-					if err != nil {
-						return nil, fmt.Errorf("failed to setup server audio: %w", err)
-					}
-					audio.DuplexCopy(hc.AudioStream(), frameBytes, audioDev, frameBytes)
-				} else if args.audio == "file" {
-					// TODO:
-				}
-
-				return &protov1.SessionInitializeResponse{
-					AudioCodec: selected,
-				}, nil
-			}),
-			rtvbp.HandleTerminalRequest(func(ctx context.Context, hc rtvbp.SHC, req *protov1.SessionTerminateRequest) (*protov1.EmptyResponse, error) {
-				return &protov1.EmptyResponse{}, nil
-			}),
-			rtvbp.HandleEvent(func(ctx context.Context, shc rtvbp.SHC, evt *protov1.DTMFEvent) error {
-				println("DTMF>:", evt.Digit, ":", evt.String())
-				return nil
-			}),
-			protov1.NewPingHandler(),
+			rtvbp.HandlerConfig{OnBegin: handler.OnBegin},
+			registrations...,
 		),
 	)
 

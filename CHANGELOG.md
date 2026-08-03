@@ -60,3 +60,7 @@ All notable changes to this project are documented here. The format is based on
   empty values; generated Go now preserves all three presence states with an optional string pointer.
 - Settled `transport.*` as an operation-method-only reservation, documented the frozen top-level
   `error:null` normalization exception, and refreshed the roadmap and runnable contributor gate.
+- Added generated Go role interfaces, dispatch adapters, typed peer clients, event helpers,
+  semantic validators, terminal dispatch and frozen per-role rejections. Replaced the derivable
+  `proto/protov1` package with generated catalog code and a thin hand-written voice/telephony bridge,
+  and ported both demos to the new API.

@@ -145,11 +145,11 @@ construction only; the session owns and closes the returned transport.
 
 ```text
 sdk/go/
-  catalog/              generated payload types
+  bridge/babelforcev1/  hand-written v1 voice/telephony policy
+  catalog/              generated payload types and role glue
   envelope/             generated wire codecs
   transport/memory/     in-process conformance transport
   transport/ws/         WebSocket control and static audio transport
-  proto/protov1/        transitional v1 business glue (removed by R-10)
   examples/             load test and demo applications
 ```
 

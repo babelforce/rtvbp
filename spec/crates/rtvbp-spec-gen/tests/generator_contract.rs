@@ -8,7 +8,7 @@ use rtvbp_spec_gen::catalogs;
 use rtvbp_spec_gen::emit::{GeneratedFile, Target};
 use rtvbp_spec_gen::resolve::resolve;
 use rtvbp_spec_gen::write::{check_files, check_owned_files, synchronize_files, write_files};
-use rtvbp_spec_gen::{ResolveError, emit_go_envelope, generate};
+use rtvbp_spec_gen::{ResolveError, emit_go, emit_go_envelope, generate};
 use rtvbp_spec_model::{
     Catalog, ConstantField, EnvelopeSpec, ErrorSpec, Event, FieldSpec, FrameKind, FrameSpec,
     Operation, Role,
@@ -30,6 +30,19 @@ struct Response {
 #[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
 struct EventData {
     state: String,
+}
+
+#[derive(Clone, Debug, Deserialize, JsonSchema, Serialize)]
+#[schemars(extend(
+    "x-rtvbp-field-order" = [{"lower": "started_at", "upper": "finished_at"}]
+))]
+struct ValidatedRequest {
+    #[schemars(length(min = 1))]
+    name: String,
+    #[schemars(range(min = 0), extend("x-rtvbp-nonzero" = true))]
+    started_at: i64,
+    #[schemars(range(min = 0))]
+    finished_at: i64,
 }
 
 mod first {
@@ -304,7 +317,7 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     let first = generate(Target::Go).unwrap();
     let second = generate(Target::Go).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 4);
+    assert_eq!(first.len(), 6);
     assert_eq!(
         first
             .iter()
@@ -312,6 +325,8 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
             .collect::<Vec<_>>(),
         [
             Path::new("catalog/babelforcev1/zz_generated.golden_test.go"),
+            Path::new("catalog/babelforcev1/zz_generated.roles.go"),
+            Path::new("catalog/babelforcev1/zz_generated.roles_test.go"),
             Path::new("catalog/babelforcev1/zz_generated.types.go"),
             Path::new("envelope/v1classic/zz_generated.codec.go"),
             Path::new("envelope/v1classic/zz_generated.golden_test.go"),
@@ -342,12 +357,40 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     assert!(types.contains("type SessionGetResponse map[string]any"));
     assert!(types.contains("const MethodSessionInitialize = \"session.initialize\""));
     assert!(types.contains("func (*SessionUpdatedEvent) EventName() string"));
+    assert!(types.contains("func (value *CallHangupRequest) Validate() error"));
+    assert!(types.contains("if len(value.Reason) < 1"));
+    assert!(types.contains("if value.Seq < 0"));
+    assert!(types.contains("if value.T0 == 0"));
+    assert!(types.contains("if value.PressedAt > value.ReleasedAt"));
     assert!(types.contains("Application that owns the call flow."));
     assert!(
         types.find("Application AppInfo").unwrap() < types.find("Call CallInfo").unwrap()
             && types.find("Call CallInfo").unwrap()
                 < types.find("AudioCodecOfferings []AudioCodec").unwrap()
     );
+
+    let roles = String::from_utf8(
+        first
+            .iter()
+            .find(|file| file.path.ends_with("zz_generated.roles.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+    assert!(roles.contains("type ApplicationHandler interface"));
+    assert!(roles.contains("type VoiceHandler interface"));
+    assert!(roles.contains("func ApplicationHandlers(handler ApplicationHandler) []any"));
+    assert!(roles.contains("rtvbp.HandleTerminalRequest(handler.SessionTerminate)"));
+    assert!(roles.contains(
+        "rtvbp.HandleWithError[*SessionTerminateRequest](rtvbp.WireError{Code: 501, Message: \"session.terminate is not supported. please use application.move or call.hangup instead\"})"
+    ));
+    assert!(roles.contains("type VoicePeer struct"));
+    assert!(roles.contains("func (peer *VoicePeer) CallHangup"));
+    assert!(roles.contains("type ApplicationEvents struct"));
+    assert!(roles.contains("type VoiceEvents struct"));
+    assert!(roles.contains("type ApplicationEventHandler interface"));
+    assert!(roles.contains("type VoiceEventHandler interface"));
 
     let tests = String::from_utf8(
         first
@@ -395,6 +438,164 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     assert_eq!(envelope_tests.matches("\t{name: \"").count(), 10);
     assert!(envelope_tests.contains("response-ok-null-result.json"));
     assert!(envelope_tests.contains("TestStructuralPrecedenceAndMalformedInput"));
+}
+
+#[test]
+fn go_roles_are_derived_from_synthetic_roles_terminality_and_event_direction() {
+    let catalog = Catalog::new("demo", 2)
+        .operation(
+            Operation::new::<Request, Response>("demo.application", Role::Application)
+                .docs("Handled by applications.")
+                .reject(rtvbp_spec_model::OperationRejection::new(
+                    Role::Voice,
+                    409,
+                    "voice rejects application operation",
+                ))
+                .example(
+                    "canonical",
+                    json!({"input": "in"}),
+                    json!({"output": "out"}),
+                ),
+        )
+        .operation(
+            Operation::new::<Request, Response>("demo.voice", Role::Voice)
+                .docs("Handled by voice peers.")
+                .terminal()
+                .example(
+                    "canonical",
+                    json!({"input": "in"}),
+                    json!({"output": "out"}),
+                ),
+        )
+        .operation(
+            Operation::new::<Request, Response>("demo.both", Role::Both)
+                .docs("Handled by both peers.")
+                .example(
+                    "canonical",
+                    json!({"input": "in"}),
+                    json!({"output": "out"}),
+                ),
+        )
+        .event(
+            Event::new::<EventData>("event.application", Role::Application)
+                .docs("Emitted by applications.")
+                .example("canonical", json!({"state": "ready"})),
+        )
+        .event(
+            Event::new::<EventData>("event.voice", Role::Voice)
+                .docs("Emitted by voice peers.")
+                .example("canonical", json!({"state": "ready"})),
+        )
+        .event(
+            Event::new::<EventData>("event.both", Role::Both)
+                .docs("Emitted by both peers.")
+                .example("canonical", json!({"state": "ready"})),
+        );
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+    let files = emit_go(&resolve(catalog).unwrap()).unwrap();
+    let roles = String::from_utf8(
+        files
+            .iter()
+            .find(|file| file.path.ends_with("zz_generated.roles.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+
+    let application_handler = section(&roles, "type ApplicationHandler interface", "}\n\n");
+    assert!(application_handler.contains("DemoApplication("));
+    assert!(application_handler.contains("DemoBoth("));
+    assert!(!application_handler.contains("DemoVoice("));
+    let voice_handler = section(&roles, "type VoiceHandler interface", "}\n\n");
+    assert!(!voice_handler.contains("DemoApplication("));
+    assert!(voice_handler.contains("DemoBoth("));
+    assert!(voice_handler.contains("DemoVoice("));
+    assert!(roles.contains("rtvbp.HandleTerminalRequest(handler.DemoVoice)"));
+    assert!(roles.contains("rtvbp.HandleRequest(handler.DemoBoth)"));
+    assert!(roles.contains(
+        "rtvbp.HandleWithError[*Request](rtvbp.WireError{Code: 409, Message: \"voice rejects application operation\"})"
+    ));
+
+    let application_events = section(
+        &roles,
+        "type ApplicationEvents struct",
+        "type VoiceEvents struct",
+    );
+    assert!(application_events.contains("EventApplication("));
+    assert!(application_events.contains("EventBoth("));
+    assert!(!application_events.contains("EventVoice("));
+    let application_subscriber = section(
+        &roles,
+        "type ApplicationEventHandler interface",
+        "func ApplicationEventHandlers",
+    );
+    assert!(!application_subscriber.contains("EventApplication("));
+    assert!(application_subscriber.contains("EventBoth("));
+    assert!(application_subscriber.contains("EventVoice("));
+}
+
+#[test]
+fn go_validators_are_derived_from_synthetic_structured_metadata() {
+    let operation =
+        Operation::new::<ValidatedRequest, Response>("demo.validated", Role::Application)
+            .docs("Validate a request.")
+            .example(
+                "canonical",
+                json!({"name": "call", "started_at": 1, "finished_at": 2}),
+                json!({"output": "ok"}),
+            );
+    let catalog = Catalog::new("demo", 1).operation(operation);
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+    let files = emit_go(&resolve(catalog).unwrap()).unwrap();
+    let types = String::from_utf8(
+        files
+            .iter()
+            .find(|file| file.path.ends_with("zz_generated.types.go"))
+            .unwrap()
+            .bytes
+            .clone(),
+    )
+    .unwrap();
+
+    assert!(types.contains("func (value *ValidatedRequest) Validate() error"));
+    assert!(types.contains("if len(value.Name) < 1"));
+    assert!(types.contains("if value.StartedAt < 0"));
+    assert!(types.contains("if value.StartedAt == 0"));
+    assert!(types.contains("if value.StartedAt > value.FinishedAt"));
+}
+
+#[test]
+fn go_roles_reject_colliding_wire_names_on_the_same_surface() {
+    let first = Operation::new::<Request, Response>("demo.same_name", Role::Application)
+        .docs("First spelling.")
+        .example(
+            "canonical",
+            json!({"input": "in"}),
+            json!({"output": "out"}),
+        );
+    let second = Operation::new::<Request, Response>("demo.same.name", Role::Both)
+        .docs("Second spelling.")
+        .example(
+            "canonical",
+            json!({"input": "in"}),
+            json!({"output": "out"}),
+        );
+    let catalog = Catalog::new("collision", 1)
+        .operation(first)
+        .operation(second);
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+
+    let error = emit_go(&resolve(catalog).unwrap()).unwrap_err().to_string();
+    assert!(error.contains("ApplicationHandler"), "{error}");
+    assert!(error.contains("DemoSameName"), "{error}");
+    assert!(error.contains("demo.same_name"), "{error}");
+    assert!(error.contains("demo.same.name"), "{error}");
+}
+
+fn section<'a>(source: &'a str, start: &str, end: &str) -> &'a str {
+    let source = &source[source.find(start).unwrap()..];
+    &source[..source.find(end).unwrap() + end.len()]
 }
 
 #[test]
