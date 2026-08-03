@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gordonklaus/portaudio v0.0.0-20250206071425-98a94950218b
 	github.com/matoous/go-nanoid/v2 v2.1.0
+	go.uber.org/goleak v1.3.0
 )
 
 require (

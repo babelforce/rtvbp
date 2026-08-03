@@ -2,12 +2,12 @@
 id: R-15
 title: Port rtvbp-openai to the new SDK as the acceptance test
 pillar: Proof
-status: backlog
+status: ready
 priority: 16
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance]
-note: blocked on R-12; a real phone call is the acceptance criterion
+note: published-version interop passes; ready for the real-service phone-call acceptance proof
 ---
 
 # Port rtvbp-openai to the new SDK as the acceptance test

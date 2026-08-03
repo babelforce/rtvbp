@@ -72,3 +72,7 @@ All notable changes to this project are documented here. The format is based on
   and multi-message vectors. A hand-written Go harness consumes the committed monorepo artifacts,
   checks exact encoded bytes, normalizes generated IDs structurally, and executes every scenario
   through the memory transport with both application and voice roles under test.
+- Added live WebSocket interoperability tests against the unmodified published `rtvbp-go v0.37.2`
+  module in both role directions, covering codec negotiation, binary audio both ways, DTMF, the
+  legacy application pinger, headerless profile fallback and termination. Added leak-guarded demo
+  wiring tests and fixed the demo endpoint, no-audio and graceful-exit paths found while running it.

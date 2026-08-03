@@ -82,6 +82,9 @@ func main() {
 			},
 		},
 		func(ctx context.Context, h rtvbp.SHC) error {
+			if audioSink == nil {
+				return nil
+			}
 			s, err := h.AudioStream().Format().FrameBytes()
 			if err != nil {
 				return err
@@ -135,7 +138,7 @@ func main() {
 				log.Error("session ended with error", slog.Any("err", err))
 			}
 			log.Info("terminated")
-			os.Exit(0)
+			return
 		}
 	}
 }

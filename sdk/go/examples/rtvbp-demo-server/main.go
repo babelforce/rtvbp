@@ -187,6 +187,7 @@ func main() {
 	srv := ws.NewServer(
 		ws.ServerConfig{
 			Addr:  "0.0.0.0:8080",
+			Path:  "/ws",
 			Debug: args.debug,
 		},
 		rtvbp.NewHandler(

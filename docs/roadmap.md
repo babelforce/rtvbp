@@ -12,9 +12,10 @@ the typed Rust catalog reproduces it byte-for-byte; and the generator now emits 
 glue, the classic.v1 envelope codec, the published protocol reference, and language-neutral
 conformance vectors. The Go SDK runs on the semantic session, negotiated audio, and WebSocket
 transport seams delivered by R-8/R-9, and its memory-transport harness executes the generated
-scenarios for both roles. R-12 published-version interop and R-15's real-call acceptance remain
-before R-16 tags the first Go SDK release. The Docusaurus site lives under [`website/`](../website),
-leaving `docs/` for contributor material and this backlog.
+scenarios for both roles. Live WebSocket sessions now pass in both directions against published
+`rtvbp-go v0.37.2`; R-15's real-call acceptance remains before R-16 tags the first Go SDK release.
+The Docusaurus site lives under [`website/`](../website), leaving `docs/` for contributor material
+and this backlog.
 
 ## Delivered
 

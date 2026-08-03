@@ -1,11 +1,10 @@
-module rtvbp_demo_server
+module github.com/babelforce/rtvbp/conformance/interop/rtvbp-go-v0.37.2
 
 go 1.24.4
 
 require (
+	github.com/babelforce/rtvbp-go v0.37.2
 	github.com/babelforce/rtvbp/sdk/go v0.0.0
-	github.com/codewandler/audio-go v1.0.1
-	github.com/gordonklaus/portaudio v0.0.0-20250206071425-98a94950218b
 	go.uber.org/goleak v1.3.0
 )
 
@@ -15,4 +14,4 @@ require (
 	github.com/smallnest/ringbuffer v0.0.0-20250317021400-0da97b586904 // indirect
 )
 
-replace github.com/babelforce/rtvbp/sdk/go v0.0.0 => ../..
+replace github.com/babelforce/rtvbp/sdk/go v0.0.0 => ../../../sdk/go

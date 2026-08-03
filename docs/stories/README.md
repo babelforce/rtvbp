@@ -22,7 +22,8 @@ transcript-done presence fixtures, and explicit namespace/null rules before conf
 public reference pages are emitted. R-10 completed role-specific generated dispatch, typed clients,
 validation and the Go voice-bridge cutover, R-13 now generates the published catalog and envelope
 reference, and R-11 generates language-neutral conformance vectors exercised through both Go roles.
-R-12 published-version interop is next.
+R-12 now proves live WebSocket compatibility in both directions against published v0.37.2; the
+real-service acceptance and release gate remain.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -44,7 +45,7 @@ _None._
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · R-10 ported the demos; published-v0.37 interop now proves deployed peers are unaffected
+- [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · published-version interop passes; ready for the real-service phone-call acceptance proof
 
 ### the spec crate and the generator core
 _Before anything can be generated there must be a source of truth that is provably equal to the_
@@ -66,7 +67,6 @@ _None._
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-15 — Port rtvbp-openai to the new SDK as the acceptance test](R-15-port-rtvbp-openai.md) · Proof · blocked on R-12; a real phone call is the acceptance criterion
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · blocked on R-15; generated docs are complete and real-call acceptance remains before release
 
 ### the Go SDK — runtime and emitted glue
@@ -86,6 +86,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 - [R-17 — Complete babelforce.v1 wire authority and fixture variants](R-17-harden-v1-wire-authority.md) · Proof · 46 source-pinned fixtures now cover every catalog shape and the missing wire variants
 - [R-19 — Close follow-up soundness review residuals before vectors and public reference](R-19-close-followup-soundness-review.md) · Proof · follow-up review residuals are closed before vectors and public reference output
 - [R-11 — Conformance vector emitter and the Go harness](R-11-conformance-emitter-harness.md) · Proof · generated payload/envelope vectors and typed scenarios now execute through both Go roles
+- [R-12 — Port the examples and prove interop against rtvbp-go v0.37](R-12-examples-and-interop.md) · Proof · live bidirectional v0.37.2 WebSocket interop now proves deployed peers remain compatible
 
 ### the spec crate and the generator core
 _Before anything can be generated there must be a source of truth that is provably equal to the_
