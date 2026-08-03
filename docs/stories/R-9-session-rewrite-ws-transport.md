@@ -2,7 +2,7 @@
 id: R-9
 title: Session rewrite and WebSocket transport port
 pillar: SDK
-status: ready
+status: in-progress
 priority: 10
 design: docs/designs/go-sdk.md
 epic: go-sdk
@@ -45,7 +45,9 @@ the new transport interface.
       tests are `goleak`-clean.
 
 ## Progress
-- (not started)
+- 2026-08-03: Started after the generated classic.v1 codec made wire preservation mechanical;
+  rewrite the session against semantic frames first, then port WebSocket/media and delete the
+  transitional byte-oriented runtime.
 
 ## Notes
 - Decide the deferred-response API shape here (sentinel error vs. explicit handle) and record it in

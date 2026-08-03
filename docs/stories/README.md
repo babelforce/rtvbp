@@ -16,8 +16,8 @@ spec types. R-17 closed the soundness review's wire-authority gap with 46 source
 R-18 made the remaining semantic constraints explicit and tested, R-5 delivered the generator core
 plus its first committed manifest, R-6 now emits byte-proven Go payload types, R-8 delivered the new
 runtime transport seams plus the canonical Go module migration, and R-7 now generates the
-byte-proven classic.v1 envelope codec. R-9 is ready to port the session and WebSocket transport onto
-those seams. The second soundness review is scheduled as R-19 after that rewrite and before
+byte-proven classic.v1 envelope codec. R-9 is porting the session and WebSocket transport onto those
+seams. The second soundness review is scheduled as R-19 after that rewrite and before
 conformance vectors or public reference pages are emitted.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
@@ -37,6 +37,7 @@ cross-language release gate and release automation.
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
+- [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · unblocked; generated classic.v1 bytes now guard the runtime rewrite and WebSocket port
 
 ## Next (ready — take the top one unless the user named a story)
 
@@ -45,7 +46,6 @@ _Before anything can be generated there must be a source of truth that is provab
 
 ### the Go SDK — runtime and emitted glue
 _The Go SDK is the first target and the parity benchmark: it must speak the wire exactly as_
-- [R-9 — Session rewrite and WebSocket transport port](R-9-session-rewrite-ws-transport.md) · SDK · unblocked; generated classic.v1 bytes now guard the runtime rewrite and WebSocket port
 
 ### generated protocol documentation
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
