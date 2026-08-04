@@ -23,6 +23,10 @@ jobs:
           cache: yarn
           cache-dependency-path: website/yarn.lock
       - uses: arduino/setup-task@v2
+      - name: Install demo audio dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes portaudio19-dev
       - run: yarn install --frozen-lockfile
         working-directory: website
       - run: task check

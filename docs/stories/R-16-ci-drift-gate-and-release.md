@@ -7,7 +7,7 @@ priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
-note: Go v0.1.0-rc.2 adds selectable Pion WebRTC; stable tag and legacy retirement remain
+note: Go v0.1.0-rc.3 adds selectable Pion WebRTC; stable tag and legacy retirement remain
 ---
 
 # CI drift gate, Taskfile, first release and rtvbp-go deprecation
@@ -45,6 +45,9 @@ build — and retire the old repository cleanly now that its consumers have some
 - 2026-08-04: Prepared `sdk/go/v0.1.0-rc.2` after the additive WebRTC epic. It retains plain
   WebSocket audio and adds the Pion binding, combined demo selection, full race-tested acceptance,
   and matching public documentation; stable `v0.1.0` remains gated by the legacy retirement work.
+- 2026-08-04: RC.2's release workflow exposed that clean Ubuntu runners lacked the PortAudio system
+  library now that the existing demo modules are part of `task check`. Declared `portaudio19-dev` in
+  both workflows and advanced to RC.3 without moving or deleting the failed RC.2 tag.
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor

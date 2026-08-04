@@ -12,7 +12,7 @@ generated and must not be edited by hand.
 The current public release candidate is:
 
 ```bash
-go get github.com/babelforce/rtvbp/sdk/go@v0.1.0-rc.2
+go get github.com/babelforce/rtvbp/sdk/go@v0.1.0-rc.3
 ```
 
 ## WebSocket server
