@@ -7,7 +7,7 @@ priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
-note: public Go v0.1.0-rc.1 and generated docs are live; stable tag and legacy retirement remain
+note: Go v0.1.0-rc.2 adds selectable Pion WebRTC; stable tag and legacy retirement remain
 ---
 
 # CI drift gate, Taskfile, first release and rtvbp-go deprecation
@@ -42,6 +42,9 @@ build — and retire the old repository cleanly now that its consumers have some
   Pages deployment all completed successfully; the generated operation reference serves publicly,
   and a clean module resolved the RC through `proxy.golang.org`. The `rtvbp-openai` migration branch
   now pins the public RC without a local `replace`, with normal, race and vet tests green.
+- 2026-08-04: Prepared `sdk/go/v0.1.0-rc.2` after the additive WebRTC epic. It retains plain
+  WebSocket audio and adds the Pion binding, combined demo selection, full race-tested acceptance,
+  and matching public documentation; stable `v0.1.0` remains gated by the legacy retirement work.
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor

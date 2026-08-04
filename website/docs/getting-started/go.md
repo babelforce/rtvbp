@@ -7,7 +7,7 @@ sidebar_position: 1
 This path builds an application-role WebSocket endpoint. The current public release candidate is:
 
 ```bash
-go get github.com/babelforce/rtvbp/sdk/go@v0.1.0-rc.1
+go get github.com/babelforce/rtvbp/sdk/go@v0.1.0-rc.2
 ```
 
 An application must answer `ping`, negotiate audio in `session.initialize`, and acknowledge the

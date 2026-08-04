@@ -42,7 +42,7 @@ cross-language release gate and release automation.
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
-- [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · public Go v0.1.0-rc.1 and generated docs are live; stable tag and legacy retirement remain
+- [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · Go v0.1.0-rc.2 adds selectable Pion WebRTC; stable tag and legacy retirement remain
 
 ## Next (ready — take the top one unless the user named a story)
 
