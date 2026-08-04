@@ -36,6 +36,8 @@ description of its signaling, media, authentication, and deployment behavior.
 - 2026-08-04: Published the additive binding contract, connection flow, codec boundary, ICE/TURN
   deployment guidance, and limitations. Extended the existing demo client/server with transport
   choice and preference flags plus environment-supplied ICE settings; no duplicate demo was added.
+- 2026-08-04: GitHub Pages deployment passed and the public page was checked for the
+  `rtvbp.webrtc.v1`, PCMU/8000/1, and preserved WebSocket-binary binding content.
 
 ## Notes
 - Public prose about the transport is hand-written. Payload operations/events and typed scenarios

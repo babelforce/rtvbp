@@ -48,6 +48,10 @@ build — and retire the old repository cleanly now that its consumers have some
 - 2026-08-04: RC.2's release workflow exposed that clean Ubuntu runners lacked the PortAudio system
   library now that the existing demo modules are part of `task check`. Declared `portaudio19-dev` in
   both workflows and advanced to RC.3 without moving or deleting the failed RC.2 tag.
+- 2026-08-04: Published `sdk/go/v0.1.0-rc.3`. Its release workflow and the corrected branch gate
+  pass, Pages serves the WebRTC binding guide, and a clean external module resolves RC.3 plus
+  `transport/webrtcws` through the Go module proxy. The RC.2 tag remains immutable and has no GitHub
+  release; RC.3 supersedes it.
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor
