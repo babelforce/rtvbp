@@ -92,12 +92,24 @@ func (d *DialConfig) doDial(ctx context.Context, subprotocols []string) (*websoc
 
 // Dial connects a semantic transport to a WebSocket endpoint.
 func Dial(ctx context.Context, c ClientConfig) (*Transport, error) {
+	return dial(ctx, ctx, c)
+}
+
+// DialDetached connects a semantic transport whose lifetime is owned by its caller.
+// ctx bounds dialing and construction only; Close must be called to release the transport.
+// Transport factories should use this form because Session cancels their construction context
+// immediately after a successful return.
+func DialDetached(ctx context.Context, c ClientConfig) (*Transport, error) {
+	return dial(ctx, context.WithoutCancel(ctx), c)
+}
+
+func dial(ctx, lifetime context.Context, c ClientConfig) (*Transport, error) {
 	c.Defaults()
 	conn, logger, err := dialConnection(ctx, c)
 	if err != nil {
 		return nil, err
 	}
-	transport, err := NewTransport(ctx, conn, &TransportConfig{Logger: logger, AudioFormat: c.AudioFormat})
+	transport, err := NewTransport(lifetime, conn, &TransportConfig{Logger: logger, AudioFormat: c.AudioFormat})
 	if err != nil {
 		_ = conn.Close()
 		return nil, err

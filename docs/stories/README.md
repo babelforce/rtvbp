@@ -114,4 +114,10 @@ _The framework claims to be catalog-agnostic and to support **any transport × a
 _The published documentation at <https://babelforce.github.io/rtvbp/> is ~650 lines of hand-written_
 - [R-13 — Docs emitter — generated protocol reference in the Docusaurus site](R-13-docs-emitter.md) · Generator · generated catalog and envelope reference now replaces the stale hand-written v1 prose
 - [R-21 — Restore generated flows and integration documentation](R-21-restore-integration-documentation.md) · Generator · generated scenario flows, split quickstarts, and tested deployment auth restore the narrative layer
+
+### WebRTC audio with WebSocket control
+_Authenticated RTVBP control remains on WebSocket while Pion carries timed browser-compatible audio._
+- [R-22 — Pion WebRTC plus WebSocket transport core](R-22-pion-webrtcws-transport-core.md) · SDK · Pion signaling and timed PCMU-to-L16 media are implemented and race-tested
+- [R-23 — WebRTC plus WebSocket client/server integration and acceptance](R-23-webrtcws-client-server-acceptance.md) · Proof · combined endpoints preserve WebSocket audio and prove typed control plus duplex Pion audio
+- [R-24 — Document and demonstrate the Go WebRTC binding](R-24-document-webrtc-binding.md) · SDK · published binding guide and selectable existing demo pair document both audio choices
 <!-- END track:board -->

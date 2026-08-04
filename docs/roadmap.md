@@ -6,23 +6,23 @@ document is the hand-written narrative around it.
 
 ## Status
 
-_As of 2026-08-03:_ the repository is being converted from a documentation site into the **home of
-the protocol** — spec, generator, and SDKs. The frozen `babelforce.v1` authority is source-pinned;
-the typed Rust catalog reproduces it byte-for-byte; and the generator now emits Go payloads, role
-glue, the classic.v1 envelope codec, the published protocol reference, and language-neutral
-conformance vectors. The Go SDK runs on the semantic session, negotiated audio, and WebSocket
-transport seams delivered by R-8/R-9, and its memory-transport harness executes the generated
-scenarios for both roles. Live WebSocket sessions now pass in both directions against published
-`rtvbp-go v0.37.2`, and `demo.v1` proves that every emitter plus WebSocket profile routing works for
-a second catalog without session or envelope coupling. R-15's real-call acceptance remains before
-R-16 tags the first Go SDK release. The Docusaurus site lives under [`website/`](../website), leaving
-`docs/` for contributor material and this backlog.
+_As of 2026-08-04:_ the repository is the **home of the protocol** — spec, generator, SDKs, and
+published documentation. The frozen `babelforce.v1` authority is source-pinned and the typed Rust
+catalog reproduces it byte-for-byte; the generator emits Go payloads, role glue, the classic.v1
+envelope, public reference, flows, and language-neutral conformance vectors. The Go SDK release
+candidate has passed live OpenAI acceptance, while R-16 retains the stable tag and legacy-repository
+retirement work. The optional Pion `webrtcws.v1` binding now adds timed PCMU WebRTC audio beside the
+existing WebSocket-binary audio binding, with one selectable demo pair and no catalog or session
+change. The Docusaurus site lives under [`website/`](../website), leaving `docs/` for contributor
+material and this backlog.
 
 ## Delivered
 
 - The published prose specification for protocol v1 and its Docusaurus site
   (<https://babelforce.github.io/rtvbp/>) — now the narrative layer that the generated reference will
   grow around.
+- The additive Go WebRTC-audio binding: Pion PCMU media with classic control on WebSocket, selectable
+  independently from the preserved plain WebSocket-audio binding.
 
 ## Next
 
@@ -31,8 +31,9 @@ Milestone 1 is **spec + generator + a Go SDK at wire parity**, in the order on t
 spec reproduce them, then generate everything else and prove it against those fixtures and against a
 live `rtvbp-go v0.37` peer.
 
-After M1, in order: **WebRTC audio with WebSocket control** (the pressing transport need), then the
-**Rust SDK** re-housed from `private-source.invalid`, then **QUIC and SIP** bindings.
+After M1, the [WebRTC epic](designs/webrtc.md) implements the pressing **WebRTC audio with WebSocket
+control** need in Go with Pion. The **Rust SDK** re-housed from `private-source.invalid` follows, then
+**QUIC and SIP** bindings.
 
 ## Epics
 
@@ -75,14 +76,18 @@ generator, served alongside `babelforce.v1` on one endpoint by subprotocol. If i
 case anywhere in the runtime, the abstraction is wrong — which is the point of running the
 experiment now rather than discovering it with the Rust SDK.
 
-### Later — WebRTC, Rust SDK, QUIC and SIP
+### WebRTC audio with WebSocket control — [`webrtc`](designs/webrtc.md)
 
-Not yet stories; the transport abstraction in [designs/go-sdk.md](designs/go-sdk.md) was designed
-against them.
+Add a Pion WebRTC audio binding alongside—not in place of—the existing WebSocket-binary audio
+binding. Both keep the authenticated WebSocket control path, and callers choose one at connection
+setup. Reserved `transport.webrtc.*` offer/answer signaling uses the selected envelope before
+catalog dispatch starts. PCMU makes the RTP side browser-compatible while the frozen v1 session API
+continues to expose L16 PCM bytes.
 
-- **WebRTC audio + WebSocket control** — `pion/webrtc`; the WS connection stays the control channel,
-  SDP and ICE ride the reserved `transport.*` namespace, and paired tracks become one timed duplex
-  media channel. Nothing in the session or the catalog changes.
+### Later — Rust SDK, QUIC and SIP
+
+The transport abstraction in [designs/go-sdk.md](designs/go-sdk.md) was designed against them.
+
 - **Rust SDK** — re-house `private-source.invalid/crates/rtvbp` as `sdk/rust`, replacing its hand-written
   `protov1.rs` with generated output from the same catalog and adding the request timeouts it lacks.
   The TypeScript port follows the same path.

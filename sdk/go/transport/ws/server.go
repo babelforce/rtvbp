@@ -54,15 +54,32 @@ func serverUpgradeHandler(
 			srv.afterUpgrade()
 		}
 
+		envelope := v1classic.Envelope{}
 		sess := rtvbp.NewSession(
-			v1classic.Envelope{},
-			rtvbp.WithTransportFactory(func(ctx context.Context, _ rtvbp.Envelope) (rtvbp.Transport, error) {
+			envelope,
+			rtvbp.WithTransportFactory(func(ctx context.Context, env rtvbp.Envelope) (rtvbp.Transport, error) {
 				// A hijacked HTTP request context is not the WebSocket lifetime;
 				// the owning session closes the transport explicitly.
-				return NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{
+				base, err := NewTransport(context.WithoutCancel(ctx), conn, &TransportConfig{
 					Logger:      log,
 					AudioFormat: config.AudioFormat,
 				})
+				if err != nil {
+					return nil, err
+				}
+				if config.AcceptedTransport == nil {
+					return base, nil
+				}
+				transport, err := config.AcceptedTransport(ctx, env, base)
+				if err != nil {
+					_ = base.Close(context.Background())
+					return nil, err
+				}
+				if transport == nil {
+					_ = base.Close(context.Background())
+					return nil, errors.New("websocket: accepted transport decorator returned nil")
+				}
+				return transport, nil
 			}),
 			rtvbp.WithHandler(handler),
 			rtvbp.WithLogger(log),
@@ -113,6 +130,10 @@ type ServerConfig struct {
 	// Subprotocols lists supported RTVBP profiles in server preference order.
 	// Nil defaults to rtvbp.v1; clients that send no offer use that profile implicitly.
 	Subprotocols []string
+	// AcceptedTransport optionally decorates an authenticated, upgraded semantic WebSocket before
+	// the session starts. Composite bindings such as WebRTC+WebSocket use it for transport-private
+	// negotiation while reusing this server's admission, control, keepalive, and close behavior.
+	AcceptedTransport func(context.Context, rtvbp.Envelope, *Transport) (rtvbp.Transport, error)
 }
 
 func (c ServerConfig) Validate() error {

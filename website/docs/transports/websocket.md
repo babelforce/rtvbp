@@ -4,9 +4,11 @@ sidebar_position: 1
 
 # WebSocket transport binding
 
-The deployed binding carries one RTVBP session on one WebSocket connection. Production endpoints
-use TLS (`wss://`). The connecting peer initiates an HTTP Upgrade and profile negotiation follows
-the rules in [Profiles and negotiation](../profiles.md).
+The deployed binding carries one RTVBP session on one WebSocket connection, including audio as
+binary messages. It remains available alongside the optional
+[WebRTC-audio binding](./webrtc-websocket.md); callers choose one at connection setup. Production
+endpoints use TLS (`wss://`). The connecting peer initiates an HTTP Upgrade and profile negotiation
+follows the rules in [Profiles and negotiation](../profiles.md).
 
 ```mermaid
 sequenceDiagram

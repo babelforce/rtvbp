@@ -17,4 +17,6 @@ tasks:
       - git diff --exit-code
       - (cd sdk/go && go test ./...)
       - (cd sdk/go/examples/babelforce-auth && go test ./...)
+      - (cd sdk/go/examples/rtvbp-demo-client && go test ./...)
+      - (cd sdk/go/examples/rtvbp-demo-server && go test ./...)
       - (cd website && yarn build)

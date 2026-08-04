@@ -1,8 +1,8 @@
 # RTVBP Go SDK
 
 The Go SDK for the Real-Time Voice Bridging Protocol. It provides the hand-written session runtime,
-memory and WebSocket transports, session-owned audio buffering, and generated catalog and envelope
-code.
+memory, WebSocket, and Pion WebRTC+WebSocket transports, session-owned audio buffering, and
+generated catalog and envelope code.
 
 The protocol specification is the source of truth. Files under `catalog/` and `envelope/` are
 generated and must not be edited by hand.
@@ -112,6 +112,17 @@ WebSocket servers that act as the voice side configure the corresponding server 
 application-side servers may leave it unset and bind the format selected during
 `session.initialize`.
 
+### Optional WebRTC audio
+
+WebRTC is additive; it does not replace WebSocket binary audio. `ws.Client` selects the existing
+`rtvbp.v1` binding. `webrtcws.Client` selects `rtvbp.webrtc.v1`, which keeps control on WebSocket and
+carries PCMU over Pion WebRTC while exposing the same L16 byte stream to the session.
+
+Use `webrtcws.AddToServer` to offer both bindings from one server and let each client choose at
+connection setup. The existing [demo client](examples/rtvbp-demo-client) selects either binding
+with `-audio-transport`, and the [demo server](examples/rtvbp-demo-server) serves both. See the
+[binding guide](https://babelforce.github.io/rtvbp/docs/transports/webrtc-websocket/).
+
 ## Keepalive
 
 Configure transport-native keepalive with:
@@ -152,6 +163,7 @@ sdk/go/
   envelope/             generated wire codecs
   transport/memory/     in-process conformance transport
   transport/ws/         WebSocket control and static audio transport
+  transport/webrtcws/   optional Pion audio + WebSocket control transport
   examples/             load test and demo applications
 ```
 

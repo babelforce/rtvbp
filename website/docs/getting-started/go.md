@@ -44,3 +44,11 @@ shuts down cleanly. Replace the discard loop with your own duplex audio pipeline
 The [WebSocket binding](../transports/websocket.md) defines framing and close behavior. The generated
 [initialization flow](../reference/babelforce.v1/flows/initialize-updated-dtmf.mdx) shows the first
 control exchange.
+
+## Optional WebRTC audio
+
+WebRTC is an additional binding, not a replacement for the setup above. A server can offer both,
+and each client chooses plain WebSocket binary audio (`rtvbp.v1`) or Pion WebRTC audio
+(`rtvbp.webrtc.v1`) at connection setup. See the
+[WebRTC + WebSocket guide](../transports/webrtc-websocket.md) and its compile-tested dual-binding
+example.

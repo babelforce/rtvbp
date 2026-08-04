@@ -53,6 +53,12 @@ All notable changes to this project are documented here. The format is based on
 - Ported the WebSocket client and server to semantic text control plus static binary audio with
   subprotocol negotiation, reverse-role media, flush-on-close, validated audio/keepalive policies,
   atomic shutdown admission and race/stress coverage.
+- Added the optional `webrtcws.v1` Go binding with Pion v4: reserved envelope-encoded SDP signaling
+  stays on authenticated WebSocket control while timed PCMU RTP is converted to and from the
+  existing L16 byte-audio API. Plain WebSocket-binary audio remains the default and is unchanged.
+- Extended the existing demo client/server with selectable WebSocket or WebRTC audio, profile
+  preference and secret-free ICE/TURN configuration. Added the public binding flow, codec boundary,
+  deployment guidance, limitations, and race/leak-clean duplex acceptance tests.
 - Added source-pinned Go `float64` boundary authority for `audio.info`, documenting and testing the
   exact supported deployed-rate compatibility envelope and representative behavior outside it.
 - Expanded the frozen `babelforce.v1` authority from 46 to 48 fixtures by proving the pinned Rust

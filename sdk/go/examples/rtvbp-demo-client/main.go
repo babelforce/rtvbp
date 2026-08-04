@@ -14,7 +14,6 @@ import (
 	v1bridge "github.com/babelforce/rtvbp/sdk/go/bridge/babelforcev1"
 	v1 "github.com/babelforce/rtvbp/sdk/go/catalog/babelforcev1"
 	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
-	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
 	"github.com/google/uuid"
 	"github.com/gordonklaus/portaudio"
@@ -96,11 +95,15 @@ func main() {
 	)
 
 	// create and run the session
+	transportOption, err := args.transportOption(sr)
+	if err != nil {
+		panic(err)
+	}
 	log.Info("starting client", slog.Any("url", args.connectURL()))
-	log.Debug("config", slog.Any("config", args.config(sr)))
+	log.Info("selected audio transport", slog.String("audio_transport", args.audioTransport))
 	sess := rtvbp.NewSession(
 		v1classic.Envelope{},
-		ws.Client(args.config(sr)),
+		transportOption,
 		rtvbp.WithHandler(handler),
 		rtvbp.WithRequestTimeout(2*time.Second),
 		rtvbp.WithDebug(args.debug),

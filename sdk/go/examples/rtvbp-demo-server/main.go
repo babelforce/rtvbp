@@ -7,15 +7,18 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/babelforce/rtvbp/sdk/go"
 	"github.com/babelforce/rtvbp/sdk/go/audio"
 	v1bridge "github.com/babelforce/rtvbp/sdk/go/bridge/babelforcev1"
 	v1 "github.com/babelforce/rtvbp/sdk/go/catalog/babelforcev1"
+	"github.com/babelforce/rtvbp/sdk/go/transport/webrtcws"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	audiogo "github.com/codewandler/audio-go"
 	"github.com/gordonklaus/portaudio"
+	"github.com/pion/webrtc/v4"
 )
 
 type serverCLI struct {
@@ -26,6 +29,51 @@ type serverCLI struct {
 	logLevel              string
 	audio                 string
 	audioSampleRate       int
+	preferredTransport    string
+	iceServers            string
+	iceUsername           string
+	iceCredential         string
+}
+
+func (s *serverCLI) transportConfig() (ws.ServerConfig, error) {
+	var subprotocols []string
+	switch s.preferredTransport {
+	case "", "websocket":
+		subprotocols = []string{ws.DefaultSubprotocol, webrtcws.Subprotocol}
+	case "webrtc":
+		subprotocols = []string{webrtcws.Subprotocol, ws.DefaultSubprotocol}
+	default:
+		return ws.ServerConfig{}, fmt.Errorf("unknown preferred audio transport %q", s.preferredTransport)
+	}
+	base := ws.ServerConfig{
+		Addr:         "0.0.0.0:8080",
+		Path:         "/ws",
+		Debug:        s.debug,
+		Subprotocols: subprotocols,
+	}
+	return webrtcws.AddToServer(base, webrtcws.Config{PeerConnection: s.pionConfiguration()}), nil
+}
+
+func (s *serverCLI) pionConfiguration() webrtc.Configuration {
+	urls := splitNonEmpty(s.iceServers)
+	if len(urls) == 0 {
+		return webrtc.Configuration{}
+	}
+	return webrtc.Configuration{ICEServers: []webrtc.ICEServer{{
+		URLs:       urls,
+		Username:   s.iceUsername,
+		Credential: s.iceCredential,
+	}}}
+}
+
+func splitNonEmpty(value string) []string {
+	var result []string
+	for _, item := range strings.Split(value, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
 
 func (s *serverCLI) level() slog.Level {
@@ -159,6 +207,10 @@ func main() {
 		logLevel:              "info",
 		audio:                 "loopback",
 		audioSampleRate:       8_000,
+		preferredTransport:    "websocket",
+		iceServers:            os.Getenv("RTVBP_ICE_SERVERS"),
+		iceUsername:           os.Getenv("RTVBP_ICE_USERNAME"),
+		iceCredential:         os.Getenv("RTVBP_ICE_CREDENTIAL"),
 	}
 
 	flag.IntVar(&args.moveAfterSeconds, "move", args.moveAfterSeconds, "move application after x")
@@ -168,6 +220,10 @@ func main() {
 	flag.StringVar(&args.logLevel, "log-level", args.logLevel, "set log level")
 	flag.StringVar(&args.audio, "audio", args.audio, "set audio processing")
 	flag.IntVar(&args.audioSampleRate, "audio-sample-rate", args.audioSampleRate, "audio sample rate when audio is set to device")
+	flag.StringVar(&args.preferredTransport, "preferred-audio-transport", args.preferredTransport, "preferred binding when a client offers both: websocket or webrtc")
+	flag.StringVar(&args.iceServers, "ice-servers", args.iceServers, "comma-separated STUN/TURN URLs for WebRTC")
+	flag.StringVar(&args.iceUsername, "ice-username", args.iceUsername, "TURN username (or RTVBP_ICE_USERNAME)")
+	flag.StringVar(&args.iceCredential, "ice-credential", args.iceCredential, "TURN credential (or RTVBP_ICE_CREDENTIAL)")
 	flag.Parse()
 
 	slog.SetLogLoggerLevel(args.level())
@@ -184,12 +240,12 @@ func main() {
 	registrations := v1.ApplicationHandlers(handler)
 	registrations = append(registrations, v1.ApplicationEventHandlers(handler)...)
 
+	transportConfig, err := args.transportConfig()
+	if err != nil {
+		panic(err)
+	}
 	srv := ws.NewServer(
-		ws.ServerConfig{
-			Addr:  "0.0.0.0:8080",
-			Path:  "/ws",
-			Debug: args.debug,
-		},
+		transportConfig,
 		rtvbp.NewHandler(
 			rtvbp.HandlerConfig{OnBegin: handler.OnBegin},
 			registrations...,

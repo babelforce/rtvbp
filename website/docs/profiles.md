@@ -33,8 +33,19 @@ profiles use `rtvbp.<catalog-name>.<catalog-major>` while the transport and enve
 profile's documented fixed components. New combinations receive new names rather than changing an
 existing profile.
 
+## `rtvbp.webrtc.v1`
+
+The optional [`webrtcws.v1` binding](./transports/webrtc-websocket.md) keeps classic control on
+WebSocket text messages and carries audio as PCMU over WebRTC. It uses the same `classic.v1`
+envelope and frozen `babelforce.v1` catalog as `rtvbp.v1`.
+
+It is additive. A server can support both names, but the client explicitly offers the binding it is
+prepared to use. `rtvbp.v1` remains the plain WebSocket-audio default, including when the
+subprotocol header is absent.
+
 ## Reserved transport signaling
 
 Operation methods beginning with `transport.` are reserved for envelope-independent transport
-signaling, such as future WebRTC negotiation. The reservation applies across every catalog and
-envelope, and catalog validation rejects such operation names. It does not reserve event names.
+signaling. The WebRTC binding uses `transport.webrtc.offer` before catalog dispatch begins. The
+reservation applies across every catalog and envelope, and catalog validation rejects such
+operation names. It does not reserve event names.
