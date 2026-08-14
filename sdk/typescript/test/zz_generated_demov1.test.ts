@@ -6,10 +6,10 @@ import test from "node:test";
 import * as catalog from "../src/generated/zz_generated_demov1_types.ts";
 
 import * as roles from "../src/generated/zz_generated_demov1_roles.ts";
-import { ProtocolHandlerError } from "../src/protocol.ts";
+import { ProtocolHandlerError, type HandlerContext } from "../src/protocol.ts";
 import { encodeWireJson } from "../src/wire.ts";
 
-const CONTEXT = { signal: new AbortController().signal };
+const CONTEXT = { signal: new AbortController().signal } as HandlerContext;
 
 test("demo.echo/request/malformed_json", () => {
   assert.throws(() => catalog.decodeDemoEchoRequest("{"));

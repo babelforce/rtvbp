@@ -33,6 +33,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added the browser-neutral TypeScript semantic runtime, bounded session-owned L16 audio, memory and
+  injected WebSocket transports, browser/Node clients, and a Node server with generated profile
+  negotiation, native keepalive, and drain-safe close. All generated scenarios run with either role
+  local, while live headerless tests prove typed control, terminal close, and non-silent duplex audio
+  against current Go and Rust peers in both client/server directions.
 - Added a spec-generated TypeScript catalog, role, peer, event, validator, and `classic.v1` envelope
   surface with exact-byte proof for every frozen fixture. One browser/Node ESM package now emits
   declarations, compiles without Node types for browsers, imports under Node, and rejects non-public

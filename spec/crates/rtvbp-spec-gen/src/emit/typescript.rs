@@ -574,7 +574,7 @@ fn render_catalog_tests(catalog: &ResolvedCatalog) -> Result<String, TypeScriptE
         "import * as roles from \"../src/generated/zz_generated_{module}_roles.ts\";"
     )
     .unwrap();
-    output.push_str("import { ProtocolHandlerError } from \"../src/protocol.ts\";\nimport { encodeWireJson } from \"../src/wire.ts\";\n\nconst CONTEXT = { signal: new AbortController().signal };\n\n");
+    output.push_str("import { ProtocolHandlerError, type HandlerContext } from \"../src/protocol.ts\";\nimport { encodeWireJson } from \"../src/wire.ts\";\n\nconst CONTEXT = { signal: new AbortController().signal } as HandlerContext;\n\n");
     for fixture in &catalog.fixtures {
         render_fixture_tests(&mut output, fixture)?;
     }

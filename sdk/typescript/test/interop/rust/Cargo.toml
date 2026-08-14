@@ -1,0 +1,9 @@
+[package]
+name = "rtvbp-typescript-interop-rust"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+rtvbp = { path = "../../../../rust" }
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread", "time"] }

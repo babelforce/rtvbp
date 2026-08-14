@@ -44,7 +44,7 @@ published the Rust debut and Go patch releases; R-16 retains the legacy Go repos
 
 ## Now (in progress)
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · Go v0.1.0 is published with selectable Pion WebRTC; legacy retirement remains
-- [R-36 — Implement the TypeScript session runtime and WebSocket binding](R-36-typescript-runtime-and-websocket.md) · SDK · match Go/Rust session semantics in browsers and Node before adding device-media policy
+- [R-37 — Add browser media, WebRTC v1, and deployment auth seams](R-37-browser-media-webrtc-and-auth-seams.md) · SDK · replace the manual browser client with tested device adapters for both deployed profiles
 - [R-39 — Remove private source coordinates and gate the public tree](R-39-public-tree-confidentiality-gate.md) · Proof · current tree scrubbed; published-history remediation requires explicit owner authorization
 
 ## Next (ready — take the top one unless the user named a story)
@@ -61,7 +61,6 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 
 ### M2: browser parity and a spec-generated TypeScript SDK
 _Go and Rust prove language-neutral generation; M2 closes the maintained browser gap._
-- [R-37 — Add browser media, WebRTC v1, and deployment auth seams](R-37-browser-media-webrtc-and-auth-seams.md) · SDK · replace the manual browser client with tested device adapters for both deployed profiles
 - [R-38 — Prove TypeScript parity, migrate the browser consumer, and release M2](R-38-typescript-interop-migration-and-m2-release.md) · Proof · publish only after three-language proof and removal of the maintained hand-written browser wire
 - [R-40 — Build an interactive browser phone and protocol lab in the public docs](R-40-interactive-browser-protocol-lab.md) · Integration · let visitors make a safe simulated call and watch negotiation, control, audio, and WebRTC state
 
@@ -99,6 +98,7 @@ _Go and Rust prove language-neutral generation; M2 closes the maintained browser
 - [R-33 — Capture TypeScript authority and settle JavaScript wire semantics](R-33-typescript-authority-and-js-wire-semantics.md) · Proof · pin the browser migration evidence and fail closed on JavaScript's wire hazards before generation
 - [R-34 — Add a spec-owned transport and profile registry](R-34-spec-owned-profile-registry.md) · Spec · generate profile names, composition, negotiation, and constraints before a third SDK copies them
 - [R-35 — Generate the TypeScript catalog, roles, peers, and classic envelope](R-35-typescript-emitter-and-generated-surfaces.md) · Generator · emit the complete browser-neutral TypeScript protocol surface from the same spec as Go and Rust
+- [R-36 — Implement the TypeScript session runtime and WebSocket binding](R-36-typescript-runtime-and-websocket.md) · SDK · match Go/Rust session semantics in browsers and Node before adding device-media policy
 
 _See [CHANGELOG.md](../../CHANGELOG.md) for the full released history._
 <!-- END track:board -->

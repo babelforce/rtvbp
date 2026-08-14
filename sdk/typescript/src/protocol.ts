@@ -1,14 +1,38 @@
 import type { WireEncodable, WireJsonValue } from "./wire.ts";
+import type { AudioStream } from "./audio.ts";
+import type { MediaFormat } from "./transport.ts";
 
 export type MaybePromise<T> = T | Promise<T>;
 
+export type SessionState = "inactive" | "connecting" | "active" | "closing" | "closed" | "failed";
+
+export interface DeferredResponse {
+  respond(result?: WireEncodable): Promise<void>;
+  respondError(error: WireErrorValue): Promise<void>;
+  respondThenClose(result?: WireEncodable): Promise<void>;
+}
+
 export interface HandlerContext {
   readonly signal: AbortSignal;
+  readonly sessionId: string;
+  readonly state: SessionState;
+  readonly receivedAt?: number;
+  readonly audio: AudioStream;
+  request(method: string, params: WireEncodable, options?: RequestOptions): Promise<unknown>;
+  notify(event: string, data: WireEncodable, options?: NotifyOptions): Promise<void>;
+  respond(result?: WireEncodable): Promise<void>;
+  respondError(error: WireErrorValue): Promise<void>;
+  respondThenClose(result?: WireEncodable): Promise<void>;
+  deferResponse(): DeferredResponse;
+  openAudio(format: MediaFormat): Promise<void>;
+  acceptAudio(): Promise<void>;
+  close(): void;
 }
 
 export interface RequestOptions {
   readonly signal?: AbortSignal;
   readonly terminal?: boolean;
+  readonly timeoutMs?: number;
 }
 
 export interface NotifyOptions {

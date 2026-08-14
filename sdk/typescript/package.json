@@ -12,6 +12,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "import": "./dist/browser.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
     }
   },
   "engines": {
@@ -23,13 +31,15 @@
     "test": "node --experimental-strip-types --test test/*.test.ts",
     "typecheck": "tsc --noEmit && npm run typecheck:browser",
     "typecheck:browser": "tsc -p tsconfig.browser.json",
-    "verify:package": "node --input-type=module -e \"const sdk = await import('./dist/index.js'); if (!sdk.babelforceV1 || !sdk.classicV1) throw new Error('missing generated package exports')\" && npm pack --dry-run --ignore-scripts"
+    "verify:package": "node --input-type=module -e \"const [sdk, browser, node] = await Promise.all([import('./dist/index.js'), import('./dist/browser.js'), import('./dist/node.js')]); if (!sdk.babelforceV1 || !sdk.classicV1 || !browser.browserWebSocketTransport || !node.nodeWebSocketTransport) throw new Error('missing package exports')\" && npm pack --dry-run --ignore-scripts"
   },
   "dependencies": {
-    "lossless-json": "4.3.1"
+    "lossless-json": "4.3.1",
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
+    "@types/ws": "8.18.1",
     "typescript": "6.0.3"
   }
 }

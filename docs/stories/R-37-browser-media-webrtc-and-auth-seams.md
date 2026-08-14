@@ -2,7 +2,7 @@
 id: R-37
 title: Add browser media, WebRTC v1, and deployment auth seams
 pillar: SDK
-status: backlog
+status: in-progress
 priority: 38
 design: docs/designs/m2-browser-parity.md
 epic: m2-browser-parity

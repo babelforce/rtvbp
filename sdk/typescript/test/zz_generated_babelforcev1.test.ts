@@ -6,10 +6,10 @@ import test from "node:test";
 import * as catalog from "../src/generated/zz_generated_babelforcev1_types.ts";
 
 import * as roles from "../src/generated/zz_generated_babelforcev1_roles.ts";
-import { ProtocolHandlerError } from "../src/protocol.ts";
+import { ProtocolHandlerError, type HandlerContext } from "../src/protocol.ts";
 import { encodeWireJson } from "../src/wire.ts";
 
-const CONTEXT = { signal: new AbortController().signal };
+const CONTEXT = { signal: new AbortController().signal } as HandlerContext;
 
 test("events/agent.tool.call.json/round_trip", () => {
   const decoded = catalog.decodeAgentToolCallEvent("{\"name\":\"lookup_order\"}");
