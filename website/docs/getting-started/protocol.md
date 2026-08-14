@@ -1,10 +1,17 @@
 ---
 sidebar_position: 2
+sidebar_label: Wire protocol
+description: Implement RTVBP directly from generated envelopes, role contracts, conformance vectors, and proven flows.
 ---
 
 # Protocol implementation quickstart
 
-Use this path when implementing RTVBP without the Go SDK.
+Use this path when implementing RTVBP without one of the released SDKs.
+
+:::tip Mechanical proof, not prose alone
+Treat the generated conformance vectors under `conformance/` as executable acceptance. The reference
+pages explain the same spec, but byte and scenario proof is the compatibility authority.
+:::
 
 ```mermaid
 sequenceDiagram

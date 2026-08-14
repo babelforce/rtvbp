@@ -97,6 +97,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 - [R-36 — Implement the TypeScript session runtime and WebSocket binding](R-36-typescript-runtime-and-websocket.md) · SDK · match Go/Rust session semantics in browsers and Node before adding device-media policy
 - [R-37 — Add browser media, WebRTC v1, and deployment auth seams](R-37-browser-media-webrtc-and-auth-seams.md) · SDK · replace the manual browser client with tested device adapters for both deployed profiles
 - [R-40 — Build an interactive browser phone and protocol lab in the public docs](R-40-interactive-browser-protocol-lab.md) · Integration · let visitors make a safe simulated call and watch negotiation, control, audio, and WebRTC state
+- [R-42 — Polish the public documentation reading experience](R-42-polish-public-documentation-reading-experience.md) · Integration · make guides and generated reference feel as deliberate as the landing page without touching generated content
 
 _See [CHANGELOG.md](../../CHANGELOG.md) for the full released history._
 <!-- END track:board -->

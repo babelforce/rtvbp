@@ -1,5 +1,7 @@
 ---
 sidebar_position: 3
+sidebar_label: Core concepts
+description: Understand RTVBP roles, control messages, media, and its independent catalog, envelope, and transport layers.
 ---
 
 # Core concepts
@@ -7,6 +9,11 @@ sidebar_position: 3
 ## Roles are not client and server
 
 RTVBP names peers by what they own, not by which side opened a socket:
+
+:::note Naming rule
+**Voice** and **application** describe protocol responsibility. **Client** and **server** describe
+only who opened the selected transport connection.
+:::
 
 | Term | Meaning |
 | --- | --- |

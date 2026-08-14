@@ -1,5 +1,7 @@
 ---
 sidebar_position: 4
+sidebar_label: Profiles & negotiation
+description: Learn how RTVBP peers negotiate a transport binding, envelope, and payload catalog as one compatible profile.
 ---
 
 # Profiles and negotiation
@@ -12,6 +14,11 @@ An RTVBP **profile** is the complete interoperable combination of:
 
 The separation matters: the catalog defines call-control meaning, the envelope maps semantic
 requests, responses, and events onto control messages, and the transport carries control and media.
+
+:::info Compatibility rule
+An existing profile name never changes meaning. A different combination receives a new negotiated
+name, so adding a transport cannot silently change deployed behavior.
+:::
 
 The exact current tokens, accepting-endpoint preference, composition, reserved signaling, and media
 constraints are [generated from the executable profile registry](./reference/profiles/index.mdx).

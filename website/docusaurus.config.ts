@@ -8,6 +8,15 @@ const config: Config = {
   title: "RTVBP — Real-Time Voice Bridge Protocol",
   tagline: "The typed protocol between telephony and real-time applications",
   favicon: "img/babelforce-mark.svg",
+  headTags: [
+    {
+      tagName: "meta",
+      attributes: {
+        name: "theme-color",
+        content: "#181e32",
+      },
+    },
+  ],
   stylesheets: [
     {
       href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Spectral:wght@500;600;700&display=swap",
@@ -33,7 +42,7 @@ const config: Config = {
   deploymentBranch: "main",
 
   onBrokenLinks: "throw",
-  onBrokenMarkdownLinks: "warn",
+  onBrokenMarkdownLinks: "throw",
 
   markdown: {
     mermaid: true,
@@ -64,6 +73,16 @@ const config: Config = {
   ],
 
   themeConfig: {
+    image: "img/rtvbp-social-card.svg",
+    colorMode: {
+      defaultMode: "light",
+      disableSwitch: false,
+      respectPrefersColorScheme: true,
+    },
+    tableOfContents: {
+      minHeadingLevel: 2,
+      maxHeadingLevel: 3,
+    },
     mermaid: {
       theme: { light: "neutral", dark: "forest" },
     },
@@ -80,6 +99,7 @@ const config: Config = {
           to: "/try",
           label: "Try it out",
           position: "left",
+          className: "navbar__try",
         },
         {
           type: "docSidebar",
@@ -89,13 +109,9 @@ const config: Config = {
         },
         {
           type: "dropdown",
-          label: "Quickstarts",
+          label: "Build",
           position: "left",
           items: [
-            {
-              label: "Try it out",
-              to: "/try",
-            },
             {
               label: "TypeScript SDK",
               to: "/docs/getting-started/typescript",
@@ -142,18 +158,39 @@ const config: Config = {
       },
       links: [
         {
-          title: "Start building",
+          title: "Explore",
           items: [
             {
-              label: "TypeScript quickstart",
+              label: "Try it out",
+              to: "/try",
+            },
+            {
+              label: "Documentation",
+              to: "/docs/intro",
+            },
+            {
+              label: "Core concepts",
+              to: "/docs/concepts",
+            },
+            {
+              label: "Profiles",
+              to: "/docs/profiles",
+            },
+          ],
+        },
+        {
+          title: "SDKs",
+          items: [
+            {
+              label: "TypeScript",
               to: "/docs/getting-started/typescript",
             },
             {
-              label: "Go quickstart",
+              label: "Go",
               to: "/docs/getting-started/go",
             },
             {
-              label: "Rust quickstart",
+              label: "Rust",
               to: "/docs/getting-started/rust",
             },
             {
@@ -163,19 +200,23 @@ const config: Config = {
           ],
         },
         {
-          title: "Protocol",
+          title: "Reference",
           items: [
             {
-              label: "Core concepts",
-              to: "/docs/concepts",
+              label: "Application role",
+              to: "/docs/reference/babelforce.v1/roles/application",
             },
             {
-              label: "Profiles",
-              to: "/docs/profiles",
+              label: "Voice role",
+              to: "/docs/reference/babelforce.v1/roles/voice",
             },
             {
-              label: "WebRTC + WebSocket",
-              to: "/docs/transports/webrtc-websocket",
+              label: "Operations",
+              to: "/docs/reference/babelforce.v1/operations/session.initialize",
+            },
+            {
+              label: "Proven flows",
+              to: "/docs/reference/babelforce.v1/flows/initialize-updated-dtmf",
             },
           ],
         },
@@ -183,7 +224,7 @@ const config: Config = {
           title: "Project",
           items: [
             {
-              label: "GitHub",
+              label: "Source on GitHub",
               href: "https://github.com/babelforce/rtvbp",
             },
             {
@@ -202,6 +243,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
+      additionalLanguages: ["bash", "go", "rust", "toml"],
     },
   } satisfies Preset.ThemeConfig,
 };

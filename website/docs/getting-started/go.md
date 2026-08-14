@@ -1,10 +1,17 @@
 ---
 sidebar_position: 1
+sidebar_label: Go SDK
+description: Build a typed RTVBP application or voice peer in Go with WebSocket or Pion WebRTC media.
 ---
 
 # Go SDK quickstart
 
 This path builds an application-role WebSocket endpoint. Install the Go SDK:
+
+:::note What this quickstart owns
+The endpoint owns the **application role**. A voice peer connects to it, initializes one call, and
+exchanges control plus duplex audio for the lifetime of that session.
+:::
 
 ```bash
 go get github.com/babelforce/rtvbp/sdk/go@v0.1.1

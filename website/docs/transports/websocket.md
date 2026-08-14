@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+sidebar_label: WebSocket
+description: Carry RTVBP control and L16 audio on one ordered WebSocket connection.
 ---
 
 # WebSocket transport binding
@@ -9,6 +11,11 @@ binary messages. It remains available alongside the optional
 [WebRTC-audio binding](./webrtc-websocket.md); callers choose one at connection setup. Production
 endpoints use TLS (`wss://`). The connecting peer initiates an HTTP Upgrade and profile negotiation
 follows the rules in [Profiles and negotiation](../profiles.md).
+
+:::warning Production boundary
+Authorize the HTTP Upgrade before returning `101`, require `wss://`, and never log bearer
+credentials. No RTVBP session exists until admission and profile negotiation succeed.
+:::
 
 ```mermaid
 sequenceDiagram

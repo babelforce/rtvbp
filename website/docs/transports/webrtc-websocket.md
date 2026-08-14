@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+sidebar_label: WebRTC + WebSocket
+description: Keep typed RTVBP control on WebSocket while carrying timed PCMU audio over WebRTC.
 ---
 
 # WebRTC audio with WebSocket control
@@ -7,6 +9,11 @@ sidebar_position: 2
 The `webrtcws.v1` binding adds timed WebRTC audio **alongside** the existing
 [WebSocket binding](./websocket.md). It does not replace WebSocket binary audio. A client chooses at
 connection setup:
+
+:::info Same protocol, different media path
+Both profiles use the frozen `babelforce.v1` catalog and `classic.v1` envelope. Selecting WebRTC
+changes transport behavior, not application handlers or payload meaning.
+:::
 
 | WebSocket subprotocol | Control | Audio |
 | --- | --- | --- |

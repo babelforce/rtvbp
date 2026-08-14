@@ -1,5 +1,7 @@
 ---
 sidebar_position: 2
+sidebar_label: Rust SDK
+description: Build either RTVBP role in Rust with generated contracts, a Tokio runtime, and WebSocket or WebRTC media.
 ---
 
 # Rust SDK quickstart
@@ -7,6 +9,11 @@ sidebar_position: 2
 The Rust SDK is the Tokio implementation of both RTVBP roles and both current audio bindings. Its
 payloads, validation, role adapters, typed peers, event emitters, envelope codec, and conformance
 tests are generated from this monorepo's protocol specification.
+
+:::note Runtime boundary
+Generated code defines payloads and role contracts. Tokio sessions, transports, and audio ownership
+remain thin hand-written runtime layers behind those contracts.
+:::
 
 Add the independently tagged crate to a Rust 1.88-or-newer project:
 

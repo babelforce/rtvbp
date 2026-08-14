@@ -6,10 +6,13 @@ description: Install SDK releases and verify RTVBP protocol artifacts.
 
 # Releases and verification
 
-RTVBP has three independently versioned release streams in the same repository:
+RTVBP has four independently versioned release streams in the same repository. Choose the stream
+you consume; a protocol snapshot does not force an SDK upgrade, and one SDK release does not imply
+a version change in another language.
 
 | What | Tag family | Canonical distribution |
 |---|---|---|
+| TypeScript SDK | `sdk/typescript/v*` | npm package `@babelforce/rtvbp` |
 | Go SDK | `sdk/go/v*` | Go module proxy |
 | Rust SDK | `sdk/rust/v*` | Git tag; packaged `.crate` attached for audit and offline use |
 | Protocol snapshot | `protocol/v*` | GitHub release bundle |
@@ -19,6 +22,10 @@ Notes and comparison links stay within their component, so an SDK release never 
 an unrelated protocol or language tag.
 
 ## Install an SDK
+
+```sh title="TypeScript / Node 22+ / browser"
+npm install @babelforce/rtvbp@0.1.0
+```
 
 ```sh title="Go"
 go get github.com/babelforce/rtvbp/sdk/go@v0.1.1
@@ -33,13 +40,13 @@ cargo add rtvbp \
 ## What is attached
 
 Every release includes a deterministic manifest naming the exact Git tag and commit, catalog
-hashes, distribution identity, and a `SHA256SUMS` file. Rust also includes Cargo's `.crate` package.
-A protocol release includes a deterministic archive of catalog manifests and their conformance
-fixtures, vectors, and scenarios.
+hashes, distribution identity, and a `SHA256SUMS` file. TypeScript includes its exact npm tarball;
+Rust includes Cargo's `.crate` package. A protocol release includes a deterministic archive of
+catalog manifests and their conformance fixtures, vectors, and scenarios.
 
 Go does not attach a redundant source archive: the standard module proxy is its distribution. SDKs
-are libraries, so there are no binary assets. The documentation site is published through GitHub
-Pages rather than bundled into releases.
+are libraries, so there are no platform binaries. The documentation site is published through
+GitHub Pages rather than bundled into releases.
 
 ## Verify a protocol release
 

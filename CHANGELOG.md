@@ -9,6 +9,10 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Reworked the public documentation itself into a responsive integration workspace: an audience-led
+  gateway, intentional Start/Build/Understand/Reference navigation, current TypeScript/npm release
+  status, and a shared light/dark reading system for guides, categories, code, tables, diagrams,
+  callouts, and generated reference—all without editing generated content or the protocol lab.
 - Removed private producer coordinates and an obsolete source-dependent capture from the public tree;
   the release gate now rejects private Git transports and confidential identifiers before commit.
 - Reconciled the shipped roadmap and public limitations into M2 browser parity: a spec-generated

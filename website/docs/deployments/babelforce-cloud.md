@@ -1,5 +1,7 @@
 ---
 sidebar_position: 1
+sidebar_label: babelforce Cloud
+description: Authenticate babelforce telephony and browser voice peers before accepting an RTVBP session.
 ---
 
 # babelforce Cloud authentication
@@ -7,6 +9,11 @@ sidebar_position: 1
 This page describes the babelforce Cloud deployment, not a universal RTVBP wire requirement.
 The babelforce telephony service acts as the connecting **voice peer** and opens your
 application-role WebSocket endpoint.
+
+:::warning Deployment policy, not wire protocol
+These JWT and OAuth rules are specific to babelforce Cloud. Other RTVBP deployments may choose a
+different admission policy without changing the catalog, envelope, or transport framing.
+:::
 
 ## Upgrade authentication
 

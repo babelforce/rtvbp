@@ -1,5 +1,7 @@
 ---
 sidebar_position: 3
+sidebar_label: TypeScript SDK
+description: Build RTVBP peers in Node 22+ or evergreen browsers with generated contracts, WebSocket audio, and native WebRTC.
 ---
 
 # TypeScript and browser SDK
@@ -8,6 +10,11 @@ The `@babelforce/rtvbp` package combines generated protocol types, validators, r
 peers, profile metadata, and the `classic.v1` codec with hand-written Node.js and browser runtimes.
 It supports Node 22+ and evergreen browsers from the same package without importing Node modules
 into the browser entry point.
+
+:::tip See the protocol before wiring an endpoint
+The [browser protocol lab](/try) runs the published package locally with generated frames, duplex
+audio, conformance scenarios, and WebRTC statistics. It needs no account or backend.
+:::
 
 ```sh
 npm install @babelforce/rtvbp
