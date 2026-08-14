@@ -15,6 +15,9 @@ All notable changes to this project are documented here. The format is based on
   ordered, hangup is exactly once, session variables and recordings no longer panic, and
   invalid/canceled calls return errors. The Go tag workflow now also resolves its tag from a clean
   external module.
+- Made published-Go interoperability distinguish bounded cold `go run` startup from the existing
+  five-second protocol assertions, so a clean CI runner still tests behavior rather than compiler
+  cache warmth.
 
 ### Added
 

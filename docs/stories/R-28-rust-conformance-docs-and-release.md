@@ -43,6 +43,9 @@ the same authoritative monorepo.
   the candidate HEAD passed `task check`; `cargo package` verified all ten committed generated Rust
   artifacts, and a disposable repository tagged `sdk/rust/v0.1.0` resolved from a separate Cargo
   project.
+- 2026-08-14: The first clean GitHub runner exposed that a five-second protocol timeout also covered
+  the published Go helper's cold dependency download and compilation. Process startup is now
+  independently bounded at 60 seconds while every post-connect protocol assertion remains at five.
 - Remaining: create and verify the actual GitHub `sdk/rust/v0.1.0` tag.
 
 ## Notes

@@ -17,6 +17,10 @@ use rtvbp::{Error, Handler, HandlerContext, Session, SessionConfig, SessionState
 use serde_json::{Map, Value};
 use tokio::sync::mpsc;
 
+// `go run` may need a cold module download and build on CI. This bound covers process startup only;
+// all protocol exchanges retain their tighter five-second timeouts below.
+const GO_PEER_START_TIMEOUT: Duration = Duration::from_secs(60);
+
 struct GoPeer(Child);
 
 impl GoPeer {
@@ -143,7 +147,15 @@ impl TelephonyAdapter for TestTelephony {
 async fn rust_voice_interoperates_with_published_go_application_headerless() {
     let mut go = GoPeer::start("server", None, true);
     let stdout = go.0.stdout.take().unwrap();
-    let url = BufReader::new(stdout).lines().next().unwrap().unwrap();
+    let url = tokio::time::timeout(
+        GO_PEER_START_TIMEOUT,
+        tokio::task::spawn_blocking(move || BufReader::new(stdout).lines().next()),
+    )
+    .await
+    .expect("published Go server startup timed out")
+    .unwrap()
+    .expect("published Go server printed no URL")
+    .unwrap();
     assert!(url.starts_with("ws://"));
 
     let (ready_tx, mut ready_rx) = mpsc::unbounded_channel();
@@ -299,7 +311,7 @@ async fn published_go_voice_interoperates_with_rust_application_headerless() {
         .await
         .unwrap();
     let go = GoPeer::start("client", Some(&server.url()), false);
-    let transport = tokio::time::timeout(Duration::from_secs(5), server.accept())
+    let transport = tokio::time::timeout(GO_PEER_START_TIMEOUT, server.accept())
         .await
         .unwrap()
         .unwrap();
