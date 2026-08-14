@@ -63,6 +63,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 _Go and Rust prove language-neutral generation; M2 closes the maintained browser gap._
 - [R-37 — Add browser media, WebRTC v1, and deployment auth seams](R-37-browser-media-webrtc-and-auth-seams.md) · SDK · replace the manual browser client with tested device adapters for both deployed profiles
 - [R-38 — Prove TypeScript parity, migrate the browser consumer, and release M2](R-38-typescript-interop-migration-and-m2-release.md) · Proof · publish only after three-language proof and removal of the maintained hand-written browser wire
+- [R-40 — Build an interactive browser phone and protocol lab in the public docs](R-40-interactive-browser-protocol-lab.md) · Integration · let visitors make a safe simulated call and watch negotiation, control, audio, and WebRTC state
 
 ## Done
 - [R-1 — Capture frozen golden wire fixtures from rtvbp-go](R-1-capture-golden-wire-fixtures.md) · Proof · the authority for every later byte-identity check — capture before the spec is written
