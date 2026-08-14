@@ -68,7 +68,18 @@ class PublicTreeTest(unittest.TestCase):
         self.assertLess(publish, cleanup)
         self.assertLess(cleanup, resolve)
         self.assertEqual(workflow.count("NODE_AUTH_TOKEN:"), 1)
+        self.assertIn('            "") ;;', workflow)
         self.assertIn('rm -f -- "$NPM_CONFIG_USERCONFIG"', workflow)
+
+    def test_ci_selects_go_from_the_checked_workspace(self) -> None:
+        workflows = ROOT / ".github/workflows"
+        for path in sorted(workflows.glob("*.yml")):
+            workflow = path.read_text(encoding="utf-8")
+            if "actions/setup-go@" not in workflow:
+                continue
+            with self.subTest(workflow=path.name):
+                self.assertNotIn("go-version-file: sdk/go/go.mod", workflow)
+                self.assertIn("go-version-file: sdk/go/go.work", workflow)
 
     def test_npm_lockfiles_use_only_the_public_default_registry(self) -> None:
         violations: list[str] = []
