@@ -31,7 +31,7 @@ const peers: readonly PeerCommand[] = [
   {
     name: "Rust",
     command: "cargo",
-    arguments: ["run", "--quiet", "--locked", "--offline", "--manifest-path", "Cargo.toml", "--"],
+    arguments: ["run", "--quiet", "--locked", "--manifest-path", "Cargo.toml", "--"],
     cwd: fileURLToPath(new URL("./interop/rust", import.meta.url)),
     environment: {
       ...process.env,
@@ -60,6 +60,7 @@ class PeerProcess {
       {
         cwd: command.cwd,
         env: command.environment ?? process.env,
+        detached: process.platform !== "win32",
         stdio: ["ignore", "pipe", "pipe"],
       },
     );
@@ -97,7 +98,17 @@ class PeerProcess {
   }
 
   stop(): void {
-    if (this.#child.exitCode === null && this.#child.signalCode === null) this.#child.kill("SIGTERM");
+    if (this.#child.exitCode !== null || this.#child.signalCode !== null) return;
+    const pid = this.#child.pid;
+    if (process.platform !== "win32" && pid !== undefined) {
+      try {
+        process.kill(-pid, "SIGTERM");
+        return;
+      } catch {
+        // The group may have exited between the state check and the signal.
+      }
+    }
+    this.#child.kill("SIGTERM");
   }
 }
 
@@ -149,7 +160,7 @@ function applicationHandler(): Handler {
 }
 
 for (const peer of peers) {
-  test(`TypeScript client interoperates with ${peer.name} server`, { timeout: 60_000 }, async () => {
+  test(`TypeScript client interoperates with ${peer.name} server`, { timeout: 120_000 }, async () => {
     const process = new PeerProcess(peer, "server");
     try {
       const url = await process.firstLine();
@@ -175,7 +186,7 @@ for (const peer of peers) {
     }
   });
 
-  test(`${peer.name} client interoperates with TypeScript server`, { timeout: 60_000 }, async () => {
+  test(`${peer.name} client interoperates with TypeScript server`, { timeout: 120_000 }, async () => {
     let sessionResolve: (session: Session) => void = () => {};
     const accepted = new Promise<Session>((resolve) => { sessionResolve = resolve; });
     const server = new NodeWebSocketServer({

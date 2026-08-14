@@ -53,6 +53,22 @@ def private_locator_present(text: str) -> bool:
 
 
 class PublicTreeTest(unittest.TestCase):
+    def test_typescript_interop_serializes_cold_builds_and_reaps_process_groups(self) -> None:
+        package = json.loads(
+            (ROOT / "sdk/typescript/package.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("--test-concurrency=1", package["scripts"]["test"])
+
+        for relative in (
+            "sdk/typescript/test/browser_headless.test.ts",
+            "sdk/typescript/test/interop.test.ts",
+        ):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(path=relative):
+                self.assertNotIn('"--offline"', source)
+                self.assertIn('detached: process.platform !== "win32"', source)
+                self.assertIn('process.kill(-pid, "SIGTERM")', source)
+
     def test_typescript_release_scopes_npm_authentication_to_publish(self) -> None:
         workflow = (ROOT / ".github/workflows/typescript-release.yml").read_text(
             encoding="utf-8"
