@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing sdk/rust/v* tag to publish after a transient tag-workflow failure
+        description: Existing sdk/rust/v* tag to republish with current release automation
         required: true
         type: string
 
@@ -16,6 +16,9 @@ env:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   release:
@@ -48,7 +51,14 @@ jobs:
       - run: yarn install --frozen-lockfile
         working-directory: website
       - run: task check
-      - run: cargo package --locked --manifest-path sdk/rust/Cargo.toml
+      - name: Check out immutable release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          path: release-source
+      - name: Package the immutable release source
+        run: cargo package --locked --manifest-path release-source/sdk/rust/Cargo.toml
       - name: Resolve the tag from a clean external project
         run: |
           project="$(mktemp -d)"
@@ -56,9 +66,31 @@ jobs:
           cd "$project/consumer"
           cargo add rtvbp --git "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" --tag "$RELEASE_TAG"
           cargo check --locked
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+      - name: Build release notes and assets
+        id: release_material
+        run: |
+          version="${RELEASE_TAG#sdk/rust/v}"
+          python3 tools/release/release_tool.py \
+            --component rust \
+            --tag "$RELEASE_TAG" \
+            --source-root release-source \
+            --metadata-root . \
+            --output release-output \
+            --packaged-artifact "release-source/sdk/rust/target/package/rtvbp-${version}.crate"
+          checksum="release-output/assets/rtvbp-rust-v${version}-SHA256SUMS"
+          (cd release-output/assets && sha256sum -c "$(basename "$checksum")")
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-checksums: ${{ steps.release_material.outputs.checksum }}
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          generate_release_notes: true
+          name: ${{ env.RELEASE_TAG }}
+          body_path: release-output/release-notes.md
+          files: release-output/assets/*
+          fail_on_unmatched_files: true
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          make_latest: false

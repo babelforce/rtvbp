@@ -1,5 +1,10 @@
 .codewandler/
 .idea/
+
+# Python
+__pycache__/
+*.py[cod]
+
 # Rust
 target/
 

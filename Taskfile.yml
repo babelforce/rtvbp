@@ -13,6 +13,7 @@ tasks:
   check:
     desc: Run the complete local release gate in CI order
     cmds:
+      - PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/release -p 'test_*.py'
       - cargo test --locked --manifest-path spec/Cargo.toml
       - task: generate
       - git diff --exit-code
@@ -23,4 +24,5 @@ tasks:
       - (cd sdk/go/examples/babelforce-auth && go test ./...)
       - (cd sdk/go/examples/rtvbp-demo-client && go test ./...)
       - (cd sdk/go/examples/rtvbp-demo-server && go test ./...)
+      - (cd website && yarn typecheck)
       - (cd website && yarn build)

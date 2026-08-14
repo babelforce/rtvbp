@@ -1,13 +1,13 @@
-name: Release Go SDK
+name: Release Protocol
 
 on:
   push:
     tags:
-      - 'sdk/go/v*'
+      - 'protocol/v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing sdk/go/v* tag to republish with current release automation
+        description: Existing protocol/v* tag to republish with current release automation
         required: true
         type: string
 
@@ -30,8 +30,8 @@ jobs:
       - name: Validate release tag
         run: |
           case "$RELEASE_TAG" in
-            sdk/go/v*) ;;
-            *) echo "invalid Go release tag: $RELEASE_TAG" >&2; exit 1 ;;
+            protocol/v*) ;;
+            *) echo "invalid protocol release tag: $RELEASE_TAG" >&2; exit 1 ;;
           esac
           git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
       - uses: dtolnay/rust-toolchain@stable
@@ -57,26 +57,19 @@ jobs:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
           path: release-source
-      - name: Resolve the tag from a clean external module
-        run: |
-          project="$(mktemp -d)"
-          version="${RELEASE_TAG#sdk/go/}"
-          cd "$project"
-          go mod init example.com/rtvbp-release-check
-          GOPROXY=direct go get "github.com/babelforce/rtvbp/sdk/go@${version}"
-          go list -m "github.com/babelforce/rtvbp/sdk/go"
-      - name: Build release notes and assets
+      - name: Build and verify release assets
         id: release_material
         run: |
-          version="${RELEASE_TAG#sdk/go/v}"
+          version="${RELEASE_TAG#protocol/v}"
           python3 tools/release/release_tool.py \
-            --component go \
+            --component protocol \
             --tag "$RELEASE_TAG" \
             --source-root release-source \
             --metadata-root . \
             --output release-output
-          checksum="release-output/assets/rtvbp-go-v${version}-SHA256SUMS"
+          checksum="release-output/assets/rtvbp-protocol-v${version}-SHA256SUMS"
           (cd release-output/assets && sha256sum -c "$(basename "$checksum")")
+          tar -tzf "release-output/assets/rtvbp-protocol-v${version}.tar.gz"
           echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
       - name: Attest release assets
         uses: actions/attest@v4
@@ -91,4 +84,4 @@ jobs:
           files: release-output/assets/*
           fail_on_unmatched_files: true
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
-          make_latest: false
+          make_latest: true

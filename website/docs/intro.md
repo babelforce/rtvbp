@@ -8,6 +8,10 @@ RTVBP connects a **voice peer**, which owns a live telephone call and its audio,
 **application peer**, which listens, speaks, and controls the call. The peers exchange typed
 operations and events alongside a real-time audio stream.
 
+> RTVBP is an open protocol stewarded by [babelforce](https://www.babelforce.com/). The protocol,
+> SDKs, conformance proofs, and this documentation are developed in the
+> [public repository](https://github.com/babelforce/rtvbp).
+
 Typical applications include realtime AI agents, IVRs, language detection, acoustic monitoring,
 quality analysis, transcription, and voice-driven workflows. RTVBP keeps the call in the telephony
 platform while letting the application process and return audio with minimal protocol machinery.

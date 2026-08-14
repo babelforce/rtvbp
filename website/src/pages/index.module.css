@@ -1,23 +1,388 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
 .heroBanner {
-  padding: 4rem 0;
-  text-align: center;
   position: relative;
   overflow: hidden;
+  padding: 7rem 0 6rem;
+  color: #fff;
+  background:
+    radial-gradient(circle at 74% 4%, rgba(91, 202, 206, 0.2), transparent 28rem),
+    linear-gradient(135deg, #181e32 0%, #05445e 72%, #075673 100%);
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.heroBanner::after {
+  position: absolute;
+  right: -9rem;
+  bottom: -13rem;
+  width: 34rem;
+  height: 34rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4rem rgba(255, 255, 255, 0.025),
+    0 0 0 9rem rgba(255, 255, 255, 0.02);
+  content: "";
+  pointer-events: none;
+}
+
+.heroGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(19rem, 0.75fr);
+  gap: 6rem;
+  align-items: center;
+}
+
+.heroCopy {
+  max-width: 46rem;
+}
+
+.heroCopy h1 {
+  max-width: 44rem;
+  margin: 0 0 1.5rem;
+  color: #fff;
+  font-size: clamp(3.25rem, 7vw, 6rem);
+  line-height: 0.97;
+  letter-spacing: -0.045em;
+}
+
+.eyebrow {
+  margin-bottom: 1.2rem;
+  color: var(--rtvbp-cyan);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.heroSubtitle {
+  max-width: 42rem;
+  margin-bottom: 2.2rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: clamp(1.08rem, 2vw, 1.3rem);
+  line-height: 1.7;
 }
 
 .buttons {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
   align-items: center;
-  justify-content: center;
+}
+
+.heroSecondary {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.heroSecondary:hover {
+  color: #181e32;
+  border-color: #fff;
+  background: #fff;
+}
+
+.peerLine {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  max-width: 27rem;
+  margin-top: 3.5rem;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.connection {
+  position: relative;
+  flex: 1;
+  height: 1px;
+  background: rgba(91, 202, 206, 0.65);
+}
+
+.connection::before,
+.connection::after,
+.connection i {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rtvbp-cyan);
+  content: "";
+  transform: translateY(-50%);
+}
+
+.connection::before {
+  left: 0;
+}
+
+.connection::after {
+  right: 0;
+}
+
+.connection i {
+  left: 50%;
+  box-shadow: 0 0 0 5px rgba(91, 202, 206, 0.15);
+}
+
+.profileCard {
+  padding: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 1.4rem;
+  background: rgba(10, 27, 42, 0.52);
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.profileHeader {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.statusDot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--rtvbp-cyan);
+  box-shadow: 0 0 0 5px rgba(91, 202, 206, 0.12);
+}
+
+.profileCard h2 {
+  margin-bottom: 1.5rem;
+  color: #fff;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 1.6rem;
+}
+
+.profileLayers {
+  margin: 0;
+}
+
+.profileLayers > div {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 0.8rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.profileLayers dt {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.78rem;
+}
+
+.profileLayers dd {
+  margin: 0;
+  color: #fff;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+}
+
+.profileFootnote {
+  margin: 1.2rem 0 0;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.quickstarts {
+  padding: 6rem 0;
+}
+
+.sectionHeading {
+  max-width: 45rem;
+  margin-bottom: 3rem;
+}
+
+.sectionHeading .eyebrow {
+  margin-bottom: 0.8rem;
+  color: var(--ifm-color-primary);
+}
+
+.sectionHeading h2 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.pathGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.pathCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 22rem;
+  padding: 2rem;
+  overflow: hidden;
+  color: inherit;
+  border: 1px solid var(--rtvbp-border);
+  border-radius: 1.25rem;
+  background: var(--ifm-background-surface-color);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.pathCard:hover {
+  color: inherit;
+  text-decoration: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 1.5rem 3.5rem rgba(5, 68, 94, 0.1);
+  transform: translateY(-3px);
+}
+
+.pathCard > span:first-child {
+  color: var(--rtvbp-accent);
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.pathCard h3 {
+  margin: 3.5rem 0 1rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.pathCard p {
+  color: var(--rtvbp-muted);
+  line-height: 1.65;
+}
+
+.pathCard strong {
+  margin-top: auto;
+  color: var(--ifm-color-primary);
+  font-size: 0.86rem;
+}
+
+.steward {
+  padding: 6rem 0;
+  background: var(--rtvbp-surface);
+}
+
+.stewardInner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+  gap: 5rem;
+  align-items: center;
+}
+
+.stewardCopy {
+  max-width: 44rem;
+}
+
+.stewardCopy .eyebrow {
+  margin-bottom: 0.8rem;
+  color: var(--ifm-color-primary);
+}
+
+.stewardCopy h2 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.stewardCopy > p:not(.eyebrow) {
+  color: var(--rtvbp-muted);
+  font-size: 1.08rem;
+  line-height: 1.75;
+}
+
+.stewardCopy > a {
+  font-weight: 750;
+}
+
+.stewardLogo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding: 2.3rem;
+  color: var(--rtvbp-muted);
+  border: 1px solid var(--rtvbp-border);
+  border-radius: 1.25rem;
+  background: var(--ifm-background-surface-color);
+}
+
+.stewardLogo:hover {
+  color: var(--rtvbp-muted);
+  text-decoration: none;
+  border-color: var(--rtvbp-cyan);
+}
+
+.stewardLogo img {
+  width: min(100%, 300px);
+  height: auto;
+}
+
+.stewardLogo span {
+  font-size: 0.86rem;
+}
+
+.logoDark {
+  display: none;
+}
+
+[data-theme="dark"] .logoLight {
+  display: none;
+}
+
+[data-theme="dark"] .logoDark {
+  display: block;
+}
+
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 5rem 0 4rem;
+  }
+
+  .heroGrid,
+  .stewardInner {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+
+  .heroCopy h1 {
+    font-size: clamp(3rem, 13vw, 5rem);
+  }
+
+  .profileCard {
+    max-width: 34rem;
+  }
+
+  .pathGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .pathCard {
+    min-height: 17rem;
+  }
+
+  .quickstarts,
+  .steward {
+    padding: 4rem 0;
+  }
+}
+
+@media screen and (max-width: 560px) {
+  .heroBanner {
+    padding-top: 4rem;
+  }
+
+  .peerLine {
+    align-items: flex-start;
+    font-size: 0.65rem;
+  }
+
+  .profileCard,
+  .pathCard,
+  .stewardLogo {
+    padding: 1.5rem;
+  }
 }

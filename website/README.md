@@ -1,41 +1,34 @@
-# Website
+# RTVBP public documentation
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+This Docusaurus site is the published integration documentation for RTVBP. It combines hand-written
+guides under `docs/` with generator-owned protocol reference under `docs/reference/`.
 
-## Installation
+Never edit `docs/reference/` by hand. Change the protocol specification and regenerate instead; see
+the repository [`AGENTS.md`](../AGENTS.md) for the complete contract and gate.
 
-```bash
-yarn
-```
-
-## Local Development
+## Work locally
 
 ```bash
+yarn install --frozen-lockfile
 yarn start
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-## Build
+Run both static checks before submitting presentation or guide changes:
 
 ```bash
+yarn typecheck
 yarn build
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+The repository-level `task check` also verifies generated drift, both SDKs, and conformance.
+
+## Brand assets
+
+RTVBP is the protocol; babelforce is its steward. Keep that distinction explicit in site copy.
+Current logo provenance, checksums, ownership, and permitted project use are recorded in
+[`static/img/BRAND_ASSETS.md`](static/img/BRAND_ASSETS.md).
 
 ## Deployment
 
-Using SSH:
-
-```bash
-USE_SSH=true yarn deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> yarn deploy
-```
-
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+GitHub Actions builds and deploys the site to GitHub Pages from `main`. Do not use Docusaurus's
+local deployment command for this repository.

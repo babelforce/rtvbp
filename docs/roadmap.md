@@ -13,14 +13,15 @@ interoperate in both roles with published `rtvbp-go v0.37.2`, and current Go/Rus
 typed control plus non-silent duplex WebRTC media in both client/server directions. Stable
 `sdk/go/v0.1.1` is public after the dummyphone hardening patch, and `sdk/rust/v0.1.0` is the first
 public Rust release; both resolve from clean external consumers. R-16 now retains only the final
-legacy release and repository archive. The Docusaurus site lives under [`website/`](../website),
-leaving `docs/` for contributor material and this backlog.
+legacy release and repository archive. Component-scoped release notes, deterministic assets,
+checksums, and provenance are in progress as R-30. The Docusaurus site lives under
+[`website/`](../website), leaving `docs/` for contributor material and this backlog.
 
 ## Delivered
 
 - The published prose specification for protocol v1 and its Docusaurus site
-  (<https://babelforce.github.io/rtvbp/>) — now the narrative layer that the generated reference will
-  grow around.
+  (<https://babelforce.github.io/rtvbp/>) — a babelforce-branded integration entry point with
+  audience-specific quickstarts around the generated reference.
 - The additive Go WebRTC-audio binding: Pion PCMU media with classic control on WebSocket, selectable
   independently from the preserved plain WebSocket-audio binding.
 - Stable `sdk/go/v0.1.1`, after live service acceptance, dummyphone hardening, and public
@@ -95,6 +96,12 @@ continues to expose L16 PCM bytes.
 The second complete SDK proves that the spec, generated role/envelope surfaces, runtime contract,
 and WebRTC profile are language-neutral. Rust can serve or consume either current profile in either
 role and shares the mechanical conformance and cross-language release gate with Go.
+
+### Releases — [`releases`](designs/releases.md)
+
+Version and publish the Go SDK, Rust SDK, and protocol snapshot independently while retaining one
+source-of-truth repository. Release material is deterministic, tied to an immutable component tag,
+checksummed, attestable, and described by component-owned notes.
 
 ### Later — TypeScript, QUIC and SIP
 

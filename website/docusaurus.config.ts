@@ -5,9 +5,15 @@ import type * as Preset from "@docusaurus/preset-classic";
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: "Realtime Voice Bridge Protocol",
-  tagline: "A lightweight session protocol for telephony service integration",
-  favicon: "img/favicon.ico",
+  title: "RTVBP — Real-Time Voice Bridge Protocol",
+  tagline: "The typed protocol between telephony and real-time applications",
+  favicon: "img/babelforce-mark.svg",
+  stylesheets: [
+    {
+      href: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Spectral:wght@500;600;700&display=swap",
+      type: "text/css",
+    },
+  ],
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -48,10 +54,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: "./sidebars.ts",
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            "https://github.com/babelforce/rtvbp/tree/main/packages/create-docusaurus/templates/shared/",
+          editUrl: "https://github.com/babelforce/rtvbp/edit/main/website/",
         },
         theme: {
           customCss: "./src/css/custom.css",
@@ -64,13 +67,13 @@ const config: Config = {
     mermaid: {
       theme: { light: "neutral", dark: "forest" },
     },
-    // Replace with your project's social card
-    image: "img/docusaurus-social-card.jpg",
     navbar: {
       title: "RTVBP",
       logo: {
-        alt: "RTVBP",
-        src: "img/logo.svg",
+        alt: "babelforce",
+        src: "img/babelforce-mark.svg",
+        width: 28,
+        height: 28,
       },
       items: [
         {
@@ -79,7 +82,35 @@ const config: Config = {
           position: "left",
           label: "Docs",
         },
-        //{ to: "/blog", label: "Blog", position: "left" },
+        {
+          type: "dropdown",
+          label: "Quickstarts",
+          position: "left",
+          items: [
+            {
+              label: "Go SDK",
+              to: "/docs/getting-started/go",
+            },
+            {
+              label: "Rust SDK",
+              to: "/docs/getting-started/rust",
+            },
+            {
+              label: "Wire protocol",
+              to: "/docs/getting-started/protocol",
+            },
+          ],
+        },
+        {
+          to: "/docs/reference/babelforce.v1/roles/application",
+          label: "Reference",
+          position: "left",
+        },
+        {
+          href: "https://www.babelforce.com/",
+          label: "babelforce",
+          position: "right",
+        },
         {
           href: "https://github.com/babelforce/rtvbp",
           label: "GitHub",
@@ -89,48 +120,67 @@ const config: Config = {
     },
     footer: {
       style: "dark",
+      logo: {
+        alt: "babelforce",
+        src: "img/babelforce-wordmark-white.svg",
+        href: "https://www.babelforce.com/",
+        width: 194,
+        height: 22,
+      },
       links: [
-        /*{
-          title: "Docs",
-          items: [
-            {
-              label: "Tutorial",
-              to: "/docs/intro",
-            },
-          ],
-        },*/
-        /*{
-          title: "Community",
-          items: [
-            {
-              label: "Stack Overflow",
-              href: "https://stackoverflow.com/questions/tagged/docusaurus",
-            },
-            {
-              label: "Discord",
-              href: "https://discordapp.com/invite/docusaurus",
-            },
-            {
-              label: "X",
-              href: "https://x.com/docusaurus",
-            },
-          ],
-        },*/
         {
-          title: "More",
+          title: "Start building",
           items: [
-            /*{
-              label: "Blog",
-              to: "/blog",
-            },*/
+            {
+              label: "Go quickstart",
+              to: "/docs/getting-started/go",
+            },
+            {
+              label: "Rust quickstart",
+              to: "/docs/getting-started/rust",
+            },
+            {
+              label: "Wire protocol",
+              to: "/docs/getting-started/protocol",
+            },
+          ],
+        },
+        {
+          title: "Protocol",
+          items: [
+            {
+              label: "Core concepts",
+              to: "/docs/concepts",
+            },
+            {
+              label: "Profiles",
+              to: "/docs/profiles",
+            },
+            {
+              label: "WebRTC + WebSocket",
+              to: "/docs/transports/webrtc-websocket",
+            },
+          ],
+        },
+        {
+          title: "Project",
+          items: [
             {
               label: "GitHub",
               href: "https://github.com/babelforce/rtvbp",
             },
+            {
+              label: "Releases",
+              to: "/docs/releases",
+            },
+            {
+              label: "babelforce",
+              href: "https://www.babelforce.com/",
+            },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} babelforce GmbH - Built with Docusaurus.`,
+      copyright: `RTVBP is an open protocol stewarded by babelforce GmbH. © ${new Date().getFullYear()} babelforce GmbH.`,
     },
     prism: {
       theme: prismThemes.github,

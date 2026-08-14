@@ -9,6 +9,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Replaced the Docusaurus starter presentation with a responsive RTVBP overview, direct Go, Rust,
+  and wire-protocol paths, and current babelforce branding with source provenance, while keeping
+  generated reference documentation untouched.
 - Published `sdk/go/v0.1.1` with the hardened dummyphone and `sdk/rust/v0.1.0` as the first Rust
   SDK release; both tags are verified from clean external consumers.
 - Moved the Docusaurus site from `docs/` to `website/` so `docs/` can hold the contributor docs and
@@ -25,6 +28,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added component-scoped release changelogs and deterministic release tooling for Go manifests,
+  Rust `.crate` assets, and versioned protocol/conformance bundles, with checksums, immutable-tag
+  validation, semantic predecessor links, and GitHub build-provenance attestations.
+- Established `protocol/v*` as the protocol snapshot release namespace and documented the release
+  contents, recovery model, and verification commands.
 - The track backlog framework: [vision](docs/vision.md), [roadmap](docs/roadmap.md), the
   [board](docs/stories/README.md), and the design records for the spec-first re-implementation.
 - Frozen `babelforce.v1` golden wire fixtures captured from `rtvbp-go v0.40.0`, with a disposable
