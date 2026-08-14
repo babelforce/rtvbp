@@ -1,4 +1,7 @@
-use rtvbp_spec_model::{Catalog, CatalogValidationErrors, EnvelopeSpec, EnvelopeValidationErrors};
+use rtvbp_spec_model::{
+    Catalog, CatalogValidationErrors, EnvelopeSpec, EnvelopeValidationErrors, ProfileRegistry,
+    ProfileValidationErrors,
+};
 use thiserror::Error;
 
 /// Link all authored catalogs into the generator process.
@@ -14,6 +17,12 @@ pub fn load() -> Vec<Catalog> {
 #[must_use]
 pub fn load_envelopes() -> Vec<EnvelopeSpec> {
     vec![rtvbp_spec_babelforce_v1::envelope()]
+}
+
+/// Load the authored transport and profile registry.
+#[must_use]
+pub fn load_profiles() -> ProfileRegistry {
+    rtvbp_spec_profiles::registry()
 }
 
 #[derive(Debug, Error)]
@@ -54,4 +63,22 @@ pub fn validate_envelopes(envelopes: &[EnvelopeSpec]) -> Result<(), EnvelopeVali
             })?;
     }
     Ok(())
+}
+
+#[derive(Debug, Error)]
+#[error("profile registry is invalid: {source}")]
+pub struct ProfileValidationError {
+    #[source]
+    pub source: ProfileValidationErrors,
+}
+
+/// Validate the binding registry against the complete linked catalog/envelope set.
+pub fn validate_profiles(
+    registry: &ProfileRegistry,
+    catalogs: &[Catalog],
+    envelopes: &[EnvelopeSpec],
+) -> Result<(), ProfileValidationError> {
+    registry
+        .validate(catalogs, envelopes)
+        .map_err(|source| ProfileValidationError { source })
 }

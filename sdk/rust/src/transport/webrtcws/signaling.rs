@@ -7,7 +7,7 @@ use webrtc::peer_connection::sdp::session_description::RTCSessionDescription;
 
 use crate::{ControlChannel, ControlFrame, Envelope, FrameKind};
 
-pub(super) const OFFER_METHOD: &str = "transport.webrtc.offer";
+pub(super) const OFFER_METHOD: &str = crate::profile::SIGNALING_TRANSPORT_WEBRTC_OFFER;
 const MAX_SIGNAL_FRAME_LEN: usize = 1 << 20;
 const MAX_SDP_LEN: usize = 512 << 10;
 static SIGNAL_IDS: AtomicU64 = AtomicU64::new(1);

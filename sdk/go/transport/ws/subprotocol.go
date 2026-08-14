@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/babelforce/rtvbp/sdk/go/profile"
 	"github.com/gorilla/websocket"
 )
 
 // DefaultSubprotocol is the deployed WebSocket/envelope/catalog profile.
-const DefaultSubprotocol = "rtvbp.v1"
+const DefaultSubprotocol = profile.ProfileRtvbpV1
 
 var errUnsupportedSubprotocol = errors.New("websocket: unsupported RTVBP subprotocol")
 

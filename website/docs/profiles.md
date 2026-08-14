@@ -13,6 +13,10 @@ An RTVBP **profile** is the complete interoperable combination of:
 The separation matters: the catalog defines call-control meaning, the envelope maps semantic
 requests, responses, and events onto control messages, and the transport carries control and media.
 
+The exact current tokens, accepting-endpoint preference, composition, reserved signaling, and media
+constraints are [generated from the executable profile registry](./reference/profiles/index.mdx).
+The sections below explain how to apply those generated facts.
+
 ## `rtvbp.v1`
 
 The currently deployed profile selects the [WebSocket binding](./transports/websocket.md), the

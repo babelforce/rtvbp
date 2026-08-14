@@ -9,11 +9,14 @@ use rtvbp_spec_gen::emit::{GeneratedFile, Target};
 use rtvbp_spec_gen::resolve::resolve;
 use rtvbp_spec_gen::write::{check_files, check_owned_files, synchronize_files, write_files};
 use rtvbp_spec_gen::{
-    ResolveError, emit_docs, emit_go, emit_go_envelope, emit_rust, emit_rust_envelope, generate,
+    ResolveError, emit_docs, emit_go, emit_go_envelope, emit_go_profiles, emit_profile_docs,
+    emit_profile_manifest, emit_profile_vectors, emit_rust, emit_rust_envelope, emit_rust_profiles,
+    emit_typescript_profiles, generate,
 };
 use rtvbp_spec_model::{
-    Catalog, ConstantField, EnvelopeSpec, ErrorSpec, Event, FieldSpec, FrameKind, FrameSpec,
-    Nullable, Operation, Role,
+    Catalog, CatalogId, ConstantField, ControlCarrier, EnvelopeSpec, ErrorSpec, Event, FieldSpec,
+    FrameKind, FrameSpec, MediaCarrier, MediaFormatSpec, NegotiationSpec, NegotiationTransport,
+    Nullable, Operation, ProfileRegistry, ProfileSpec, Role, TransportSpec,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -104,6 +107,41 @@ fn event(name: &str) -> Event {
     Event::new::<EventData>(name, Role::Voice)
         .docs("Report an event.")
         .example("canonical", json!({"state": "ready"}))
+}
+
+fn synthetic_profile_registry() -> ProfileRegistry {
+    ProfileRegistry {
+        transports: vec![TransportSpec {
+            id: "synthetic.v9".to_owned(),
+            description: "Synthetic control binding.".to_owned(),
+            control: ControlCarrier::Memory,
+            media_carriers: vec![MediaCarrier::Memory],
+        }],
+        media_formats: vec![MediaFormatSpec {
+            id: "synthetic-format".to_owned(),
+            encoding: "SYNTH".to_owned(),
+            sample_rate: 16_000,
+            bit_depth: 24,
+            channels: 2,
+            packet_time_ms: 10,
+        }],
+        signaling: Vec::new(),
+        profiles: vec![ProfileSpec {
+            id: "rtvbp.synthetic.v9".to_owned(),
+            negotiation_token: "rtvbp.synthetic.v9".to_owned(),
+            transport: "synthetic.v9".to_owned(),
+            envelope: "compact.v9".to_owned(),
+            catalog: CatalogId::new("synthetic", 9),
+            signaling: Vec::new(),
+            media: Vec::new(),
+        }],
+        negotiation: NegotiationSpec {
+            transport: NegotiationTransport::WebSocketSubprotocol,
+            server_preference: vec!["rtvbp.synthetic.v9".to_owned()],
+            default_profile: "rtvbp.synthetic.v9".to_owned(),
+            headerless_profile: Some("rtvbp.synthetic.v9".to_owned()),
+        },
+    }
 }
 
 #[test]
@@ -262,7 +300,7 @@ fn resolve_deduplicates_a_type_used_as_both_a_root_and_a_definition() {
 #[test]
 fn manifest_contains_the_complete_catalog_roles_terminality_and_embedded_schemas() {
     let files = generate(Target::Manifest).unwrap();
-    assert_eq!(files.len(), 2);
+    assert_eq!(files.len(), 3);
     assert_eq!(files[0].path, Path::new("babelforce.v1.catalog.json"));
     assert_eq!(files[1].path, Path::new("demo.v1.catalog.json"));
     let manifest: Value = serde_json::from_slice(&files[0].bytes).unwrap();
@@ -322,18 +360,43 @@ fn manifest_emitter_is_deterministic_and_ends_with_one_newline() {
 }
 
 #[test]
+fn every_profile_emitter_is_driven_by_a_synthetic_second_binding() {
+    let registry = synthetic_profile_registry();
+    let outputs = [
+        emit_profile_manifest(&registry).unwrap(),
+        emit_go_profiles(&registry).unwrap(),
+        emit_rust_profiles(&registry).unwrap(),
+        emit_typescript_profiles(&registry).unwrap(),
+        emit_profile_docs(&registry).unwrap(),
+        emit_profile_vectors(&registry).unwrap(),
+    ];
+
+    for files in outputs {
+        let bytes = files
+            .into_iter()
+            .flat_map(|file| file.bytes)
+            .collect::<Vec<_>>();
+        let rendered = String::from_utf8(bytes).unwrap();
+        assert!(rendered.contains("rtvbp.synthetic.v9"), "{rendered}");
+        assert!(rendered.contains("synthetic.v9"), "{rendered}");
+        assert!(!rendered.contains("rtvbp.webrtc.v1"), "{rendered}");
+    }
+}
+
+#[test]
 fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
     assert_eq!(Target::from_str("go").unwrap(), Target::Go);
     assert_eq!(Target::Go.canonical_out_dir(), "sdk/go");
     assert!(Target::Go.owns_output_path(Path::new("catalog/babelforcev1/zz_generated.types.go")));
     assert!(Target::Go.owns_output_path(Path::new("envelope/v1classic/zz_generated.codec.go")));
+    assert!(Target::Go.owns_output_path(Path::new("profile/zz_generated.profiles.go")));
     assert!(!Target::Go.owns_output_path(Path::new("catalog/babelforcev1/handwritten.go")));
     assert!(!Target::Go.owns_output_path(Path::new("zz_generated.runtime.go")));
 
     let first = generate(Target::Go).unwrap();
     let second = generate(Target::Go).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 10);
+    assert_eq!(first.len(), 11);
     assert_eq!(
         first
             .iter()
@@ -350,6 +413,7 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
             Path::new("catalog/demov1/zz_generated.types.go"),
             Path::new("envelope/v1classic/zz_generated.codec.go"),
             Path::new("envelope/v1classic/zz_generated.golden_test.go"),
+            Path::new("profile/zz_generated.profiles.go"),
         ]
     );
     for file in &first {
@@ -470,13 +534,14 @@ fn rust_emitter_pins_target_ownership_and_complete_generated_surface() {
     assert!(
         Target::Rust.owns_output_path(Path::new("src/envelope/v1classic/zz_generated_codec.rs"))
     );
+    assert!(Target::Rust.owns_output_path(Path::new("src/profile/zz_generated_profiles.rs")));
     assert!(!Target::Rust.owns_output_path(Path::new("src/catalog/babelforcev1/mod.rs")));
     assert!(!Target::Rust.owns_output_path(Path::new("src/session.rs")));
 
     let first = generate(Target::Rust).unwrap();
     let second = generate(Target::Rust).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 10);
+    assert_eq!(first.len(), 11);
     assert_eq!(
         first
             .iter()
@@ -493,6 +558,7 @@ fn rust_emitter_pins_target_ownership_and_complete_generated_surface() {
             Path::new("src/catalog/demov1/zz_generated_types.rs"),
             Path::new("src/envelope/v1classic/zz_generated_codec.rs"),
             Path::new("src/envelope/v1classic/zz_generated_golden_tests.rs"),
+            Path::new("src/profile/zz_generated_profiles.rs"),
         ]
     );
     for file in &first {
@@ -628,7 +694,7 @@ fn docs_emitter_projects_the_catalog_roles_examples_and_envelope() {
     let first = generate(Target::Docs).unwrap();
     let second = generate(Target::Docs).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 36);
+    assert_eq!(first.len(), 38);
     for file in &first {
         assert!(file.bytes.ends_with(b"\n"));
         assert!(!file.bytes.ends_with(b"\n\n"));
@@ -715,7 +781,7 @@ fn vector_emitter_projects_payloads_envelope_cases_and_typed_scenarios() {
     let first = generate(Target::Vectors).unwrap();
     let second = generate(Target::Vectors).unwrap();
     assert_eq!(first, second);
-    assert_eq!(first.len(), 18);
+    assert_eq!(first.len(), 19);
 
     let payload: Value = serde_json::from_str(generated_text(
         &first,

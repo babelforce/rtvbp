@@ -8,6 +8,7 @@ publish = false
 rtvbp-spec-babelforce-v1 = { path = "../rtvbp-spec-babelforce-v1" }
 rtvbp-spec-demo-v1 = { path = "../rtvbp-spec-demo-v1" }
 rtvbp-spec-model = { path = "../rtvbp-spec-model" }
+rtvbp-spec-profiles = { path = "../rtvbp-spec-profiles" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

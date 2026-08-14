@@ -3,6 +3,7 @@
 mod catalog;
 mod envelope;
 mod nullable;
+mod profile;
 mod scenario;
 
 pub use catalog::{
@@ -16,4 +17,9 @@ pub use envelope::{
     FrameKind, FrameSpec, WireError,
 };
 pub use nullable::Nullable;
+pub use profile::{
+    ControlCarrier, MediaCarrier, MediaFormatSpec, NegotiationSpec, NegotiationTransport,
+    ProfileMediaSpec, ProfileRegistry, ProfileSpec, ProfileValidationError,
+    ProfileValidationErrors, SignalingSpec, TransportSpec,
+};
 pub use scenario::{Scenario, ScenarioCase, ScenarioStep};

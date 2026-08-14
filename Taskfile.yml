@@ -7,6 +7,7 @@ tasks:
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=manifest
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=go
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=rust
+      - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=typescript
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=docs
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=vectors
 

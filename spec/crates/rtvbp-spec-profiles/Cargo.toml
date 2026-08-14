@@ -1,0 +1,8 @@
+[package]
+name = "rtvbp-spec-profiles"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+rtvbp-spec-model = { path = "../rtvbp-spec-model" }

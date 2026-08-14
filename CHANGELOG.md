@@ -33,6 +33,10 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added a validated spec-owned transport/profile registry and generated its deterministic manifest,
+  Go/Rust/TypeScript constants, public reference, and executable negotiation vectors. Existing
+  profile names, server preference, headerless default, WebRTC signaling, and media constraints are
+  now projections rather than hand-copied SDK facts.
 - Added the TypeScript/browser SDK foundation with lossless numeric-token parsing, fail-closed safe
   integer semantics, strict JSON encoding, exact round-trips for all 48 frozen fixtures, and
   digest-pinned migration evidence that publishes no private source coordinates.

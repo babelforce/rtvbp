@@ -10,6 +10,7 @@ pub mod audio;
 pub mod bridge;
 pub mod catalog;
 pub mod envelope;
+pub mod profile;
 pub mod session;
 pub mod transport;
 

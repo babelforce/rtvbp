@@ -107,6 +107,7 @@ dependencies = [
  "rtvbp-spec-babelforce-v1",
  "rtvbp-spec-demo-v1",
  "rtvbp-spec-model",
+ "rtvbp-spec-profiles",
  "schemars",
  "serde",
  "serde_json",
@@ -121,6 +122,13 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "rtvbp-spec-profiles"
+version = "0.1.0"
+dependencies = [
+ "rtvbp-spec-model",
 ]
 
 [[package]]

@@ -9,8 +9,9 @@ pub mod write;
 use thiserror::Error;
 
 pub use emit::{
-    GeneratedFile, Target, emit_docs, emit_go, emit_go_envelope, emit_manifest, emit_rust,
-    emit_rust_envelope, emit_vectors,
+    GeneratedFile, Target, emit_docs, emit_go, emit_go_envelope, emit_go_profiles, emit_manifest,
+    emit_profile_docs, emit_profile_manifest, emit_profile_vectors, emit_rust, emit_rust_envelope,
+    emit_rust_profiles, emit_typescript_profiles, emit_vectors,
 };
 pub use resolve::{ResolveError, ResolvedCatalog, resolve};
 
@@ -20,6 +21,8 @@ pub enum GenerateError {
     Validation(#[from] catalogs::ValidationError),
     #[error(transparent)]
     EnvelopeValidation(#[from] catalogs::EnvelopeValidationError),
+    #[error(transparent)]
+    ProfileValidation(#[from] catalogs::ProfileValidationError),
     #[error(transparent)]
     Resolve(#[from] ResolveError),
     #[error(transparent)]
@@ -32,6 +35,8 @@ pub enum GenerateError {
     DocsEmit(#[from] emit::DocsEmitError),
     #[error(transparent)]
     VectorEmit(#[from] emit::VectorEmitError),
+    #[error(transparent)]
+    ProfileEmit(#[from] emit::ProfileEmitError),
 }
 
 /// Run the side-effect-free load → validate → resolve → emit pipeline.
@@ -40,6 +45,8 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
     catalogs::validate(&catalogs)?;
     let envelopes = catalogs::load_envelopes();
     catalogs::validate_envelopes(&envelopes)?;
+    let profiles = catalogs::load_profiles();
+    catalogs::validate_profiles(&profiles, &catalogs, &envelopes)?;
 
     let mut files = Vec::new();
     for catalog in catalogs {
@@ -50,6 +57,7 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
             Target::Rust => files.extend(emit_rust(&resolved)?),
             Target::Docs => files.extend(emit_docs(&resolved, &envelopes)?),
             Target::Vectors => files.extend(emit_vectors(&resolved, &envelopes)?),
+            Target::TypeScript => {}
         }
     }
     if matches!(target, Target::Go | Target::Rust) {
@@ -60,6 +68,14 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
                 _ => unreachable!(),
             }
         }
+    }
+    match target {
+        Target::Manifest => files.extend(emit_profile_manifest(&profiles)?),
+        Target::Go => files.extend(emit_go_profiles(&profiles)?),
+        Target::Rust => files.extend(emit_rust_profiles(&profiles)?),
+        Target::TypeScript => files.extend(emit_typescript_profiles(&profiles)?),
+        Target::Docs => files.extend(emit_profile_docs(&profiles)?),
+        Target::Vectors => files.extend(emit_profile_vectors(&profiles)?),
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(files)

@@ -34,7 +34,7 @@ mod signaling;
 use media::WebRtcMedia;
 
 /// WebSocket profile token for WebRTC media plus RTVBP control.
-pub const SUBPROTOCOL: &str = "rtvbp.webrtc.v1";
+pub const SUBPROTOCOL: &str = crate::profile::PROFILE_RTVBP_WEBRTC_V1;
 const PCMU_CLOCK_RATE: u32 = 8_000;
 const PCMU_PTIME: Duration = Duration::from_millis(20);
 

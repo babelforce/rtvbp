@@ -10,13 +10,14 @@ import (
 	"sync"
 
 	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/profile"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
 )
 
 // Subprotocol selects the WebRTC-audio plus WebSocket-control binding.
-const Subprotocol = "rtvbp.webrtc.v1"
+const Subprotocol = profile.ProfileRtvbpWebrtcV1
 
 // Config controls the Pion peer and the format exposed at the Go SDK media boundary.
 type Config struct {

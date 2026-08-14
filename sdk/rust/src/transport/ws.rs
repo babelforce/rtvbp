@@ -24,7 +24,7 @@ use super::{
 };
 
 /// The deployed classic WebSocket/envelope/catalog profile.
-pub const DEFAULT_SUBPROTOCOL: &str = "rtvbp.v1";
+pub const DEFAULT_SUBPROTOCOL: &str = crate::profile::PROFILE_RTVBP_V1;
 const STATIC_AUDIO_ID: &str = "audio";
 
 /// Optional configuration for an already-established WebSocket.

@@ -11,11 +11,12 @@ import (
 	babelforcev1 "github.com/babelforce/rtvbp/sdk/go/catalog/babelforcev1"
 	"github.com/babelforce/rtvbp/sdk/go/catalog/demov1"
 	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
+	"github.com/babelforce/rtvbp/sdk/go/profile"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 	"github.com/gorilla/websocket"
 )
 
-const demoProfile = "rtvbp.demo.v1"
+const demoProfile = profile.ProfileRtvbpDemoV1
 
 func main() {
 	profiles := profileHandlers()

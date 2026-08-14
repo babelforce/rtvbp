@@ -2,7 +2,7 @@
 id: R-35
 title: Generate the TypeScript catalog, roles, peers, and classic envelope
 pillar: Generator
-status: backlog
+status: in-progress
 priority: 36
 design: docs/designs/m2-browser-parity.md
 epic: m2-browser-parity

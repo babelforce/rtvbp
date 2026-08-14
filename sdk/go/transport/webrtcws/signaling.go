@@ -7,12 +7,13 @@ import (
 	"fmt"
 
 	"github.com/babelforce/rtvbp/sdk/go"
+	"github.com/babelforce/rtvbp/sdk/go/profile"
 	"github.com/google/uuid"
 	"github.com/pion/webrtc/v4"
 )
 
 const (
-	offerMethod       = "transport.webrtc.offer"
+	offerMethod       = profile.SignalingTransportWebrtcOffer
 	maxSignalFrameLen = 1 << 20
 	maxSDPLen         = 512 << 10
 )

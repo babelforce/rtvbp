@@ -5,6 +5,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use rtvbp::catalog::demov1;
 use rtvbp::envelope::v1classic;
+use rtvbp::profile;
 use rtvbp::transport::ws::{
     self, AuthRejection, ClientConfig, DEFAULT_SUBPROTOCOL, ServerConfig, TransportConfig,
 };
@@ -15,7 +16,7 @@ use rtvbp::{
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 
-const DEMO_SUBPROTOCOL: &str = "rtvbp.demo.v1";
+const DEMO_SUBPROTOCOL: &str = profile::PROFILE_RTVBP_DEMO_V1;
 
 struct DemoApplication;
 
