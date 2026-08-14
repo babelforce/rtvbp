@@ -107,10 +107,10 @@ jobs:
           version="${RELEASE_TAG#sdk/typescript/v}"
           tarball="${{ steps.release_material.outputs.tarball }}"
           expected="$(sha1sum "$tarball" | cut -d' ' -f1)"
-          published="$(npm view "@babelforce/rtvbp@${version}" dist.shasum --json 2>/dev/null || true)"
-          published="${published%\"}"
-          published="${published#\"}"
-          if test -n "$published"; then
+          if published="$(npm view "@babelforce/rtvbp@${version}" dist.shasum --json 2>/dev/null)"; then
+            published="${published%\"}"
+            published="${published#\"}"
+            test -n "$published"
             test "$published" = "$expected"
           else
             case "$version" in

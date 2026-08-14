@@ -84,6 +84,8 @@ class PublicTreeTest(unittest.TestCase):
         self.assertLess(publish, cleanup)
         self.assertLess(cleanup, resolve)
         self.assertEqual(workflow.count("NODE_AUTH_TOKEN:"), 1)
+        self.assertIn('if published="$(npm view', workflow)
+        self.assertNotIn('dist.shasum --json 2>/dev/null || true', workflow)
         self.assertIn('            "") ;;', workflow)
         self.assertIn('rm -f -- "$NPM_CONFIG_USERCONFIG"', workflow)
 
