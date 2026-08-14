@@ -9,6 +9,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Reconciled the shipped roadmap and public limitations into M2 browser parity: a spec-generated
+  TypeScript SDK, spec-owned profile metadata, browser WebSocket/WebRTC v1 media, three-language
+  proof, and real-consumer migration. WebRTC v2, QUIC, and SIP remain explicitly separate epics.
 - Replaced the Docusaurus starter presentation with a responsive RTVBP overview, direct Go, Rust,
   and wire-protocol paths, and current babelforce branding with source provenance, while keeping
   generated reference documentation untouched.

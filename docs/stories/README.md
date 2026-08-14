@@ -26,7 +26,8 @@ R-12 now proves live WebSocket compatibility in both directions against publishe
 `demo.v1` second-catalog proof, real-service acceptance, and ordered release gate are complete. The
 Rust SDK now reaches the same generated-surface, runtime, WebSocket, and WebRTC parity. Go
 `sdk/go/v0.1.1` and Rust `sdk/rust/v0.1.0` are public and externally resolvable; only the legacy Go
-repository retirement remains.
+repository retirement remains. M2 is now planned as additive browser parity: R-33 starts by pinning
+the maintained TypeScript consumer and settling JavaScript wire semantics before generation.
 
 The through-line: capture today's bytes as frozen fixtures (R-1), make the spec reproduce them
 exactly (R-4), then generate everything else — types, envelope codec, role dispatch, docs, test
@@ -43,6 +44,7 @@ published the Rust debut and Go patch releases; R-16 retains the legacy Go repos
 
 ## Now (in progress)
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · Go v0.1.0 is published with selectable Pion WebRTC; legacy retirement remains
+- [R-33 — Capture TypeScript authority and settle JavaScript wire semantics](R-33-typescript-authority-and-js-wire-semantics.md) · Proof · pin the browser migration evidence and fail closed on JavaScript's wire hazards before generation
 
 ## Next (ready — take the top one unless the user named a story)
 _None._
@@ -55,6 +57,14 @@ _None._
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
 - [R-20 — Bounded two-agent OpenAI Realtime acceptance over RTVBP](R-20-bounded-two-agent-realtime-acceptance.md) · Proof · follow-up after the first Go tag; OpenAI implementation remains in rtvbp-openai
+
+### M2: browser parity and a spec-generated TypeScript SDK
+_Go and Rust now prove language-neutral generation and runtime behavior, but the remaining browser_
+- [R-34 — Add a spec-owned transport and profile registry](R-34-spec-owned-profile-registry.md) · Spec · generate profile names, composition, negotiation, and constraints before a third SDK copies them
+- [R-35 — Generate the TypeScript catalog, roles, peers, and classic envelope](R-35-typescript-emitter-and-generated-surfaces.md) · Generator · emit the complete browser-neutral TypeScript protocol surface from the same spec as Go and Rust
+- [R-36 — Implement the TypeScript session runtime and WebSocket binding](R-36-typescript-runtime-and-websocket.md) · SDK · match Go/Rust session semantics in browsers and Node before adding device-media policy
+- [R-37 — Add browser media, WebRTC v1, and deployment auth seams](R-37-browser-media-webrtc-and-auth-seams.md) · SDK · replace the manual browser client with tested device adapters for both deployed profiles
+- [R-38 — Prove TypeScript parity, migrate the browser consumer, and release M2](R-38-typescript-interop-migration-and-m2-release.md) · Proof · publish only after three-language proof and removal of the maintained hand-written browser wire
 
 ## Done
 - [R-1 — Capture frozen golden wire fixtures from rtvbp-go](R-1-capture-golden-wire-fixtures.md) · Proof · the authority for every later byte-identity check — capture before the spec is written
@@ -86,6 +96,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 - [R-29 — Polish the dummyphone and publish the Go patch release](R-29-polish-dummyphone-and-go-patch-release.md) · SDK · make the demo telephony adapter stateful and race-safe, then publish sdk/go/v0.1.1
 - [R-30 — Component release notes, artifacts, and provenance](R-30-component-release-artifacts-and-notes.md) · Proof · make each component release self-describing, reproducible, checksummed, and attestable
 - [R-31 — Brand and polish the public protocol documentation](R-31-brand-and-polish-public-documentation.md) · Integration · replace Docusaurus boilerplate with a clear RTVBP entry point under babelforce stewardship
+- [R-32 — Plan M2 browser parity and the next coordinated release](R-32-plan-m2-browser-parity-release.md) · Integration · turn the remaining TypeScript/browser supersession gap into a bounded release train
 
 _See [CHANGELOG.md](../../CHANGELOG.md) for the full released history._
 <!-- END track:board -->

@@ -34,15 +34,17 @@ lives under [`website/`](../website), leaving `docs/` for contributor material a
 
 ## Next
 
-Milestone 1 is **spec + generator + a Go SDK at wire parity**, in the order on the
-[board](stories/README.md). The through-line: capture the current bytes as frozen fixtures, make the
-spec reproduce them, then generate everything else and prove it against those fixtures and against a
-live `rtvbp-go v0.37` peer.
+Milestone 2 is **browser parity through a spec-generated TypeScript SDK**. The remaining maintained
+browser implementation manually restates a subset of `classic.v1` and `babelforce.v1` outside this
+repository. M2 source-pins that migration evidence, settles JavaScript's wire hazards, makes profile
+metadata generated, then delivers TypeScript roles, peers, envelope, runtime, WebSocket, browser
+media, and the existing WebRTC v1 binding with three-language conformance.
 
-The [WebRTC epic](designs/webrtc.md) and [Rust SDK epic](designs/rust-sdk.md) have established and
-released the second audio binding and the second full language implementation. Only retirement of
-the legacy Go repository remains from the release backlog; R-20 remains a bounded optional
-system-acceptance follow-up. **QUIC, SIP, and TypeScript** are the next implementation families.
+The release is additive: target `protocol/v1.1.0` rather than inventing a breaking protocol v2, with
+candidate Go/Rust v0.2.0 and the first TypeScript v0.1.0 only where component diffs earn those tags.
+R-33 is the ready starting point. R-16's legacy repository retirement is a release prerequisite and
+can finish in parallel; R-20 remains optional system acceptance. Opus, trickle ICE, restart,
+renegotiation, multiple media streams, QUIC, and SIP are explicitly outside M2.
 
 ## Epics
 
@@ -105,8 +107,15 @@ Version and publish the Go SDK, Rust SDK, and protocol snapshot independently wh
 source-of-truth repository. Release material is deterministic, tied to an immutable component tag,
 checksummed, attestable, and described by component-owned notes.
 
-### Later — TypeScript, QUIC and SIP
+### M2 browser parity — [`m2-browser-parity`](designs/m2-browser-parity.md)
 
-- **TypeScript** follows the same generated-surface path as Go and Rust.
-- **QUIC and SIP** — QUIC gives a bidi control stream plus dynamic media streams; SIP maps a dialog
-  to a session, RTP to media channels, and carries control as in-dialog `INFO`.
+Replace the remaining hand-written browser wire with a generated TypeScript SDK and a shared
+spec-owned profile registry. Prove both roles and both deployed profiles across TypeScript, Go, and
+Rust, then migrate the real browser consumer before publishing the coordinated additive release.
+
+### After M2 — WebRTC v2, QUIC and SIP
+
+- **WebRTC v2** is evidence-driven: Opus/higher-rate PCM, trickle ICE, restart, renegotiation, packet
+  loss policy, and multiple media must be designed as a new coexisting binding, never changes to v1.
+- **QUIC** gives a bidirectional control stream plus dynamic media streams.
+- **SIP** maps a dialog to a session, RTP to media channels, and carries control as in-dialog `INFO`.
