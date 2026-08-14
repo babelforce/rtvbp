@@ -11,6 +11,10 @@ use rtvbp::{
     SessionState, TransportFactory,
 };
 
+// `go run` may need a cold module download and build on CI. This bound covers process startup only;
+// all protocol exchanges retain their tighter timeouts below.
+const GO_PEER_START_TIMEOUT: Duration = Duration::from_secs(60);
+
 fn audio_format() -> MediaFormat {
     MediaFormat {
         encoding: "L16".to_owned(),
@@ -25,21 +29,40 @@ fn pcm_frame(sample: i16) -> Vec<u8> {
     (0..160).flat_map(|_| sample.to_le_bytes()).collect()
 }
 
-fn go_helper(mode: &str, argument: Option<&str>, capture_stdout: bool) -> Child {
-    let mut command = Command::new("go");
-    command
-        .args(["run", ".", mode])
-        .current_dir(format!("{}/tests/go-interop", env!("CARGO_MANIFEST_DIR")))
-        .stderr(Stdio::inherit());
-    if let Some(argument) = argument {
-        command.arg(argument);
+struct GoPeer(Child);
+
+impl GoPeer {
+    fn start(mode: &str, argument: Option<&str>, capture_stdout: bool) -> Self {
+        let mut command = Command::new("go");
+        command
+            .args(["run", ".", mode])
+            .current_dir(format!("{}/tests/go-interop", env!("CARGO_MANIFEST_DIR")))
+            .stderr(Stdio::inherit());
+        if let Some(argument) = argument {
+            command.arg(argument);
+        }
+        if capture_stdout {
+            command.stdout(Stdio::piped());
+        } else {
+            command.stdout(Stdio::inherit());
+        }
+        Self(command.spawn().expect("start Go interoperability peer"))
     }
-    if capture_stdout {
-        command.stdout(Stdio::piped());
-    } else {
-        command.stdout(Stdio::inherit());
+
+    async fn wait(mut self) {
+        let status = tokio::task::spawn_blocking(move || self.0.wait())
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(status.success(), "Go peer exited with {status}");
     }
-    command.spawn().expect("start Go interoperability peer")
+}
+
+impl Drop for GoPeer {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
 }
 
 fn application_handler() -> Handler {
@@ -80,10 +103,17 @@ fn ping_response(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn rust_client_interoperates_with_current_go_server() {
-    let mut go = go_helper("server", None, true);
-    let stdout = go.stdout.take().unwrap();
-    let mut lines = BufReader::new(stdout).lines();
-    let url = lines.next().unwrap().unwrap();
+    let mut go = GoPeer::start("server", None, true);
+    let stdout = go.0.stdout.take().unwrap();
+    let url = tokio::time::timeout(
+        GO_PEER_START_TIMEOUT,
+        tokio::task::spawn_blocking(move || BufReader::new(stdout).lines().next()),
+    )
+    .await
+    .expect("Go server startup timed out")
+    .unwrap()
+    .expect("Go server printed no URL")
+    .unwrap();
     assert!(url.starts_with("ws://"), "Go server URL: {url:?}");
 
     let envelope: Arc<dyn Envelope> = Arc::new(v1classic::Envelope);
@@ -126,11 +156,7 @@ async fn rust_client_interoperates_with_current_go_server() {
         .unwrap()
         .unwrap()
         .unwrap();
-    let status = tokio::task::spawn_blocking(move || go.wait())
-        .await
-        .unwrap()
-        .unwrap();
-    assert!(status.success(), "Go server exited with {status}");
+    go.wait().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -164,8 +190,8 @@ async fn current_go_client_interoperates_with_rust_server() {
         session.run().await
     });
 
-    let mut go = go_helper("client", Some(&server.url()), false);
-    let session = tokio::time::timeout(Duration::from_secs(10), session_rx)
+    let go = GoPeer::start("client", Some(&server.url()), false);
+    let session = tokio::time::timeout(GO_PEER_START_TIMEOUT, session_rx)
         .await
         .unwrap()
         .unwrap();
@@ -178,11 +204,7 @@ async fn current_go_client_interoperates_with_rust_server() {
     assert_ne!(received, [0; 320]);
     session.audio().write(&pcm_frame(-2_400)).await.unwrap();
 
-    let status = tokio::task::spawn_blocking(move || go.wait())
-        .await
-        .unwrap()
-        .unwrap();
-    assert!(status.success(), "Go client exited with {status}");
+    go.wait().await;
     tokio::time::timeout(Duration::from_secs(5), server_task)
         .await
         .unwrap()

@@ -46,6 +46,11 @@ the same authoritative monorepo.
 - 2026-08-14: The first clean GitHub runner exposed that a five-second protocol timeout also covered
   the published Go helper's cold dependency download and compilation. Process startup is now
   independently bounded at 60 seconds while every post-connect protocol assertion remains at five.
+- 2026-08-14: The first Rust tag run then reproduced the same cold-start boundary in the current-Go
+  WebRTC test: its helper finished compiling after the ten-second startup timeout had torn down the
+  Rust listener. Both current-Go directions now use the separate 60-second startup bound, keep their
+  tighter post-connect assertions, and reap the helper process on failure. A forced-empty Go module
+  and build cache reproduces the former 11.6-second startup and now passes both directions.
 - Remaining: create and verify the actual GitHub `sdk/rust/v0.1.0` tag.
 
 ## Notes
