@@ -39,10 +39,11 @@ the same authoritative monorepo.
 - 2026-08-14: Added the compile-tested quickstart and runnable selectable demo, public integration,
   auth, ICE/TURN, shutdown, migration and limits docs, package exclusions for repository-only tests,
   and a Rust tag workflow that runs the unified gate, packages, and resolves the tag externally.
-- 2026-08-14: `cargo package` verifies from committed generated output, Rust 1.88 checks every
-  target, and a clean temporary repository tagged `sdk/rust/v0.1.0` resolves from a separate Cargo
-  project. The real GitHub tag remains deliberately uncreated until this work is committed.
-- Remaining: create and verify the actual `sdk/rust/v0.1.0` tag after these changes are committed.
+- 2026-08-14: The implementation and release-preparation changes are committed. A clean worktree at
+  the candidate HEAD passed `task check`; `cargo package` verified all ten committed generated Rust
+  artifacts, and a disposable repository tagged `sdk/rust/v0.1.0` resolved from a separate Cargo
+  project.
+- Remaining: create and verify the actual GitHub `sdk/rust/v0.1.0` tag.
 
 ## Notes
 - Earlier repositories remain named only as frozen compatibility authorities or migration sources;
