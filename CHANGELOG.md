@@ -33,6 +33,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added production browser media to the TypeScript SDK: owned microphone/AudioContext/AudioWorklet
+  lifecycle, continuous device-rate conversion, bounded L16 playback and transport-inclusive
+  barge-in, native PCMU WebRTC with bounded non-trickle signaling, deployment-scoped browser OAuth,
+  and real Chrome interoperability against Go and Rust. A bounded actual-device smoke and public
+  TypeScript/browser quickstart record lifecycle, auth, CSP, ICE and current v1 limitations.
 - Added the browser-neutral TypeScript semantic runtime, bounded session-owned L16 audio, memory and
   injected WebSocket transports, browser/Node clients, and a Node server with generated profile
   negotiation, native keepalive, and drain-safe close. All generated scenarios run with either role

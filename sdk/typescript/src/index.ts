@@ -5,6 +5,7 @@ export * from "./envelope.ts";
 export * from "./handler.ts";
 export * from "./memory.ts";
 export * from "./protocol.ts";
+export * from "./profiles.ts";
 export * from "./session.ts";
 export * from "./transport.ts";
 export * from "./validation.ts";

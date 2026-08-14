@@ -105,6 +105,10 @@ class SocketMedia implements MediaChannel {
     return { data };
   }
 
+  clear(): number {
+    return this.#transport.clearBinary(mediaFrameBytes(this.format));
+  }
+
   async close(): Promise<void> {
     this.#closed = true;
   }
@@ -164,6 +168,12 @@ export class WebSocketTransport implements Transport {
 
   async receiveBinary(signal?: AbortSignal): Promise<Uint8Array> {
     return (await this.#binary.shift(signal)).slice();
+  }
+
+  clearBinary(frameBytes: number): number {
+    const cleared = this.#binary.length * frameBytes;
+    this.#binary.clear();
+    return cleared;
   }
 
   async openMedia(id: string, format: MediaFormat, signal?: AbortSignal): Promise<MediaChannel> {

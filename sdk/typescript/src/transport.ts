@@ -33,8 +33,12 @@ export interface ControlChannel {
 export interface MediaChannel {
   readonly id: string;
   readonly format: MediaFormat;
+  /** Native media is negotiated by the transport but consumed through a platform track adapter. */
+  readonly mode?: "frames" | "native";
   writeFrame(frame: MediaFrame, signal?: AbortSignal): Promise<void>;
   readFrame(signal?: AbortSignal): Promise<MediaFrame>;
+  /** Drop inbound media still owned by this channel and return its byte count. */
+  clear?(): number;
   close(): Promise<void>;
 }
 
@@ -45,6 +49,8 @@ export interface Transport {
   close(): Promise<void>;
   readonly supportsKeepalive?: boolean;
   monitorKeepalive?(policy: KeepalivePolicy, signal: AbortSignal): Promise<void>;
+  /** Optional transport-health worker for bindings with liveness beyond control-channel reads. */
+  monitor?(signal: AbortSignal): Promise<void>;
 }
 
 export type TransportFactory = (
@@ -73,6 +79,14 @@ export function mediaFrameBytes(format: MediaFormat): number {
     throw new SessionError("media_format", "frame byte count is out of range");
   }
   return bytes;
+}
+
+export function sameMediaFormat(left: MediaFormat, right: MediaFormat): boolean {
+  return left.encoding === right.encoding
+    && left.sampleRate === right.sampleRate
+    && left.bitDepth === right.bitDepth
+    && left.channels === right.channels
+    && left.packetTimeMs === right.packetTimeMs;
 }
 
 export function validateKeepalive(policy: KeepalivePolicy | undefined): void {

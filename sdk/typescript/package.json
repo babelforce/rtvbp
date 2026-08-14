@@ -29,9 +29,10 @@
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
     "test": "node --experimental-strip-types --test test/*.test.ts",
+    "smoke:browser-device": "RTVBP_REAL_DEVICE_SMOKE=1 node --experimental-strip-types --test --test-name-pattern='bounded real-device smoke' test/browser_headless.test.ts",
     "typecheck": "tsc --noEmit && npm run typecheck:browser",
     "typecheck:browser": "tsc -p tsconfig.browser.json",
-    "verify:package": "node --input-type=module -e \"const [sdk, browser, node] = await Promise.all([import('./dist/index.js'), import('./dist/browser.js'), import('./dist/node.js')]); if (!sdk.babelforceV1 || !sdk.classicV1 || !browser.browserWebSocketTransport || !node.nodeWebSocketTransport) throw new Error('missing package exports')\" && npm pack --dry-run --ignore-scripts"
+    "verify:package": "node --input-type=module -e \"const [sdk, browser, node] = await Promise.all([import('./dist/index.js'), import('./dist/browser.js'), import('./dist/node.js')]); if (!sdk.babelforceV1 || !sdk.classicV1 || !browser.browserWebSocketTransport || !browser.browserWebRtcTransport || !browser.BrowserAudioDevice || !node.nodeWebSocketTransport) throw new Error('missing package exports')\" && npm pack --dry-run --ignore-scripts"
   },
   "dependencies": {
     "lossless-json": "4.3.1",
@@ -40,6 +41,7 @@
   "devDependencies": {
     "@types/node": "22.20.1",
     "@types/ws": "8.18.1",
+    "playwright-core": "1.62.1",
     "typescript": "6.0.3"
   }
 }

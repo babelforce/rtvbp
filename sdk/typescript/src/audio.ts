@@ -1,7 +1,7 @@
 import { AsyncQueue } from "./async.ts";
 import { SessionError, asSessionError, throwIfAborted } from "./errors.ts";
 import type { MediaChannel, MediaFormat, MediaFrame } from "./transport.ts";
-import { mediaFrameBytes } from "./transport.ts";
+import { mediaFrameBytes, sameMediaFormat } from "./transport.ts";
 
 export interface ObservedMediaFrame {
   readonly direction: "in" | "out";
@@ -11,14 +11,6 @@ export interface ObservedMediaFrame {
 }
 
 export type AudioObserver = (frame: ObservedMediaFrame) => void;
-
-function sameFormat(left: MediaFormat, right: MediaFormat): boolean {
-  return left.encoding === right.encoding
-    && left.sampleRate === right.sampleRate
-    && left.bitDepth === right.bitDepth
-    && left.channels === right.channels
-    && left.packetTimeMs === right.packetTimeMs;
-}
 
 /** Session-owned byte stream over one negotiated, fixed-size media channel. */
 export class AudioStream {
@@ -64,7 +56,7 @@ export class AudioStream {
   bind(channel: MediaChannel): void {
     if (this.#closed) throw new SessionError("closed", "audio stream is closed");
     mediaFrameBytes(channel.format);
-    if (this.#format !== undefined && !sameFormat(this.#format, channel.format)) {
+    if (this.#format !== undefined && !sameMediaFormat(this.#format, channel.format)) {
       throw new SessionError("media_format", "audio format is already negotiated");
     }
     if (this.#channel !== undefined) {
@@ -73,6 +65,7 @@ export class AudioStream {
     }
     this.#channel = channel;
     this.#format = { ...channel.format };
+    if (channel.mode === "native") return;
     const frames = Math.max(1, Math.floor(this.#capacityBytes / mediaFrameBytes(channel.format)));
     this.#inbound = new AsyncQueue<MediaFrame>(frames);
     this.#reader = this.#readFrames(channel, this.#inbound).catch((error: unknown) => {
@@ -140,10 +133,11 @@ export class AudioStream {
   }
 
   clear(): number {
-    const cleared = this.bufferedInboundBytes;
+    let cleared = this.bufferedInboundBytes;
     this.#current = undefined;
     this.#currentOffset = 0;
     this.#inbound?.clear();
+    cleared += this.#channel?.clear?.() ?? 0;
     return cleared;
   }
 
@@ -191,6 +185,12 @@ export class AudioStream {
   #requireChannel(): MediaChannel {
     if (this.#closed) throw new SessionError("closed", "audio stream is closed");
     if (this.#channel === undefined) throw new SessionError("media_unbound", "audio is not negotiated");
+    if (this.#channel.mode === "native") {
+      throw new SessionError(
+        "media_native",
+        "audio uses a native browser track; use BrowserAudioDevice instead of raw frame I/O",
+      );
+    }
     return this.#channel;
   }
 

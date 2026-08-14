@@ -69,3 +69,25 @@ server := ws.NewServer(ws.ServerConfig{
 
 Use `wss://` in production even though the JWT is signed: TLS protects the bearer token and audio
 from disclosure in transit.
+
+## Browser OAuth deployment adapter
+
+The telephony JWT contract above applies when babelforce is the connecting voice peer. A browser
+cannot add `Authorization` to a native WebSocket Upgrade, so babelforce browser deployments use a
+separate OAuth bearer carrier:
+
+```http
+Sec-WebSocket-Protocol: rtvbp.v1, bearer.<base64url(UTF-8 access token)>
+Origin: https://app.example
+```
+
+Use `babelforceBearerSubprotocols(profile, accessToken)` from `@babelforce/rtvbp/browser`; never put a
+raw opaque token in the protocol list. The accepting adapter decodes the unpadded base64url value,
+validates or introspects the resulting OAuth token, selects account context, and echoes only
+`rtvbp.v1` (or the explicitly offered WebRTC profile). The credential carrier is not an RTVBP
+catalog operation and must not appear in application logs.
+
+Allowlist exact production origins before accepting the Upgrade, alongside ordinary credential
+validation. Do not interpret permissive CORS headers as WebSocket protection, and do not accept a
+missing or `null` Origin on a public browser endpoint unless that behavior is an explicit,
+separately authenticated deployment requirement.

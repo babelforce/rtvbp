@@ -13,7 +13,10 @@ connection setup:
 | `rtvbp.v1` | WebSocket text | WebSocket binary L16 |
 | `rtvbp.webrtc.v1` | WebSocket text | WebRTC RTP PCMU |
 
-Both bindings expose the same RTVBP operations, events, classic envelope, and SDK audio API.
+Both bindings expose the same RTVBP operations, events, and classic envelope. Go and Rust retain
+the same L16 SDK audio API across both. Browsers use L16 byte audio for `rtvbp.v1` and native media
+tracks for `rtvbp.webrtc.v1`, behind the explicit
+[browser device adapter](../getting-started/typescript.md#native-browser-webrtc).
 An endpoint may offer both; a WebRTC-capable client explicitly offers `rtvbp.webrtc.v1`, while an
 ordinary or headerless client continues to use `rtvbp.v1`.
 
@@ -135,6 +138,25 @@ let transport = if base.wire_subprotocol() == webrtcws::SUBPROTOCOL {
 Clients choose either `ws::ClientFactory` or `webrtcws::ClientFactory`. Both implement the same
 `TransportFactory` consumed by `Session`, so catalog handlers and audio-buffer code do not change.
 See the [Rust SDK quickstart](../getting-started/rust.md) and its compile-tested dual-profile demo.
+
+## TypeScript browser configuration
+
+The browser transport uses native `RTCPeerConnection`, requires the mandatory PCMU capability, and
+keeps microphone and speaker ownership in `BrowserAudioDevice`:
+
+```ts
+const device = new BrowserAudioDevice();
+const factory = browserWebRtcTransport({
+  url,
+  audioDevice: device,
+  rtcConfiguration: { iceServers },
+});
+```
+
+The device track is attached before the offer, the remote audio track is connected to its rendering
+graph, and `BrowserWebRtcTransport.getStats()` exposes the browser's native report. See the
+[TypeScript/browser quickstart](../getting-started/typescript.md) for lifecycle, authentication,
+Content Security Policy, and cleanup details.
 
 ## ICE and deployment
 

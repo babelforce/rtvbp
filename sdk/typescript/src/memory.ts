@@ -74,6 +74,12 @@ class MemoryMediaChannel implements MediaChannel {
     };
   }
 
+  clear(): number {
+    const cleared = this.#incoming.length * mediaFrameBytes(this.format);
+    this.#incoming.clear();
+    return cleared;
+  }
+
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;

@@ -2,7 +2,7 @@
 
 RTVBP connects a voice-owning telephony peer to an application such as an AI agent or IVR. This
 repository contains the typed protocol specification, its generator, generated reference
-documentation and conformance vectors, and parity Go and Rust SDKs.
+documentation and conformance vectors, and parity Go, Rust, and TypeScript SDKs.
 
 The specification is the source of truth. Run `task generate` to regenerate every derived artifact
 and `task check` to execute the same drift gate as CI.
@@ -12,6 +12,7 @@ and `task check` to execute the same drift gate as CI.
 - [Protocol documentation](https://babelforce.github.io/rtvbp/)
 - [Go SDK](sdk/go/README.md)
 - [Rust SDK](sdk/rust/README.md)
+- [TypeScript/browser SDK](sdk/typescript/README.md)
 - [Contributor vision and principles](docs/vision.md)
 
 ```bash

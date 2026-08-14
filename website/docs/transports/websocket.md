@@ -42,6 +42,13 @@ The babelforce Cloud deployment uses a specific RS256 claim contract documented 
 [babelforce Cloud authentication](../deployments/babelforce-cloud.md). Other deployments may use a
 different bearer format or admission policy without changing the payload catalog.
 
+Native browser WebSocket cannot add that header. Browser deployments can use same-origin cookies,
+a deliberately scoped query credential, or a deployment-specific subprotocol carrier. The
+TypeScript SDK documents babelforce's base64url OAuth carrier in the
+[browser quickstart](../getting-started/typescript.md#browser-authentication-and-origin). Whatever
+the credential carrier, an accepting browser endpoint must validate `Origin` before Upgrade; CORS
+response headers are not a WebSocket Origin policy.
+
 ## Framing
 
 | WebSocket message | RTVBP content |

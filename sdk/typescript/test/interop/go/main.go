@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	bridge "github.com/babelforce/rtvbp/sdk/go/bridge/babelforcev1"
 	"github.com/babelforce/rtvbp/sdk/go/catalog/babelforcev1"
 	"github.com/babelforce/rtvbp/sdk/go/envelope/v1classic"
+	"github.com/babelforce/rtvbp/sdk/go/transport/webrtcws"
 	"github.com/babelforce/rtvbp/sdk/go/transport/ws"
 )
 
@@ -25,6 +27,11 @@ func main() {
 	switch os.Args[1] {
 	case "server":
 		err = serve()
+	case "browser-server":
+		if len(os.Args) != 3 {
+			panic("browser-server requires websocket or webrtc")
+		}
+		err = serveBrowser(os.Args[2])
 	case "client":
 		if len(os.Args) != 3 {
 			panic("client requires a WebSocket URL")
@@ -37,6 +44,113 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func serveBrowser(binding string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ready := make(chan rtvbp.SHC, 1)
+	handler := applicationHandler(func(ctx context.Context, shc rtvbp.SHC) error {
+		if err := shc.OpenAudio(ctx, audioFormat()); err != nil {
+			return err
+		}
+		ready <- shc
+		return nil
+	})
+	config := ws.ServerConfig{
+		Addr:        "127.0.0.1:0",
+		AudioFormat: audioFormat(),
+	}
+	switch binding {
+	case "websocket":
+	case "webrtc":
+		config = webrtcws.AddToServer(config, webrtcws.Config{AudioFormat: audioFormat()})
+	default:
+		return fmt.Errorf("unknown browser binding %q", binding)
+	}
+	server := ws.NewServer(config, handler)
+	if err := server.Listen(); err != nil {
+		return err
+	}
+	defer server.Shutdown(context.Background())
+	fmt.Println(server.URL())
+
+	var shc rtvbp.SHC
+	select {
+	case shc = <-ready:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	received := make(chan error, 1)
+	go func() {
+		var err error
+		for range 100 {
+			frame := make([]byte, 320)
+			if _, err = io.ReadFull(shc.AudioStream(), frame); err != nil {
+				break
+			}
+			if !bytes.Equal(frame, make([]byte, len(frame))) {
+				received <- nil
+				return
+			}
+		}
+		if err == nil {
+			err = errors.New("received only silent browser microphone audio")
+		}
+		received <- err
+	}()
+	sequence := 0
+	for range 8 {
+		if _, err := shc.AudioStream().Write(toneFrame(sequence)); err != nil {
+			return fmt.Errorf("write paced browser audio: %w", err)
+		}
+		sequence++
+		time.Sleep(20 * time.Millisecond)
+	}
+	for range 32 {
+		if _, err := shc.AudioStream().Write(toneFrame(sequence)); err != nil {
+			return fmt.Errorf("write buffered browser audio: %w", err)
+		}
+		sequence++
+	}
+	if _, err := babelforcev1.NewVoicePeer(shc).AudioBufferClear(
+		ctx,
+		&babelforcev1.AudioBufferClearRequest{},
+	); err != nil {
+		return fmt.Errorf("typed browser barge-in: %w", err)
+	}
+	for range 50 {
+		if _, err := shc.AudioStream().Write(toneFrame(sequence)); err != nil {
+			return fmt.Errorf("write sustained browser audio: %w", err)
+		}
+		sequence++
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := babelforcev1.NewApplicationEvents(shc).AudioSpeechStarted(
+		ctx,
+		&babelforcev1.AudioSpeechStartedEvent{Origin: "sender"},
+	); err != nil {
+		return fmt.Errorf("typed browser audio event: %w", err)
+	}
+	select {
+	case err := <-received:
+		if err != nil {
+			return err
+		}
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	for shc.State() == rtvbp.SessionStateConnecting || shc.State() == rtvbp.SessionStateActive {
+		select {
+		case <-time.After(time.Millisecond):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	if shc.State() == rtvbp.SessionStateFailed {
+		return errors.New("browser session failed")
+	}
+	return nil
 }
 
 func serve() error {
@@ -171,6 +285,16 @@ func pcmFrame(sample int16) []byte {
 	frame := make([]byte, 320)
 	for offset := 0; offset < len(frame); offset += 2 {
 		binary.LittleEndian.PutUint16(frame[offset:], uint16(sample))
+	}
+	return frame
+}
+
+func toneFrame(sequence int) []byte {
+	frame := make([]byte, 320)
+	for sample := range 160 {
+		position := sequence*160 + sample
+		value := int16(math.Round(math.Sin(2*math.Pi*440*float64(position)/8_000) * 8_000))
+		binary.LittleEndian.PutUint16(frame[sample*2:], uint16(value))
 	}
 	return frame
 }

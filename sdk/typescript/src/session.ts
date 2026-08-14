@@ -339,6 +339,7 @@ export class Session implements Requester, Notifier {
     let reader: Promise<void> | undefined;
     let dispatcher: Promise<void> | undefined;
     let keepalive: Promise<void> | undefined;
+    let monitor: Promise<void> | undefined;
     try {
       throwIfAborted(parentSignal);
       this.#transport = this.#config.transport
@@ -354,6 +355,9 @@ export class Session implements Requester, Notifier {
           async () => await transport.monitorKeepalive!(this.#config.keepalive!, this.#abort.signal),
           "keepalive",
         );
+      }
+      if (transport.monitor !== undefined) {
+        monitor = this.#runWorker(async () => await transport.monitor!(this.#abort.signal), "transport_health");
       }
       const context = new SessionContext(this, this.#abort.signal);
       const beginning = this.#handler.begin(context);
@@ -393,7 +397,8 @@ export class Session implements Requester, Notifier {
           this.#stopFailed = true;
         });
       }
-      const workers = [reader, dispatcher, keepalive].filter((task): task is Promise<void> => task !== undefined);
+      const workers = [reader, dispatcher, keepalive, monitor]
+        .filter((task): task is Promise<void> => task !== undefined);
       await withTimeout(
         Promise.allSettled(workers).then(() => undefined),
         this.#closeTimeoutMs,
