@@ -88,6 +88,10 @@ const config: Config = {
           position: "left",
           items: [
             {
+              label: "TypeScript SDK",
+              to: "/docs/getting-started/typescript",
+            },
+            {
               label: "Go SDK",
               to: "/docs/getting-started/go",
             },
@@ -131,6 +135,10 @@ const config: Config = {
         {
           title: "Start building",
           items: [
+            {
+              label: "TypeScript quickstart",
+              to: "/docs/getting-started/typescript",
+            },
             {
               label: "Go quickstart",
               to: "/docs/getting-started/go",

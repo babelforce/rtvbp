@@ -343,7 +343,6 @@ async function runBrowserCase(
       let clearCalls = 0;
       let speechStartedCalls = 0;
       let clearBytes = 0;
-      let connectedTransport: import("../src/transport.ts").Transport | undefined;
       const nativeGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
       const device = new browserSdk.BrowserAudioDevice({
         playbackBufferMs: 1_000,
@@ -381,28 +380,27 @@ async function runBrowserCase(
       const baseFactory = isWebRtc
         ? browserSdk.browserWebRtcTransport({ url, audioDevice: device })
         : browserSdk.browserWebSocketTransport({ url, protocols: [selectedProfile], audioFormat });
-      const factory = async (
-        envelope: import("../src/envelope.ts").EnvelopeCodec,
-        signal: AbortSignal,
-      ) => {
-        connectedTransport = await baseFactory(envelope, signal);
-        return connectedTransport;
-      };
       const session = new core.Session({
         envelope: core.classicV1.classicV1Envelope,
-        transportFactory: factory,
+        transportFactory: baseFactory,
         handler,
       });
       const done = session.run();
       await session.ready;
+      const applicationPeer = new core.babelforceV1.ApplicationPeer(session);
 
       const deadline = Date.now() + 15_000;
       let inboundPackets = 0;
       let inboundAudioEnergy = 0;
       let outboundPackets = 0;
+      let bargeReadySent = isWebRtc;
       while (Date.now() < deadline) {
         if (isWebRtc) {
-          const report = await (connectedTransport as import("../src/browser_webrtc.ts").BrowserWebRtcTransport).getStats();
+          const transport = session.transport;
+          if (!(transport instanceof browserSdk.BrowserWebRtcTransport)) {
+            throw new Error("connected transport is not browser WebRTC");
+          }
+          const report = await transport.getStats();
           report.forEach((stat) => {
             const mediaKind = stat.kind ?? stat.mediaType;
             if (mediaKind !== "audio") return;
@@ -415,6 +413,12 @@ async function runBrowserCase(
         } else {
           inboundPackets = device.stats.playbackFrames;
           outboundPackets = device.stats.captureFrames;
+          if (!bargeReadySent && device.stats.bufferedPlaybackSamples >= 800) {
+            const request = { t0: Date.now(), data: { barge_ready: true } };
+            const response = await applicationPeer.ping(request);
+            if (response.t0 !== request.t0) throw new Error("barge-in readiness ping did not round-trip");
+            bargeReadySent = true;
+          }
         }
         if (
           clearCalls > 0
@@ -437,10 +441,10 @@ async function runBrowserCase(
         );
       }
       const request = { t0: Date.now(), data: { proof: selectedProfile } };
-      const response = await new core.babelforceV1.ApplicationPeer(session).ping(request);
+      const response = await applicationPeer.ping(request);
       const pingRoundTrip = response.t0 === request.t0;
       const deviceStats = device.stats;
-      await new core.babelforceV1.ApplicationPeer(session).sessionTerminate({ reason: "browser proof complete" });
+      await applicationPeer.sessionTerminate({ reason: "browser proof complete" });
       await done;
       await device.close();
       return {

@@ -1,11 +1,12 @@
 # Release artifacts and component versioning
 
-RTVBP is one repository with three independently versioned public surfaces:
+RTVBP is one repository with four independently versioned public surfaces:
 
 | Component | Tag namespace | Canonical distribution |
 |---|---|---|
 | Go SDK | `sdk/go/v*` | Go module proxy |
 | Rust SDK | `sdk/rust/v*` | Git tag; packaged `.crate` attached for audit/offline use |
+| TypeScript SDK | `sdk/typescript/v*` | Public npm package; exact `.tgz` attached for audit/offline use |
 | Protocol snapshot | `protocol/v*` | GitHub release bundle of manifests and conformance material |
 
 The Git tag is immutable. A recovery run may use workflow code from a newer `main`, but every
@@ -28,6 +29,9 @@ SHA-256 digest of every catalog manifest, and the digest of any packaged artifac
 - Go releases attach only the manifest and checksums. The Go proxy remains the canonical package;
   attaching another source archive would create a redundant distribution channel.
 - Rust releases attach Cargo's verified `.crate`, the manifest, and checksums.
+- TypeScript releases attach the exact npm `.tgz`, the manifest, and checksums. The public npm
+  registry remains canonical; the workflow proves a clean external install before publishing and
+  emits npm plus GitHub provenance from the immutable tag.
 - Protocol releases attach a deterministic gzip-compressed tar archive containing the catalog
   manifests and catalog-owned conformance fixtures/vectors, plus the manifest and checksums.
 
@@ -37,9 +41,11 @@ without deleting or moving its tag.
 
 ## Version contract
 
-The Rust tag version must equal `sdk/rust/Cargo.toml`. Protocol tags must equal `spec/VERSION`. Go
-tags use the module's standard subdirectory semantic version. Stable and prerelease ordering follows
-Semantic Versioning, not lexical Git tag order.
+The Rust tag version must equal `sdk/rust/Cargo.toml`; the TypeScript tag version must equal
+`sdk/typescript/package.json`, which must also name the canonical public repository and be
+publishable. Protocol tags must equal `spec/VERSION`. Go tags use the module's standard
+subdirectory semantic version. Stable and prerelease ordering follows Semantic Versioning, not
+lexical Git tag order.
 
 ## Deliberate exclusions
 

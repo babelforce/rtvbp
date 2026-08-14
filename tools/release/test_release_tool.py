@@ -170,6 +170,75 @@ class ReleaseToolTests(unittest.TestCase):
                     packaged_artifact=crate,
                 )
 
+    def test_typescript_release_copies_the_npm_tarball_and_rejects_unpublishable_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            metadata = root / "metadata"
+            output = root / "output"
+            self._write_common_source(source)
+            package = {
+                "name": "@babelforce/rtvbp",
+                "version": "0.1.0",
+                "private": False,
+                "repository": {
+                    "type": "git",
+                    "url": "https://github.com/babelforce/rtvbp.git",
+                    "directory": "sdk/typescript",
+                },
+            }
+            self._write(
+                source / "sdk/typescript/package.json",
+                json.dumps(package) + "\n",
+            )
+            self._write(
+                metadata / "sdk/typescript/CHANGELOG.md",
+                "# TypeScript SDK changelog\n\n"
+                "## [0.1.0] - 2026-08-14\n\nFirst browser and Node SDK.\n",
+            )
+            tarball = root / "babelforce-rtvbp-0.1.0.tgz"
+            tarball.write_bytes(b"npm tarball bytes")
+            self._commit(source)
+            self._git(source, "tag", "sdk/typescript/v0.1.0")
+
+            release_tool.build_release(
+                "typescript",
+                "sdk/typescript/v0.1.0",
+                source,
+                metadata,
+                output,
+                packaged_artifact=tarball,
+            )
+
+            copied = output / "assets/babelforce-rtvbp-0.1.0.tgz"
+            self.assertEqual(copied.read_bytes(), b"npm tarball bytes")
+            notes = (output / "release-notes.md").read_text()
+            self.assertIn("npm install @babelforce/rtvbp@0.1.0", notes)
+            manifest = json.loads(
+                (output / "assets/rtvbp-typescript-v0.1.0-release-manifest.json").read_text()
+            )
+            self.assertEqual(manifest["component"], "sdk/typescript")
+            self.assertEqual(manifest["distribution"]["kind"], "npm-package")
+            self.assertEqual(manifest["distribution"]["package"], "@babelforce/rtvbp")
+            self.assertEqual(manifest["distribution"]["asset"], copied.name)
+            self.assertEqual(manifest["artifacts"][0]["sha256"], self._sha256(copied))
+            self._assert_checksums(output / "assets")
+
+            package["private"] = True
+            self._write(
+                source / "sdk/typescript/package.json",
+                json.dumps(package) + "\n",
+            )
+            with self.assertRaisesRegex(release_tool.ReleaseError, "must be publishable"):
+                release_tool.build_release(
+                    "typescript",
+                    "sdk/typescript/v0.1.0",
+                    source,
+                    metadata,
+                    root / "private-output",
+                    packaged_artifact=tarball,
+                )
+
     def test_protocol_bundle_is_deterministic_and_versioned(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

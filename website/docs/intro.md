@@ -28,6 +28,8 @@ bindings use WebRTC, QUIC, or SIP without redefining the call-control protocol.
 
 ## Choose your path
 
+- Building for Node or the browser? Start with the
+  [TypeScript SDK quickstart](./getting-started/typescript.md).
 - Using the Go SDK? Build a minimal endpoint in the [Go quickstart](./getting-started/go.md).
 - Using the Rust SDK? Start with the [Rust quickstart](./getting-started/rust.md).
 - Implementing the wire protocol yourself? Follow the

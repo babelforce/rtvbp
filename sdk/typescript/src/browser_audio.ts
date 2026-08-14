@@ -115,6 +115,10 @@ export interface BrowserAudioDeviceConfig {
   readonly createMediaStream?: (track: MediaStreamTrack) => MediaStream;
   readonly onStateChange?: (state: BrowserAudioDeviceState) => void;
   readonly onError?: (error: SessionError) => void;
+  /** Raw microphone RMS in the browser device domain, clamped to 0..1 for level meters. */
+  readonly onCaptureLevel?: (level: number) => void;
+  /** Notification after one inbound SDK audio frame is queued for browser playback. */
+  readonly onPlaybackFrame?: (sdkSamples: number) => void;
 }
 
 /** Streaming linear interpolation with phase and the boundary sample retained between chunks. */
@@ -484,6 +488,9 @@ export class BrowserAudioDevice {
       const message = event.data as { readonly type?: string; readonly samples?: unknown };
       if (message.type !== "samples" || !(message.samples instanceof Float32Array)) return;
       const copy = message.samples.slice();
+      let energy = 0;
+      for (const sample of copy) energy += sample * sample;
+      this.#config.onCaptureLevel?.(Math.min(1, Math.sqrt(energy / Math.max(1, copy.length))));
       this.#captureTail = this.#captureTail.then(async () => await this.#writeCapture(copy));
       void this.#captureTail.catch((error: unknown) => this.#fail(asSessionError(error, "media_capture")));
     });
@@ -527,6 +534,7 @@ export class BrowserAudioDevice {
       this.#playbackBufferedDeviceSamples += sampleCount;
       this.#playedSdkSamples += bytes.byteLength / 2;
       this.#playbackFrames += 1;
+      this.#config.onPlaybackFrame?.(bytes.byteLength / 2);
       this.#playbackNode!.port.postMessage({ type: "samples", samples: converted }, [converted.buffer]);
     }
   }

@@ -33,6 +33,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Prepared the first public TypeScript SDK release as exact `@babelforce/rtvbp@0.1.0` npm and GitHub
+  artifacts: publishable public metadata, MIT license, component changelog, deterministic release
+  manifest/checksums, clean-tarball import proof, npm provenance, GitHub attestation, and post-publish
+  registry/signature verification. The browser media API now also exposes capture-level, playback-frame,
+  and transport-statistics seams so applications can build diagnostics without duplicating media code.
 - Added production browser media to the TypeScript SDK: owned microphone/AudioContext/AudioWorklet
   lifecycle, continuous device-rate conversion, bounded L16 playback and transport-inclusive
   barge-in, native PCMU WebRTC with bounded non-trickle signaling, deployment-scoped browser OAuth,

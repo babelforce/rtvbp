@@ -217,6 +217,11 @@ export class Session implements Requester, Notifier {
     return this.#state;
   }
 
+  /** Connected transport, available after `ready` for binding-specific diagnostics. */
+  get transport(): Transport | undefined {
+    return this.#transport;
+  }
+
   get ready(): Promise<void> {
     return this.#readyPromise;
   }

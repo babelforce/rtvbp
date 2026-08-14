@@ -1,0 +1,135 @@
+name: Release TypeScript SDK
+
+on:
+  push:
+    tags:
+      - 'sdk/typescript/v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing sdk/typescript/v* tag to republish with current release automation
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Validate release tag
+        run: |
+          case "$RELEASE_TAG" in
+            sdk/typescript/v*) ;;
+            *) echo "invalid TypeScript release tag: $RELEASE_TAG" >&2; exit 1 ;;
+          esac
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: sdk/go/go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - uses: arduino/setup-task@v3
+      - name: Install release tools and demo audio dependency
+        run: |
+          npm install --global npm@11.5.1 --registry=https://registry.npmjs.org/
+          sudo apt-get update
+          sudo apt-get install --yes portaudio19-dev
+      - run: yarn install --frozen-lockfile
+        working-directory: website
+      - run: task check
+      - name: Check out immutable release source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          path: release-source
+      - name: Build the immutable npm package
+        run: |
+          version="${RELEASE_TAG#sdk/typescript/v}"
+          mkdir release-package
+          npm ci --ignore-scripts --prefix release-source/sdk/typescript
+          npm run build --prefix release-source/sdk/typescript
+          npm pack --ignore-scripts --pack-destination "$GITHUB_WORKSPACE/release-package" \
+            "$GITHUB_WORKSPACE/release-source/sdk/typescript"
+          test -f "release-package/babelforce-rtvbp-${version}.tgz"
+      - name: Install the exact tarball in a clean external project
+        run: |
+          version="${RELEASE_TAG#sdk/typescript/v}"
+          project="$(mktemp -d)"
+          cd "$project"
+          npm init --yes
+          npm install --ignore-scripts \
+            "$GITHUB_WORKSPACE/release-package/babelforce-rtvbp-${version}.tgz"
+          node --input-type=module -e \
+            "const [sdk, browser, node] = await Promise.all([import('@babelforce/rtvbp'), import('@babelforce/rtvbp/browser'), import('@babelforce/rtvbp/node')]); if (!sdk.babelforceV1 || !browser.browserWebRtcTransport || !node.nodeWebSocketTransport) throw new Error('external package exports are incomplete')"
+      - name: Build release notes and assets
+        id: release_material
+        run: |
+          version="${RELEASE_TAG#sdk/typescript/v}"
+          python3 tools/release/release_tool.py \
+            --component typescript \
+            --tag "$RELEASE_TAG" \
+            --source-root release-source \
+            --metadata-root . \
+            --output release-output \
+            --packaged-artifact "release-package/babelforce-rtvbp-${version}.tgz"
+          checksum="release-output/assets/rtvbp-typescript-v${version}-SHA256SUMS"
+          (cd release-output/assets && sha256sum -c "$(basename "$checksum")")
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+          echo "tarball=release-output/assets/babelforce-rtvbp-${version}.tgz" >> "$GITHUB_OUTPUT"
+      - name: Attest release assets
+        uses: actions/attest@v4
+        with:
+          subject-checksums: ${{ steps.release_material.outputs.checksum }}
+      - name: Publish exact package to npm with provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          version="${RELEASE_TAG#sdk/typescript/v}"
+          tarball="${{ steps.release_material.outputs.tarball }}"
+          expected="$(sha1sum "$tarball" | cut -d' ' -f1)"
+          published="$(npm view "@babelforce/rtvbp@${version}" dist.shasum --json 2>/dev/null || true)"
+          published="${published%\"}"
+          published="${published#\"}"
+          if test -n "$published"; then
+            test "$published" = "$expected"
+          else
+            case "$version" in
+              *-*) npm publish "$tarball" --access public --provenance --tag next ;;
+              *) npm publish "$tarball" --access public --provenance --tag latest ;;
+            esac
+          fi
+      - name: Resolve the published package from a clean project
+        run: |
+          version="${RELEASE_TAG#sdk/typescript/v}"
+          project="$(mktemp -d)"
+          cd "$project"
+          npm init --yes
+          npm install --ignore-scripts "@babelforce/rtvbp@${version}"
+          npm audit signatures
+          node --input-type=module -e "await import('@babelforce/rtvbp/browser')"
+      - name: Create or update GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: release-output/release-notes.md
+          files: release-output/assets/*
+          fail_on_unmatched_files: true
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          make_latest: false

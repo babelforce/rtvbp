@@ -28,14 +28,15 @@ HTTP request with `401 Unauthorized`; no RTVBP session exists until the server r
 | `iss` | `auth.babelforce.com` | Required and matched exactly. |
 | `sub` | `com.babelforce.svc.telephony.realtime` | Required and matched exactly. |
 | `exp` | Short-lived expiry | Required and validated. Production tokens are currently issued for about one hour; do not hard-code that duration. |
-| `aud` | babelforce account ID | Emitted as account context, but intentionally not matched against one fixed audience because an endpoint may accept multiple customer accounts. |
+| `aud` | babelforce account ID | Required account context. Authorize it against the exact account IDs served by this endpoint; a multi-account endpoint uses an allowlist rather than one fixed value. |
 | `iat` | Issued-at time | Emitted and validated when present. |
 | `jti` | Unique token ID | Emitted for identification and audit; not currently an authorization decision. |
 | JWT header `kid` | `jwt-rsa-2048-v1` | Identifies the current signing key; signature verification remains authoritative. |
 
-After signature, issuer, subject, and expiry validation, an endpoint may use `aud` to route or
-partition account data. Do not trust `aud` from an unvalidated token, and do not turn it into a
-single globally expected audience unless the endpoint is deliberately account-specific.
+After signature, issuer, subject, and expiry validation, authorize `aud` against the account IDs
+the endpoint is configured to serve before routing or accessing account data. Do not trust `aud`
+from an unvalidated token. A multi-account endpoint still needs an explicit account allowlist; a
+valid token for a different babelforce account is not sufficient authorization.
 
 ## Public keys and rotation
 

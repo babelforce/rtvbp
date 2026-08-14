@@ -54,7 +54,8 @@ async fn serve_browser(binding: &str) -> Result<(), Box<dyn std::error::Error>> 
     } else {
         base
     };
-    let handler = application_handler()
+    let barge_ready = Arc::new(tokio::sync::Notify::new());
+    let handler = application_handler(Some(Arc::clone(&barge_ready)))
         .with_on_begin(|context| async move { context.open_audio(audio_format()).await });
     let session = Session::new(envelope, handler, SessionConfig::with_transport(transport));
     let running = tokio::spawn({
@@ -89,6 +90,9 @@ async fn serve_browser(binding: &str) -> Result<(), Box<dyn std::error::Error>> 
         session.audio().write(&tone_frame(sequence)).await?;
         sequence += 1;
     }
+    if binding == "websocket" {
+        tokio::time::timeout(Duration::from_secs(10), barge_ready.notified()).await?;
+    }
     catalog::VoicePeer::new(session.clone())
         .audio_buffer_clear(catalog::AudioBufferClearRequest(Default::default()))
         .await?;
@@ -117,7 +121,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let server = ws::Server::bind(config).await?;
     println!("{}", server.url());
     let transport = server.accept().await?;
-    let handler = application_handler()
+    let handler = application_handler(None)
         .with_on_begin(|context| async move { context.open_audio(audio_format()).await });
     let session = Session::new(
         Arc::new(v1classic::Envelope),
@@ -169,11 +173,27 @@ async fn client(url: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn application_handler() -> Handler {
+fn application_handler(barge_ready: Option<Arc<tokio::sync::Notify>>) -> Handler {
     let ping = RequestRegistration::typed::<catalog::PingRequest, catalog::PingResponse, _, _>(
         catalog::METHOD_PING,
         false,
-        |context, request| async move { ping_response(&context, request) },
+        move |context, request| {
+            let barge_ready = barge_ready.clone();
+            async move {
+                if request
+                    .data
+                    .as_ref()
+                    .and_then(|data| data.get("barge_ready"))
+                    .and_then(|value| value.as_bool())
+                    == Some(true)
+                {
+                    if let Some(barge_ready) = barge_ready {
+                        barge_ready.notify_one();
+                    }
+                }
+                ping_response(&context, request)
+            }
+        },
     );
     let terminate = RequestRegistration::typed::<
         catalog::SessionTerminateRequest,

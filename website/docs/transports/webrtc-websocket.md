@@ -146,15 +146,32 @@ keeps microphone and speaker ownership in `BrowserAudioDevice`:
 
 ```ts
 const device = new BrowserAudioDevice();
-const factory = browserWebRtcTransport({
-  url,
-  audioDevice: device,
-  rtcConfiguration: { iceServers },
+const session = new Session({
+  envelope: classicV1.classicV1Envelope,
+  handler: new Handler({
+    onBegin: async (context) => await context.acceptAudio(),
+  }),
+  transportFactory: browserWebRtcTransport({
+    url: "wss://voice.example/rtvbp",
+    audioDevice: device,
+    rtcConfiguration: {
+      iceServers: [{ urls: "stun:stun.example:3478" }],
+    },
+  }),
 });
+
+const running = session.run();
+await session.ready;
+const transport = session.transport;
+if (!(transport instanceof BrowserWebRtcTransport)) {
+  throw new Error("WebRTC transport was not selected");
+}
+const report = await transport.getStats();
 ```
 
 The device track is attached before the offer, the remote audio track is connected to its rendering
-graph, and `BrowserWebRtcTransport.getStats()` exposes the browser's native report. See the
+graph, and the connected transport is available as `session.transport` for
+`BrowserWebRtcTransport.getStats()`, connection state, and track replacement. See the
 [TypeScript/browser quickstart](../getting-started/typescript.md) for lifecycle, authentication,
 Content Security Policy, and cleanup details.
 

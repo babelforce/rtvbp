@@ -7,21 +7,23 @@ sidebar_position: 99
 RTVBP separates payloads, envelopes, and transports so new bindings do not require a new
 call-control protocol.
 
-The protocol snapshot and parity Go/Rust SDKs are released. Both SDKs implement the plain WebSocket
-binding and the optional WebRTC-audio plus WebSocket-control binding.
+The protocol snapshot and parity Go/Rust SDKs are released. A spec-generated TypeScript release
+candidate now adds the same control surface for Node and browsers, including plain WebSocket audio
+and native browser WebRTC media.
 
-## Next milestone: browser parity
+## Current milestone: publish browser parity
 
-The next milestone replaces the remaining hand-written browser wire with a spec-generated
-TypeScript SDK. It will add:
+The TypeScript implementation now includes:
 
 - generated payloads, validation, roles, typed peers, events, and `classic.v1` envelope code;
 - a browser/Node session runtime and WebSocket binding with Go/Rust lifecycle parity;
 - browser microphone/speaker adapters for `rtvbp.v1` and the existing `rtvbp.webrtc.v1` profile;
 - spec-owned profile metadata so SDK constants, negotiation vectors, and this documentation cannot
   drift independently;
-- three-language conformance, real-browser media tests, and migration of the maintained browser
-  consumer before publication.
+- three-language conformance and real-browser non-silent media tests against both Go and Rust.
+
+The remaining release work is to migrate the maintained browser consumer, reserve and publish the
+public npm package from its immutable tag, and verify the resulting npm and GitHub provenance.
 
 This is an additive protocol milestone. It does not rename or modify the deployed v1 profiles.
 

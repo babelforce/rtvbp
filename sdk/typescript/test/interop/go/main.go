@@ -50,13 +50,14 @@ func serveBrowser(binding string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	ready := make(chan rtvbp.SHC, 1)
-	handler := applicationHandler(func(ctx context.Context, shc rtvbp.SHC) error {
+	bargeReady := make(chan struct{}, 1)
+	handler := applicationHandlerWithPing(func(ctx context.Context, shc rtvbp.SHC) error {
 		if err := shc.OpenAudio(ctx, audioFormat()); err != nil {
 			return err
 		}
 		ready <- shc
 		return nil
-	})
+	}, browserPingHandler(bargeReady))
 	config := ws.ServerConfig{
 		Addr:        "127.0.0.1:0",
 		AudioFormat: audioFormat(),
@@ -112,6 +113,13 @@ func serveBrowser(binding string) error {
 			return fmt.Errorf("write buffered browser audio: %w", err)
 		}
 		sequence++
+	}
+	if binding == "websocket" {
+		select {
+		case <-bargeReady:
+		case <-ctx.Done():
+			return fmt.Errorf("wait for buffered browser playback: %w", ctx.Err())
+		}
 	}
 	if _, err := babelforcev1.NewVoicePeer(shc).AudioBufferClear(
 		ctx,
@@ -244,9 +252,16 @@ func client(url string) error {
 }
 
 func applicationHandler(onBegin func(context.Context, rtvbp.SHC) error) rtvbp.SessionHandler {
+	return applicationHandlerWithPing(onBegin, bridge.NewPingHandler())
+}
+
+func applicationHandlerWithPing(
+	onBegin func(context.Context, rtvbp.SHC) error,
+	ping rtvbp.RequestHandler,
+) rtvbp.SessionHandler {
 	return rtvbp.NewHandler(
 		rtvbp.HandlerConfig{OnBegin: onBegin},
-		bridge.NewPingHandler(),
+		ping,
 		rtvbp.HandleTerminalRequest(func(
 			context.Context,
 			rtvbp.SHC,
@@ -255,6 +270,30 @@ func applicationHandler(onBegin func(context.Context, rtvbp.SHC) error) rtvbp.Se
 			return &babelforcev1.EmptyResponse{}, nil
 		}),
 	)
+}
+
+func browserPingHandler(bargeReady chan<- struct{}) rtvbp.RequestHandler {
+	return rtvbp.HandleRequest(func(
+		ctx context.Context,
+		_ rtvbp.SHC,
+		request *babelforcev1.PingRequest,
+	) (*babelforcev1.PingResponse, error) {
+		if data, ok := request.Data.(map[string]any); ok && data["barge_ready"] == true {
+			select {
+			case bargeReady <- struct{}{}:
+			default:
+			}
+		}
+		inbound, ok := rtvbp.InboundRequest(ctx)
+		if !ok {
+			return nil, errors.New("missing inbound ping context")
+		}
+		t2 := time.Now().UnixMilli()
+		return &babelforcev1.PingResponse{
+			T0: request.T0, T1: inbound.ReceivedAt.UnixMilli(), T2: t2,
+			OWD: t2 - request.T0, Data: request.Data,
+		}, nil
+	})
 }
 
 func exchangeAudio(shc rtvbp.SHC, sent, reply int16) error {

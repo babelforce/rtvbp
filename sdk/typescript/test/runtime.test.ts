@@ -38,6 +38,8 @@ test("generated peers execute over two memory sessions", async () => {
   const serverDone = server.run();
   const clientDone = client.run();
   await Promise.all([active(server), active(client)]);
+  assert.equal(client.transport, clientTransport);
+  assert.equal(server.transport, serverTransport);
 
   const peer = new demoV1.ApplicationPeer(client);
   assert.deepEqual(await peer.demoEcho({ message: "hello" }), { message: "hello" });

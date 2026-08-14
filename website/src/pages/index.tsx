@@ -9,6 +9,12 @@ import styles from "./index.module.css";
 
 const paths = [
   {
+    label: "TypeScript SDK",
+    title: "Connect from Node or a real browser.",
+    detail: "Generated role contracts, AudioWorklet, WebSocket, and native WebRTC.",
+    to: "/docs/getting-started/typescript",
+  },
+  {
     label: "Go SDK",
     title: "Build a voice or application peer in Go.",
     detail: "Generated role contracts, typed peers, WebSocket, and WebRTC.",
@@ -46,9 +52,9 @@ function HomepageHeader() {
             </Link>
             <Link
               className={`button button--outline button--lg ${styles.heroSecondary}`}
-              to="/docs/getting-started/go"
+              to="/docs/getting-started/typescript"
             >
-              Go quickstart
+              Browser quickstart
             </Link>
           </div>
           <div className={styles.peerLine} aria-label="Voice peer connects to application peer">

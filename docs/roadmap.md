@@ -14,8 +14,11 @@ typed control plus non-silent duplex WebRTC media in both client/server directio
 `sdk/go/v0.1.1` is public after the dummyphone hardening patch, and `sdk/rust/v0.1.0` is the first
 public Rust release; both resolve from clean external consumers. R-16 now retains only the final
 legacy release and repository archive. Component-scoped release notes, deterministic assets,
-checksums, and provenance shipped with the initial `protocol/v1.0.0` snapshot. The Docusaurus site
-lives under [`website/`](../website), leaving `docs/` for contributor material and this backlog.
+checksums, and provenance shipped with the initial `protocol/v1.0.0` snapshot. The spec-generated
+TypeScript browser/Node SDK is now a tested `v0.1.0` release candidate: generated conformance,
+WebSocket, AudioWorklet, and native WebRTC pass real Chrome interoperability against both Go and
+Rust. Its consumer migration and public npm/tag publication remain. The Docusaurus site lives under
+[`website/`](../website), leaving `docs/` for contributor material and this backlog.
 
 ## Delivered
 
@@ -34,16 +37,15 @@ lives under [`website/`](../website), leaving `docs/` for contributor material a
 
 ## Next
 
-Milestone 2 is **browser parity through a spec-generated TypeScript SDK**. The remaining maintained
-browser implementation manually restates a subset of `classic.v1` and `babelforce.v1` outside this
-repository. M2 source-pins that migration evidence, settles JavaScript's wire hazards, makes profile
-metadata generated, then delivers TypeScript roles, peers, envelope, runtime, WebSocket, browser
-media, and the existing WebRTC v1 binding with three-language conformance.
+Finish Milestone 2 publication. The generated TypeScript roles, peers, envelope, profile registry,
+runtime, browser audio, and WebRTC v1 binding are implemented and pass the three-language matrix.
+The remaining maintained browser consumer must replace its hand-written wire, then the exact npm
+tarball and GitHub release assets must be published and verified from immutable tags.
 
 The release is additive: target `protocol/v1.1.0` rather than inventing a breaking protocol v2, with
 candidate Go/Rust v0.2.0 and the first TypeScript v0.1.0 only where component diffs earn those tags.
-R-33 is the ready starting point. R-16's legacy repository retirement is a release prerequisite and
-can finish in parallel; R-20 remains optional system acceptance. Opus, trickle ICE, restart,
+R-38 owns the remaining migration and release. R-16's legacy repository retirement is a release
+prerequisite and can finish in parallel; R-20 remains optional system acceptance. Opus, trickle ICE, restart,
 renegotiation, multiple media streams, QUIC, and SIP are explicitly outside M2.
 
 ## Epics

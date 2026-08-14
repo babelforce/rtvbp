@@ -258,6 +258,8 @@ test("browser audio device captures, resamples, plays, clears, and releases owne
   const context = new FakeAudioContext();
   const worklets: FakeNode[] = [];
   let revoked = "";
+  let captureLevel = 0;
+  let playbackFrames = 0;
   const device = new BrowserAudioDevice({
     getUserMedia: async () => stream as unknown as MediaStream,
     createAudioContext: () => context as unknown as AudioContext,
@@ -268,6 +270,8 @@ test("browser audio device captures, resamples, plays, clears, and releases owne
     },
     createWorkletModuleUrl: () => "blob:public-test-worklet",
     revokeWorkletModuleUrl: (url) => { revoked = url; },
+    onCaptureLevel: (level) => { captureLevel = level; },
+    onPlaybackFrame: () => { playbackFrames += 1; },
   });
   const channel = new FakeMediaChannel();
   const audio = new AudioStream();
@@ -280,6 +284,7 @@ test("browser audio device captures, resamples, plays, clears, and releases owne
   await eventually(() => channel.outbound.length === 1);
   assert.equal(channel.outbound[0]?.data.byteLength, 320);
   assert.ok(channel.outbound[0]!.data.some((byte) => byte !== 0));
+  assert.ok(captureLevel > 0 && captureLevel <= 1);
 
   const inbound = new Uint8Array(320);
   const view = new DataView(inbound.buffer);
@@ -290,6 +295,7 @@ test("browser audio device captures, resamples, plays, clears, and releases owne
     readonly samples: Float32Array;
   };
   assert.ok(playbackMessage.samples.some((sample) => sample !== 0));
+  assert.equal(playbackFrames, 1);
   assert.ok(device.clearPlayback() > 0);
   assert.equal((playback.port.sent.at(-1) as { type?: string }).type, "clear");
 

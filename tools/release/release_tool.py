@@ -33,6 +33,12 @@ COMPONENTS = {
         "name": "Rust SDK",
         "changelog": "sdk/rust/CHANGELOG.md",
     },
+    "typescript": {
+        "tag_prefix": "sdk/typescript/v",
+        "id": "sdk/typescript",
+        "name": "TypeScript SDK",
+        "changelog": "sdk/typescript/CHANGELOG.md",
+    },
     "protocol": {
         "tag_prefix": "protocol/v",
         "id": "protocol",
@@ -177,16 +183,20 @@ def build_release(
     assets_root.mkdir(parents=True, exist_ok=True)
 
     artifact_records: list[dict[str, str]] = []
-    if component == "rust":
+    if component in {"rust", "typescript"}:
         if packaged_artifact is None:
-            raise ReleaseError("Rust release requires --packaged-artifact")
+            raise ReleaseError(f"{config['name']} release requires --packaged-artifact")
         packaged_artifact = packaged_artifact.resolve()
         if not packaged_artifact.is_file():
-            raise ReleaseError(f"packaged Rust crate does not exist: {packaged_artifact}")
-        expected_name = f"rtvbp-{version_text}.crate"
+            raise ReleaseError(f"packaged artifact does not exist: {packaged_artifact}")
+        expected_name = (
+            f"rtvbp-{version_text}.crate"
+            if component == "rust"
+            else f"babelforce-rtvbp-{version_text}.tgz"
+        )
         if packaged_artifact.name != expected_name:
             raise ReleaseError(
-                f"packaged Rust crate must be named {expected_name}, got {packaged_artifact.name}"
+                f"packaged artifact must be named {expected_name}, got {packaged_artifact.name}"
             )
         target = assets_root / expected_name
         shutil.copyfile(packaged_artifact, target)
@@ -308,6 +318,13 @@ def distribution(
             "version": version,
             "asset": artifact_records[0]["filename"],
         }
+    if component == "typescript":
+        return {
+            "kind": "npm-package",
+            "package": "@babelforce/rtvbp",
+            "version": version,
+            "asset": artifact_records[0]["filename"],
+        }
     return {
         "kind": "protocol-bundle",
         "version": version,
@@ -347,6 +364,19 @@ def render_release_notes(
                 "```sh",
                 f"cargo add rtvbp --git {repository} --tag {tag}",
                 "```",
+                "",
+            ]
+        )
+    elif component == "typescript":
+        lines.extend(
+            [
+                "## Install",
+                "",
+                "```sh",
+                f"npm install @babelforce/rtvbp@{version}",
+                "```",
+                "",
+                "The public npm registry is the canonical SDK distribution. The attached tarball is the exact published package for audit and offline verification.",
                 "",
             ]
         )
@@ -399,6 +429,36 @@ def validate_declared_version(component: str, version: str, source_root: Path) -
         if declared != version:
             raise ReleaseError(
                 f"sdk/rust/Cargo.toml declares {declared}, but tag declares {version}"
+            )
+        return
+    if component == "typescript":
+        package_path = source_root / "sdk/typescript/package.json"
+        try:
+            package = json.loads(package_path.read_text())
+        except (OSError, json.JSONDecodeError) as error:
+            raise ReleaseError(f"invalid sdk/typescript/package.json: {error}") from error
+        if package.get("name") != "@babelforce/rtvbp":
+            raise ReleaseError(
+                "sdk/typescript/package.json must declare @babelforce/rtvbp"
+            )
+        if package.get("version") != version:
+            raise ReleaseError(
+                "sdk/typescript/package.json declares "
+                f"{package.get('version')!r}, but tag declares {version}"
+            )
+        if package.get("private") is not False:
+            raise ReleaseError(
+                "sdk/typescript/package.json must be publishable with private set to false"
+            )
+        repository = package.get("repository")
+        expected_repository = {
+            "type": "git",
+            "url": "https://github.com/babelforce/rtvbp.git",
+            "directory": "sdk/typescript",
+        }
+        if repository != expected_repository:
+            raise ReleaseError(
+                "sdk/typescript/package.json must declare the canonical public repository"
             )
         return
     declared = (source_root / "spec/VERSION").read_text().strip()

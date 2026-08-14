@@ -15,12 +15,20 @@ import {
 } from "@babelforce/rtvbp";
 import {
   BrowserAudioDevice,
+  BrowserWebRtcTransport,
   babelforceBearerSubprotocols,
   browserWebRtcTransport,
   browserWebSocketTransport,
 } from "@babelforce/rtvbp/browser";
-import { nodeWebSocketTransport } from "@babelforce/rtvbp/node";
 ```
+
+Import `@babelforce/rtvbp/node` only from Node entry points; browser modules and examples never
+resolve its Node built-ins or `ws` dependency.
+
+The snippets below assume application implementations of the generated `VoiceHandler` and
+`VoiceEventHandler` contracts named `voiceHandler` and `voiceEvents`. The
+[public TypeScript quickstart](https://babelforce.github.io/rtvbp/docs/getting-started/typescript)
+shows a complete minimal implementation of every required method.
 
 Install from the public npm registry:
 
@@ -58,14 +66,20 @@ const session = new Session({
 });
 
 const running = session.run();
-await session.ready;
-// In the generated audio.buffer.clear handler:
-const removedBytes = device.clearPlayback();
-// On application shutdown:
-await session.close();
-await running;
-await device.close();
+try {
+  await session.ready;
+  // In the generated audio.buffer.clear handler:
+  const removedBytes = device.clearPlayback();
+  await running;
+} finally {
+  await session.close().catch(() => {});
+  await device.close();
+}
 ```
+
+Start the session from a user gesture such as a call button. Some browsers will not resume the
+created `AudioContext` for microphone/speaker work from a background callback; autoplay failures
+are reported as `media_autoplay`.
 
 `rtvbp.v1` carries exact little-endian L16/8000/16-bit/mono/20 ms frames as WebSocket binary
 messages. The adapter converts browser `Float32` audio without resetting resampler phase between
@@ -84,9 +98,25 @@ const session = new Session({
   transportFactory: browserWebRtcTransport({
     url: "wss://voice.example/rtvbp",
     audioDevice: device,
-    rtcConfiguration: { iceServers },
+    rtcConfiguration: {
+      iceServers: [{ urls: "stun:stun.example:3478" }],
+    },
   }),
 });
+
+const running = session.run();
+try {
+  await session.ready;
+  const transport = session.transport;
+  if (!(transport instanceof BrowserWebRtcTransport)) {
+    throw new Error("WebRTC transport was not selected");
+  }
+  const report = await transport.getStats();
+  await running;
+} finally {
+  await session.close().catch(() => {});
+  await device.close();
+}
 ```
 
 The browser owns ICE, DTLS, SRTP, capture, rendering, and PCMU. RTVBP control remains classic
@@ -109,11 +139,16 @@ deployment concern:
 - babelforce browser deployments can use the explicit helper below.
 
 ```ts
-const protocols = babelforceBearerSubprotocols(
-  profiles.PROFILE_RTVBP_V1,
-  oauthAccessToken,
-);
-const transportFactory = browserWebSocketTransport({ url, protocols });
+function authenticatedTransport(url: string, oauthAccessToken: string) {
+  return browserWebSocketTransport({
+    url,
+    protocols: babelforceBearerSubprotocols(
+      profiles.PROFILE_RTVBP_V1,
+      oauthAccessToken,
+    ),
+    audioFormat: profileMediaFormat(profiles.PROFILE_RTVBP_V1, "audio"),
+  });
+}
 ```
 
 The helper emits the RTVBP profile followed by `bearer.<base64url(UTF-8 token)>`, without padding.
@@ -132,10 +167,14 @@ after loading. With a stricter CSP, self-host the string returned by
 Node 22 or newer can inject Upgrade headers directly:
 
 ```ts
-const transportFactory = nodeWebSocketTransport({
-  url: "wss://voice.example/rtvbp",
-  headers: { authorization: `Bearer ${token}` },
-});
+import { nodeWebSocketTransport } from "@babelforce/rtvbp/node";
+
+function authenticatedNodeTransport(token: string) {
+  return nodeWebSocketTransport({
+    url: "wss://voice.example/rtvbp",
+    headers: { authorization: `Bearer ${token}` },
+  });
+}
 ```
 
 The Node entry point also exports `NodeWebSocketServer`; both generated roles are supported on
