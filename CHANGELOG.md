@@ -9,6 +9,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Published `sdk/go/v0.1.1` with the hardened dummyphone and `sdk/rust/v0.1.0` as the first Rust
+  SDK release; both tags are verified from clean external consumers.
 - Moved the Docusaurus site from `docs/` to `website/` so `docs/` can hold the contributor docs and
   the track backlog; the GitHub Pages workflow now builds from `website/`.
 - Made the demo client's dummyphone a stateful, race-safe telephony adapter: DTMF sequences are

@@ -11,10 +11,10 @@ Rust SDKs, and published documentation. The frozen `babelforce.v1` authority is 
 SDKs reproduce it byte-for-byte and consume the same generated vectors and scenarios. Go and Rust
 interoperate in both roles with published `rtvbp-go v0.37.2`, and current Go/Rust peers exchange
 typed control plus non-silent duplex WebRTC media in both client/server directions. Stable
-`sdk/go/v0.1.0` has passed live OpenAI acceptance; R-16 now retains only the final legacy release
-and repository archive, while R-28 retains the first Rust tag and external resolution. The
-Docusaurus site lives under [`website/`](../website), leaving `docs/` for contributor material and
-this backlog.
+`sdk/go/v0.1.1` is public after the dummyphone hardening patch, and `sdk/rust/v0.1.0` is the first
+public Rust release; both resolve from clean external consumers. R-16 now retains only the final
+legacy release and repository archive. The Docusaurus site lives under [`website/`](../website),
+leaving `docs/` for contributor material and this backlog.
 
 ## Delivered
 
@@ -23,10 +23,11 @@ this backlog.
   grow around.
 - The additive Go WebRTC-audio binding: Pion PCMU media with classic control on WebSocket, selectable
   independently from the preserved plain WebSocket-audio binding.
-- Stable `sdk/go/v0.1.0`, after live service acceptance and public module-proxy verification.
+- Stable `sdk/go/v0.1.1`, after live service acceptance, dummyphone hardening, and public
+  module-proxy verification.
 - The Rust SDK: generated catalogs, roles and envelope plus a Tokio runtime, WebSocket and
   `rtvbp.webrtc.v1` transports, the voice/telephony bridge, both-role conformance, and cross-language
-  Go interoperability.
+  Go interoperability, published as `sdk/rust/v0.1.0` and verified from a clean Cargo consumer.
 
 ## Next
 
@@ -35,9 +36,9 @@ Milestone 1 is **spec + generator + a Go SDK at wire parity**, in the order on t
 spec reproduce them, then generate everything else and prove it against those fixtures and against a
 live `rtvbp-go v0.37` peer.
 
-The [WebRTC epic](designs/webrtc.md) and [Rust SDK epic](designs/rust-sdk.md) have established the
-second audio binding and the second full language implementation. Immediate release work is the
-Rust `v0.1.0` tag plus retirement of the legacy Go repository; R-20 remains a bounded optional
+The [WebRTC epic](designs/webrtc.md) and [Rust SDK epic](designs/rust-sdk.md) have established and
+released the second audio binding and the second full language implementation. Only retirement of
+the legacy Go repository remains from the release backlog; R-20 remains a bounded optional
 system-acceptance follow-up. **QUIC, SIP, and TypeScript** are the next implementation families.
 
 ## Epics

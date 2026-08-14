@@ -2,7 +2,7 @@
 id: R-28
 title: Rust conformance, documentation, and first release
 pillar: Proof
-status: in-progress
+status: done
 priority: 25
 design: docs/designs/rust-sdk.md
 epic: rust-sdk
@@ -26,7 +26,7 @@ the same authoritative monorepo.
       migration from the ancestor crate, and current binding limits.
 - [x] `task check` and CI run Rust format, clippy with warnings denied, all-target tests, generator
       drift, Go/Rust cross-language interop, Go tests, and docs in one matching ordered chain.
-- [ ] The crate packages from committed generated output, a clean external project resolves the
+- [x] The crate packages from committed generated output, a clean external project resolves the
       tagged `sdk/rust/v0.1.0`, the roadmap records Rust parity, and no current documentation directs
       integrators to an earlier RTVBP repository as an implementation source.
 
@@ -55,7 +55,10 @@ the same authoritative monorepo.
   narrow recovery dispatch: it validates an existing immutable `sdk/rust/v*` tag, gates and packages
   current `main`, resolves the requested tag from a clean external Cargo project, and publishes that
   tag without deleting or moving it.
-- Remaining: create and verify the actual GitHub `sdk/rust/v0.1.0` tag.
+- 2026-08-14: Published immutable tag `sdk/rust/v0.1.0` at `ee73c2f3`. The administrator recovery
+  workflow passed the complete current-main gate, packaged `rtvbp v0.1.0`, resolved the actual tag
+  from a clean Cargo project, and created the public GitHub release. A second local clean consumer
+  independently resolved and checked the same tag.
 
 ## Notes
 - Earlier repositories remain named only as frozen compatibility authorities or migration sources;

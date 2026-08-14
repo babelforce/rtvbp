@@ -2,7 +2,7 @@
 id: R-29
 title: Polish the dummyphone and publish the Go patch release
 pillar: SDK
-status: in-progress
+status: done
 priority: 26
 design: docs/designs/go-sdk.md
 epic: go-sdk
@@ -23,9 +23,9 @@ then publish the accumulated Go SDK changes as a verified patch release.
       return errors instead of panicking on invalid input or unknown recordings.
 - [x] Hangup is exactly once, invokes callbacks outside the state lock, cancels the demo context,
       and `Hangup`/`Move` reject nil requests without panicking.
-- [ ] Focused normal and race tests plus the complete repository release gate pass from the exact
+- [x] Focused normal and race tests plus the complete repository release gate pass from the exact
       committed release candidate.
-- [ ] `sdk/go/v0.1.1` is published, its GitHub workflow succeeds, and a clean external Go module
+- [x] `sdk/go/v0.1.1` is published, its GitHub workflow succeeds, and a clean external Go module
       resolves the tag without a local replacement.
 
 ## Progress
@@ -34,6 +34,10 @@ then publish the accumulated Go SDK changes as a verified patch release.
 - 2026-08-14: Replaced every dummyphone panic stub with locked state, defensive request/context
   errors, unique recording lifecycles, monotonic serialized DTMF, and exactly-once hangup. Focused
   normal, race, and vet checks pass.
+- 2026-08-14: The complete local and GitHub gates passed at release commit `ee73c2f3`; the focused
+  demo suite also passed under the race detector. Published `sdk/go/v0.1.1`, whose release workflow
+  resolved the tag from a clean external module and created the public release. An independent clean
+  consumer then resolved `github.com/babelforce/rtvbp/sdk/go v0.1.1` through `proxy.golang.org`.
 
 ## Notes
 - R-28 independently owns publication and external verification of `sdk/rust/v0.1.0` from the same
