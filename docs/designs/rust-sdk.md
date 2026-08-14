@@ -6,7 +6,7 @@
 
 The Go SDK proves the spec-first architecture, but one implementation is not enough to prove that
 the catalog, envelope, role, session, and transport boundaries are genuinely language-neutral. The
-repository also has a deployed Rust ancestor in `private-source.invalid/crates/rtvbp`; it is useful
+repository also has a deployed Rust ancestor in a maintained production system; it is useful
 migration evidence, but its hand-written payloads have already drifted from the frozen Go wire and
 it lacks the current session, conformance, and WebRTC contracts.
 

@@ -5,6 +5,11 @@
 __pycache__/
 *.py[cod]
 
+# Node
+node_modules/
+dist/
+dist-test/
+
 # Rust
 target/
 

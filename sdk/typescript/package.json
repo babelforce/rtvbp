@@ -1,0 +1,21 @@
+{
+  "name": "@babelforce/rtvbp",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "Generated RTVBP protocol surfaces and browser/Node runtimes",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lossless-json": "4.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "typescript": "6.0.3"
+  }
+}

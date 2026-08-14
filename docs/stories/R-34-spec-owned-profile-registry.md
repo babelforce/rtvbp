@@ -2,7 +2,7 @@
 id: R-34
 title: Add a spec-owned transport and profile registry
 pillar: Spec
-status: backlog
+status: in-progress
 priority: 35
 design: docs/designs/m2-browser-parity.md
 epic: m2-browser-parity

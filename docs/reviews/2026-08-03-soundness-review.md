@@ -39,8 +39,7 @@ Consequences:
 
 - R-4's acceptance ("serializes each canonical example and asserts `bytes ==` the frozen fixture")
   is unsatisfiable for four of nine events.
-- No story captures their wire truth from the source that defines it
-  (`private-source.invalid/crates/rtvbp`).
+- No story captures their wire truth from the maintained production source that defines it.
 - Downstream, R-6's per-fixture golden tests, R-11's vectors, and R-13's docs would emit four event
   shapes whose bytes were never observed.
 - `conformance/babelforce.v1/golden/README.md` claims the fixtures "cover … every event's data",

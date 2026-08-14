@@ -9,8 +9,8 @@ RTVBP exists today as **three hand-written ports of one prose specification**:
 | Implementation | Where | Notes |
 |---|---|---|
 | Go | `babelforce/rtvbp-go` | The de-facto reference; most complete |
-| Rust | `private-source.invalid/crates/rtvbp` | "so it can later stand alone as `rtvbp-rs`" |
-| TypeScript | `private-source.invalid/sdk/typescript/src/rtvbp.ts` | Browser voice console |
+| Rust | Maintained production ancestor | Migration evidence; no longer wire authority |
+| TypeScript | Maintained browser consumer | Browser voice console migration evidence |
 
 plus ~650 lines of prose in this repo's Docusaurus site. (An earlier Rust spec crate lived here and
 was deleted in July 2025; it already generated JSON Schema + AsyncAPI from `schemars` types, and

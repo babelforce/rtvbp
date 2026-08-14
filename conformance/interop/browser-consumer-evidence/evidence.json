@@ -1,0 +1,45 @@
+{
+  "source": {
+    "description": "maintained browser consumer RTVBP module",
+    "captured_at": "2026-08-14",
+    "source_sha256": "a39d7bc00853c1b7c0e61d3b00d193e074014081031fa88dea039f7facaaf325",
+    "test_sha256": "11d7518074578c6bc52e4a46d82965f26fe4b78636296a36d6befe95e53b67fd"
+  },
+  "gaps": [
+    {
+      "category": "field-presence-and-order",
+      "observed": "initialize and response literals happen to use deployed field order, but the client has no catalog-owned presence or exact-byte test and its response helper always includes result",
+      "required": "generated serializers own declared field order and distinguish absent, null, and present values against all frozen fixtures"
+    },
+    {
+      "category": "discriminator-precedence",
+      "observed": "the parser accepts any version-1 object; a mixed event and request can be treated as feedback and then acknowledged",
+      "required": "the generated classic.v1 decoder applies frozen event-before-request-before-response structural precedence once"
+    },
+    {
+      "category": "permissive-response",
+      "observed": "a version-only object and responses with incompatible result and error shapes are accepted",
+      "required": "the envelope decoder rejects missing discriminators and structurally invalid response/error fields while preserving allowed absent or null result"
+    },
+    {
+      "category": "error-response",
+      "observed": "an initialization error is surfaced as an empty open result, and all other response errors are ignored",
+      "required": "correlated requests reject with a typed remote error preserving classic.v1 code, message, and legacy error data"
+    },
+    {
+      "category": "unknown-dispatch",
+      "observed": "every otherwise unknown request is acknowledged with an empty success result",
+      "required": "known methods dispatch through generated role adapters and unknown requests receive the declared not-implemented error"
+    },
+    {
+      "category": "correlation",
+      "observed": "only initialization has an id slot; there is no pending-request table, timeout, terminal reply, or close rejection",
+      "required": "all requests correlate exactly once and settle on response, timeout, cancellation, or session close"
+    },
+    {
+      "category": "numeric-precision",
+      "observed": "JSON.parse converts every integer to number and silently rounds values outside the safe-integer domain before validation",
+      "required": "lossless token parsing rejects unsupported numeric values before conversion"
+    }
+  ]
+}

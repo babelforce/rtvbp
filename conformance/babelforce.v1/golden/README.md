@@ -11,15 +11,13 @@ Forty-two fixtures come from the deployed Go implementation. They are captured b
 `9370abb8d18cf3c89837d4d1c63564f6218e354d`: 20 canonical operation payloads, five canonical event
 payloads, ten `classic.v1` envelope frames, and seven presence/float payload variants.
 
-Four additive browser-feedback events do not exist in rtvbp-go. Their six payload shapes are
-captured by [`capture-private-source.invalid-v0.33.0`](../../tools/capture-private-source.invalid-v0.33.0/)
-from the released Rust `rtvbp` crate in `private-source.invalid v0.33.0`, commit
-`408b9bc17e925b41a2e9d4fbf97dc93cdbe60b8c`. That tool also exercises the upstream production
-`Event::of` → `Message::Event` → `to_json_string` path with deterministic ids, proving event names,
-data placement, field order, and `output.transcript.done.text` presence. At the pin, the sole
-production bridge callsite sends `text: None`, yielding the canonical `{}` payload. The public
-payload type also permits present non-empty and empty strings; both are pinned as variants. Its
-GitLab source is private, so a fresh reproduction requires repository read access.
+Four additive browser-feedback events do not exist in rtvbp-go. Their six payload shapes were
+captured from a maintained production Rust serializer through its production event-envelope path,
+with deterministic ids proving event names, data placement, field order, and
+`output.transcript.done.text` presence. The production callsite emits the canonical absent-text
+`{}` payload; the public payload type also permits present non-empty and empty strings, and both are
+pinned as variants. Producer identity and source access are intentionally retained outside this
+public repository; the committed bytes are the public authority.
 
 The original 29 v0.40.0 fixtures remain byte-identical. Adding coverage records previously
 unpinned behavior; changing any existing fixture byte changes the frozen wire contract and requires
@@ -52,14 +50,10 @@ cd conformance/tools/capture-rtvbp-go-v0.40.0
 go run .
 go test ./...
 
-cd ../capture-private-source.invalid-v0.33.0
-cargo run --locked
-cargo test --locked
-
 cd ../capture-rtvbp-go-v0.37.2
 go test ./...
 ```
 
 The last tool captures the 40 fixtures common to rtvbp-go v0.37.2 and v0.40.0 and compares them to
 this directory byte-for-byte. The two excluded Go fixtures are `audio.info`, which was added after
-v0.37.2; the six fixture shapes for four Rust-only events are outside both Go releases.
+v0.37.2; the six fixture shapes for four production-only events are outside both Go releases.

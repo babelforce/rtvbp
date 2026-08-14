@@ -9,6 +9,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Removed private producer coordinates and an obsolete source-dependent capture from the public tree;
+  the release gate now rejects private Git transports and confidential identifiers before commit.
 - Reconciled the shipped roadmap and public limitations into M2 browser parity: a spec-generated
   TypeScript SDK, spec-owned profile metadata, browser WebSocket/WebRTC v1 media, three-language
   proof, and real-consumer migration. WebRTC v2, QUIC, and SIP remain explicitly separate epics.
@@ -31,6 +33,9 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added the TypeScript/browser SDK foundation with lossless numeric-token parsing, fail-closed safe
+  integer semantics, strict JSON encoding, exact round-trips for all 48 frozen fixtures, and
+  digest-pinned migration evidence that publishes no private source coordinates.
 - Added component-scoped release changelogs and deterministic release tooling for Go manifests,
   Rust `.crate` assets, and versioned protocol/conformance bundles, with checksums, immutable-tag
   validation, semantic predecessor links, and GitHub build-provenance attestations.

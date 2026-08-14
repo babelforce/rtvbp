@@ -44,8 +44,7 @@ every SDK and every document.
 
 ## Notes
 - Port field-for-field from `rtvbp-go/proto/protov1/*.go`. Prose for doc comments can be lifted from
-  `website/docs/protov1/` and the existing Rust port at
-  `private-source.invalid/crates/rtvbp/src/protov1.rs`.
+  `website/docs/protov1/` and the maintained production Rust ancestor.
 - Go type hints where the current API is not `int64`: `AudioCodec.sample_rate` is Go `int`, whereas
   `DtmfEvent.pressed_at` / `released_at` are `int64`. Use the namespaced `x-go-type` extension.
 - `ping` is an ordinary catalog operation — do not lift it to a framework concern.

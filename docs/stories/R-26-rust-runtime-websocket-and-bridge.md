@@ -42,5 +42,5 @@ replace either side of the Go SDK without lifecycle, dispatch, audio, or failure
   WebSocket behavior, callbacks, observation, and terminal flush.
 
 ## Notes
-- Algorithms from `private-source.invalid/crates/rtvbp` may be adapted only when the parity tests prove
+- Algorithms from the maintained production Rust ancestor may be adapted only when the parity tests prove
   their behavior; its hand-written wire types must not enter this repository.

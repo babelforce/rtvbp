@@ -17,7 +17,7 @@ classified by source. No new correctness defects found. The residual items below
 
 | Finding | Status | How |
 |---|---|---|
-| **B1** four events without byte authority | **Resolved** | New capture tool pinned to the private Rust source (`private-source.invalid v0.33.0`, rev `408b9bc1`, committed `Cargo.lock`) captures the four additive event payloads through the production `Event::of → Message::Event → to_json_string` path; R-6 is now blocked on R-17/R-18; golden README records the split authority |
+| **B1** four events without byte authority | **Resolved** | A source-pinned private capture produced the four additive event payloads through the production event-envelope serializer; the public golden README records the split authority without exposing private source coordinates |
 | **S1** R-16 releases v0.38.0 | Resolved | R-16 now mandates `v0.41.0` |
 | **S2** v0.37↔v0.40 wire never reconciled | **Resolved mechanically** | `capture-rtvbp-go-v0.37.2` regenerates the 40 common fixtures from the published v0.37.2 module and byte-compares them against the golden authority; the six exclusions are classified in an inventory test that fails on any unclassified future fixture (verified: `audio.info` genuinely postdates v0.37.2). R-12 keeps this in the interop gate |
 | **S3** `session.terminate` role contradiction | Resolved | Decided `handled_by: Application` from deployed evidence; reverse direction stays the explicit 501 (now a golden envelope fixture); catalog, R-9, R-11 scenarios, go-sdk.md and spec-catalog.md all agree |
@@ -49,9 +49,8 @@ classified by source. No new correctness defects found. The residual items below
   contract 4).
 - `go test -count=1` in both Go capture tools: green — the 42 Go fixtures regenerate byte-identically
   from v0.40.0, and v0.37.2 reproduces all 40 common fixtures byte-identically.
-- `cargo test --locked` in the private-source.invalid capture tool: 4/4 green, including byte
-  reproduction of the four additive fixtures and provenance pinning (manifest + lockfile assert the
-  tag/revision).
+- The private source-pinned capture was 4/4 green, including byte reproduction of the four additive
+  fixtures and producer provenance; only the resulting immutable bytes are retained publicly.
 - Deployed-behavior claims spot-checked against `sdk/go/proto`: response both/neither permissiveness
   (`response.go`), error code-0/empty-message rejection (`error.go`), `PingResponse.OWD` required vs
   `RTT` omitempty — the spec's presence choices match.
@@ -105,9 +104,9 @@ null" bullet lists only `result`/`any` without noting the error-field exception.
 ### R6 — additive-event authority is thinner than the Go authority, by nature
 
 Each of the four Rust-sourced events has exactly one pinned shape; the only optional field among
-them (`output.transcript.done.text`) is pinned absent but not present. And reproduction requires
-read access to the private GitLab repo — documented honestly in the README, but it means outside
-contributors can verify 42 of 46 fixtures, not all. Acceptable for M1; worth remembering when R-13
+them (`output.transcript.done.text`) is pinned absent but not present. Producer-side reproduction
+requires private source access, so outside contributors can verify 42 of 46 fixtures from public
+producer code, not all. Acceptable for M1; worth remembering when R-13
 publishes these shapes as public documentation.
 
 ## Note on process
