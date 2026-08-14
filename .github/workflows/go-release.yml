@@ -32,6 +32,14 @@ jobs:
       - run: yarn install --frozen-lockfile
         working-directory: website
       - run: task check
+      - name: Resolve the tag from a clean external module
+        run: |
+          project="$(mktemp -d)"
+          version="${GITHUB_REF_NAME#sdk/go/}"
+          cd "$project"
+          go mod init example.com/rtvbp-release-check
+          GOPROXY=direct go get "github.com/babelforce/rtvbp/sdk/go@${version}"
+          go list -m "github.com/babelforce/rtvbp/sdk/go"
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:

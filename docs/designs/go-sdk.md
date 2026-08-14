@@ -1,6 +1,6 @@
 # Design: Go SDK — runtime and emitted glue
 
-**Status:** accepted · **Pillar:** SDK · **Stories:** R-6, R-7, R-8, R-9, R-10
+**Status:** accepted · **Pillar:** SDK · **Stories:** R-6, R-7, R-8, R-9, R-10, R-29
 
 ## Why
 

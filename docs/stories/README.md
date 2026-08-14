@@ -43,6 +43,7 @@ legacy Go repository retirement, while R-28 retains the first Rust tag and exter
 ## Now (in progress)
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · Go v0.1.0 is published with selectable Pion WebRTC; legacy retirement remains
 - [R-28 — Rust conformance, documentation, and first release](R-28-rust-conformance-docs-and-release.md) · Proof · prove both-role Go parity, publish the Rust integration path, and gate all generated drift
+- [R-29 — Polish the dummyphone and publish the Go patch release](R-29-polish-dummyphone-and-go-patch-release.md) · SDK · make the demo telephony adapter stateful and race-safe, then publish sdk/go/v0.1.1
 
 ## Next (ready — take the top one unless the user named a story)
 _None._

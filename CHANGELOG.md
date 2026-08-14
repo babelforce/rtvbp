@@ -11,6 +11,10 @@ All notable changes to this project are documented here. The format is based on
 
 - Moved the Docusaurus site from `docs/` to `website/` so `docs/` can hold the contributor docs and
   the track backlog; the GitHub Pages workflow now builds from `website/`.
+- Made the demo client's dummyphone a stateful, race-safe telephony adapter: DTMF sequences are
+  ordered, hangup is exactly once, session variables and recordings no longer panic, and
+  invalid/canceled calls return errors. The Go tag workflow now also resolves its tag from a clean
+  external module.
 
 ### Added
 
