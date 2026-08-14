@@ -12,9 +12,11 @@
     "serve": "docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "test": "node --test test/*.test.mjs"
   },
   "dependencies": {
+    "@babelforce/rtvbp": "0.1.0",
     "@docusaurus/core": "3.8.1",
     "@docusaurus/preset-classic": "3.8.1",
     "@docusaurus/theme-mermaid": "^3.8.1",
@@ -28,6 +30,7 @@
     "@docusaurus/module-type-aliases": "3.8.1",
     "@docusaurus/tsconfig": "3.8.1",
     "@docusaurus/types": "3.8.1",
+    "playwright-core": "1.62.1",
     "typescript": "~5.6.2"
   },
   "browserslist": {

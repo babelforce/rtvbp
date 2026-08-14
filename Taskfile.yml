@@ -28,3 +28,4 @@ tasks:
       - (cd sdk/go/examples/rtvbp-demo-server && go test ./...)
       - (cd website && yarn typecheck)
       - (cd website && yarn build)
+      - (cd website && yarn test)

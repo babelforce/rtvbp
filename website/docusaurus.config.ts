@@ -77,6 +77,11 @@ const config: Config = {
       },
       items: [
         {
+          to: "/try",
+          label: "Try it out",
+          position: "left",
+        },
+        {
           type: "docSidebar",
           sidebarId: "docsSidebar",
           position: "left",
@@ -87,6 +92,10 @@ const config: Config = {
           label: "Quickstarts",
           position: "left",
           items: [
+            {
+              label: "Try it out",
+              to: "/try",
+            },
             {
               label: "TypeScript SDK",
               to: "/docs/getting-started/typescript",

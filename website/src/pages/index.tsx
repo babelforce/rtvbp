@@ -47,14 +47,14 @@ function HomepageHeader() {
             events alongside real-time audio.
           </p>
           <div className={styles.buttons}>
-            <Link className="button button--primary button--lg" to="/docs/intro">
-              Read the docs
+            <Link className="button button--primary button--lg" to="/try">
+              Try it out
             </Link>
             <Link
               className={`button button--outline button--lg ${styles.heroSecondary}`}
-              to="/docs/getting-started/typescript"
+              to="/docs/intro"
             >
-              Browser quickstart
+              Read the docs
             </Link>
           </div>
           <div className={styles.peerLine} aria-label="Voice peer connects to application peer">

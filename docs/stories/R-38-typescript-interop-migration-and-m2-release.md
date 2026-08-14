@@ -46,3 +46,6 @@ three-language matrix, and publish the additive M2 release train from immutable 
 - 2026-08-14: Removed scheduler timing from the real-browser barge-in proof: the Go and Rust peers now
   wait for a typed readiness ping after Chrome reports at least 100 ms of queued playback, then issue
   the generated clear request. The complete four-case browser matrix passes three consecutive runs.
+- 2026-08-14: R-40 added a landing-page **Try it out** path to an entirely local protocol lab. It
+  exercises the published TypeScript SDK and generated scenarios through a responsive browser phone,
+  real local WebRTC media and browser statistics, with an explicit caller-configured live boundary.

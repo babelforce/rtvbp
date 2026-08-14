@@ -33,6 +33,11 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added a landing-page **Try it out** path to a responsive in-browser protocol lab. The default call
+  runs two published TypeScript SDK sessions, generated role/envelope code and generated conformance
+  scenarios entirely inside the tab, with deterministic duplex audio, a native WebRTC loopback,
+  browser-reported health, synchronized frame inspection, and no account, backend, microphone, or
+  telemetry. An explicit advanced mode accepts only caller-supplied secure endpoint configuration.
 - Prepared the first public TypeScript SDK release as exact `@babelforce/rtvbp@0.1.0` npm and GitHub
   artifacts: publishable public metadata, MIT license, component changelog, deterministic release
   manifest/checksums, clean-tarball import proof, npm provenance, GitHub attestation, and post-publish

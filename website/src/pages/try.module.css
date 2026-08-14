@@ -1,0 +1,118 @@
+.hero {
+  padding: 6rem 0 10rem;
+  color: #fff;
+  background:
+    radial-gradient(circle at 76% 20%, rgba(91, 202, 206, 0.18), transparent 26rem),
+    linear-gradient(135deg, #181e32, #05445e);
+}
+
+.hero h1 {
+  max-width: 58rem;
+  margin: 0 0 1.5rem;
+  color: #fff;
+  font-size: clamp(3rem, 7vw, 6rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.eyebrow {
+  margin-bottom: 1rem;
+  color: var(--rtvbp-cyan);
+  font-size: 0.74rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.intro {
+  max-width: 50rem;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  line-height: 1.7;
+}
+
+.assurances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 2rem;
+}
+
+.assurances span {
+  padding: 0.42rem 0.7rem;
+  color: #c6eff0;
+  border: 1px solid rgba(91, 202, 206, 0.3);
+  border-radius: 99px;
+  background: rgba(91, 202, 206, 0.07);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.labWrap {
+  position: relative;
+  margin-top: -6rem;
+}
+
+.explainer {
+  margin-top: 6rem;
+  padding: 6rem 0;
+  background: var(--rtvbp-surface);
+}
+
+.explainerGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+  gap: 5rem;
+  align-items: center;
+}
+
+.explainer h2 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.explainer p {
+  color: var(--rtvbp-muted);
+  line-height: 1.7;
+}
+
+.explainerCard {
+  padding: 2rem;
+  border: 1px solid var(--rtvbp-border);
+  border-radius: 1.2rem;
+  background: var(--ifm-background-surface-color);
+  box-shadow: 0 1.5rem 3rem rgba(5, 68, 94, 0.08);
+}
+
+.explainerCard h3 {
+  font-size: 1.35rem;
+}
+
+@media screen and (max-width: 996px) {
+  .explainerGrid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .hero {
+    padding: 4.5rem 0 7rem;
+  }
+
+  .hero h1 {
+    font-size: 3.2rem;
+  }
+
+  .labWrap {
+    width: 100%;
+    max-width: none;
+    margin-top: -4rem;
+    padding: 0;
+  }
+
+  .explainer {
+    margin-top: 4rem;
+    padding: 4rem 0;
+  }
+}

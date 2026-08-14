@@ -1,0 +1,664 @@
+.lab {
+  overflow: hidden;
+  color: #eaf5f6;
+  border: 1px solid rgba(91, 202, 206, 0.24);
+  border-radius: 1.5rem;
+  background: #11182a;
+  box-shadow: 0 2.2rem 6rem rgba(8, 19, 38, 0.2);
+}
+
+.lab button,
+.lab input,
+.lab select {
+  font: inherit;
+}
+
+.lab button:focus-visible,
+.lab input:focus-visible,
+.lab select:focus-visible,
+.lab a:focus-visible {
+  outline: 3px solid #5bcace;
+  outline-offset: 3px;
+}
+
+.labHeader,
+.inspectorHeader,
+.panelHeading {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.labHeader {
+  padding: 1.5rem 1.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lab h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.2rem;
+}
+
+.kicker {
+  margin: 0 0 0.35rem;
+  color: #5bcace;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.modeSwitch {
+  display: inline-flex;
+  padding: 0.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.modeSwitch button {
+  padding: 0.55rem 0.85rem;
+  color: rgba(255, 255, 255, 0.62);
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.modeSwitch button.selected {
+  color: #071a29;
+  background: #5bcace;
+}
+
+.modeSwitch button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.statusBar {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.7rem 1.75rem;
+  color: rgba(255, 255, 255, 0.72);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.14);
+  font-size: 0.78rem;
+}
+
+.statusBar strong {
+  color: #fff;
+}
+
+.statusBar > span:last-child {
+  justify-self: end;
+}
+
+.stateDot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #64748b;
+}
+
+.state-connecting {
+  background: #f7bc58;
+  box-shadow: 0 0 0 5px rgba(247, 188, 88, 0.12);
+}
+
+.state-connected {
+  background: #64d59b;
+  box-shadow: 0 0 0 5px rgba(100, 213, 155, 0.12);
+}
+
+.state-ended,
+.state-failed {
+  background: #f07a86;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(19rem, 0.72fr) minmax(0, 1.28fr);
+  min-height: 43rem;
+}
+
+.phoneColumn {
+  padding: 1.5rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 50% 0, rgba(91, 202, 206, 0.12), transparent 17rem),
+    rgba(4, 13, 28, 0.28);
+}
+
+.profilePicker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.profilePicker legend {
+  margin-bottom: 0.55rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profilePicker label {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+
+.profilePicker input {
+  margin-top: 0.2rem;
+  accent-color: #5bcace;
+}
+
+.profilePicker span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.profilePicker strong {
+  color: #fff;
+  font-size: 0.82rem;
+}
+
+.profilePicker small {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.liveForm {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.liveForm label,
+.scenarioPanel label {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.liveForm label span {
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 500;
+}
+
+.liveForm input,
+.scenarioPanel select {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.6rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.liveForm p {
+  margin: 0.35rem 0 0;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.callActions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.65rem;
+  margin: 1.3rem 0;
+}
+
+.callActions button,
+.controlGrid button,
+.scenarioButton,
+.rawToggle {
+  border: 0;
+  cursor: pointer;
+}
+
+.callButton,
+.hangupButton {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.2rem;
+  color: #071a29;
+  border-radius: 0.8rem;
+  background: #64d59b;
+  font-weight: 750;
+}
+
+.hangupButton {
+  color: #fff;
+  background: #db5264;
+}
+
+.callButton:disabled,
+.hangupButton:disabled,
+.secondaryButton:disabled,
+.controlGrid button:disabled,
+.keypad button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.secondaryButton {
+  padding: 0 0.85rem;
+  color: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.error {
+  padding: 0.7rem;
+  color: #ffd9dd;
+  border: 1px solid rgba(240, 122, 134, 0.3);
+  border-radius: 0.6rem;
+  background: rgba(240, 122, 134, 0.08);
+  font-size: 0.76rem;
+}
+
+.meters {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.4rem 0;
+}
+
+.meters > div {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: 0.7rem;
+  align-items: center;
+}
+
+.meters span {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.68rem;
+}
+
+.meterTrack {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.meterTrack i {
+  display: block;
+  width: var(--level, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5bcace, #64d59b, #f7bc58);
+  transition: width 90ms linear;
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.55rem;
+}
+
+.keypad button {
+  aspect-ratio: 2.25 / 1;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.045);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.keypad button:hover:not(:disabled),
+.controlGrid button:hover:not(:disabled) {
+  border-color: rgba(91, 202, 206, 0.5);
+  background: rgba(91, 202, 206, 0.09);
+}
+
+.controlGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.controlGrid button {
+  min-height: 2.7rem;
+  padding: 0.45rem;
+  color: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.72rem;
+}
+
+.inspectorColumn {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+}
+
+.inspectorHeader {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rawToggle {
+  padding: 0.55rem 0.75rem;
+  color: #9be5e7;
+  border-radius: 0.55rem;
+  background: rgba(91, 202, 206, 0.08);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.timeline {
+  max-height: 39rem;
+  margin: 0;
+  padding: 1rem 1.5rem 2rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.emptyTimeline {
+  display: grid;
+  place-content: center;
+  min-height: 28rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+.emptyTimeline strong {
+  margin-bottom: 0.4rem;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.emptyTimeline span {
+  max-width: 22rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.timelineEntry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem 0 1rem 1.1rem;
+  border-left: 1px solid rgba(91, 202, 206, 0.25);
+}
+
+.timelineEntry::before {
+  position: absolute;
+  top: 1.35rem;
+  left: -0.27rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #5bcace;
+  content: "";
+  box-shadow: 0 0 0 4px #11182a;
+}
+
+.timelineEntry[data-kind="media"]::before {
+  background: #64d59b;
+}
+
+.timelineEntry[data-kind="state"]::before {
+  background: #f7bc58;
+}
+
+.timelineMeta {
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.65rem;
+}
+
+.timelineMeta > span:nth-child(2) {
+  color: #9be5e7;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.direction {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.timelineBody {
+  min-width: 0;
+}
+
+.timelineBody > strong,
+.timelineBody > a {
+  color: #fff;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+}
+
+.timelineBody > a {
+  color: #8adddf;
+}
+
+.timelineBody p {
+  margin: 0.3rem 0 0;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.72rem;
+}
+
+.timelineBody code {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.6rem;
+  overflow-x: auto;
+  color: #d9f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.24);
+  font-size: 0.64rem;
+  white-space: pre;
+}
+
+.lowerGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(19rem, 0.8fr);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.statsPanel,
+.scenarioPanel {
+  padding: 1.5rem;
+}
+
+.statsPanel {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panelHeading > span {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.68rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin: 1.2rem 0 0;
+}
+
+.statsGrid > div {
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.statsGrid dt {
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.63rem;
+}
+
+.statsGrid dd {
+  margin: 0.25rem 0 0;
+  overflow: hidden;
+  color: #fff;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statsPanel > p,
+.scenarioPanel > p {
+  margin: 0.85rem 0 0;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
+.scenarioPanel label {
+  display: block;
+  margin: 1.15rem 0 0.4rem;
+}
+
+.scenarioPanel select {
+  color-scheme: dark;
+}
+
+.scenarioButton {
+  display: block;
+  width: 100%;
+  margin: 1rem 0 0.8rem;
+  padding: 0.7rem;
+  color: #071a29;
+  border-radius: 0.6rem;
+  background: #5bcace;
+  font-weight: 750;
+}
+
+.scenarioPanel > a {
+  color: #8adddf;
+  font-size: 0.72rem;
+}
+
+@media screen and (max-width: 996px) {
+  .workspace,
+  .lowerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .phoneColumn,
+  .statsPanel {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .workspace {
+    min-height: 0;
+  }
+
+  .timeline {
+    max-height: 34rem;
+  }
+}
+
+@media screen and (max-width: 640px) {
+  .lab {
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .labHeader,
+  .inspectorHeader,
+  .panelHeading {
+    align-items: flex-start;
+  }
+
+  .labHeader,
+  .inspectorHeader {
+    flex-direction: column;
+  }
+
+  .modeSwitch {
+    width: 100%;
+  }
+
+  .modeSwitch button {
+    flex: 1;
+  }
+
+  .statusBar {
+    grid-template-columns: auto 1fr;
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .statusBar > span:last-child {
+    display: none;
+  }
+
+  .phoneColumn,
+  .inspectorHeader,
+  .statsPanel,
+  .scenarioPanel {
+    padding: 1rem;
+  }
+
+  .profilePicker,
+  .callActions {
+    grid-template-columns: 1fr;
+  }
+
+  .callActions .secondaryButton {
+    min-height: 2.7rem;
+  }
+
+  .timeline {
+    padding: 0.75rem 1rem 1.5rem;
+  }
+
+  .timelineEntry {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .timelineMeta {
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+  }
+
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meterTrack i {
+    transition: none;
+  }
+}

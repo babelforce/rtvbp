@@ -60,10 +60,6 @@ _None._
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
 - [R-20 — Bounded two-agent OpenAI Realtime acceptance over RTVBP](R-20-bounded-two-agent-realtime-acceptance.md) · Proof · follow-up after the first Go tag; OpenAI implementation remains in rtvbp-openai
 
-### M2: browser parity and a spec-generated TypeScript SDK
-_Go and Rust prove language-neutral generation; M2 closes the maintained browser gap._
-- [R-40 — Build an interactive browser phone and protocol lab in the public docs](R-40-interactive-browser-protocol-lab.md) · Integration · let visitors make a safe simulated call and watch negotiation, control, audio, and WebRTC state
-
 ## Done
 - [R-1 — Capture frozen golden wire fixtures from rtvbp-go](R-1-capture-golden-wire-fixtures.md) · Proof · the authority for every later byte-identity check — capture before the spec is written
 - [R-2 — Scaffold the monorepo — spec workspace and sdk/go subtree import](R-2-scaffold-monorepo.md) · Spec · brings rtvbp-go history in under sdk/go; the Docusaurus move to website/ is already done
@@ -100,6 +96,7 @@ _Go and Rust prove language-neutral generation; M2 closes the maintained browser
 - [R-35 — Generate the TypeScript catalog, roles, peers, and classic envelope](R-35-typescript-emitter-and-generated-surfaces.md) · Generator · emit the complete browser-neutral TypeScript protocol surface from the same spec as Go and Rust
 - [R-36 — Implement the TypeScript session runtime and WebSocket binding](R-36-typescript-runtime-and-websocket.md) · SDK · match Go/Rust session semantics in browsers and Node before adding device-media policy
 - [R-37 — Add browser media, WebRTC v1, and deployment auth seams](R-37-browser-media-webrtc-and-auth-seams.md) · SDK · replace the manual browser client with tested device adapters for both deployed profiles
+- [R-40 — Build an interactive browser phone and protocol lab in the public docs](R-40-interactive-browser-protocol-lab.md) · Integration · let visitors make a safe simulated call and watch negotiation, control, audio, and WebRTC state
 
 _See [CHANGELOG.md](../../CHANGELOG.md) for the full released history._
 <!-- END track:board -->
