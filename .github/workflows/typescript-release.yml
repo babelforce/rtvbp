@@ -42,7 +42,6 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org/
       - uses: arduino/setup-task@v3
       - name: Install release tools and demo audio dependency
         run: |
@@ -96,6 +95,11 @@ jobs:
         uses: actions/attest@v4
         with:
           subject-checksums: ${{ steps.release_material.outputs.checksum }}
+      - name: Configure npm publishing authentication
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
       - name: Publish exact package to npm with provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -114,6 +118,13 @@ jobs:
               *) npm publish "$tarball" --access public --provenance --tag latest ;;
             esac
           fi
+      - name: Remove npm publishing authentication
+        if: always()
+        run: |
+          case "$NPM_CONFIG_USERCONFIG" in
+            "$RUNNER_TEMP"/*) rm -f -- "$NPM_CONFIG_USERCONFIG" ;;
+            *) echo "refusing to remove unexpected npm config: $NPM_CONFIG_USERCONFIG" >&2; exit 1 ;;
+          esac
       - name: Resolve the published package from a clean project
         run: |
           version="${RELEASE_TAG#sdk/typescript/v}"

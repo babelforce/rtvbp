@@ -53,6 +53,23 @@ def private_locator_present(text: str) -> bool:
 
 
 class PublicTreeTest(unittest.TestCase):
+    def test_typescript_release_scopes_npm_authentication_to_publish(self) -> None:
+        workflow = (ROOT / ".github/workflows/typescript-release.yml").read_text(
+            encoding="utf-8"
+        )
+        install = workflow.index("yarn install --frozen-lockfile")
+        configure = workflow.index("Configure npm publishing authentication")
+        publish = workflow.index("Publish exact package to npm with provenance")
+        cleanup = workflow.index("Remove npm publishing authentication")
+        resolve = workflow.index("Resolve the published package from a clean project")
+
+        self.assertLess(install, configure)
+        self.assertLess(configure, publish)
+        self.assertLess(publish, cleanup)
+        self.assertLess(cleanup, resolve)
+        self.assertEqual(workflow.count("NODE_AUTH_TOKEN:"), 1)
+        self.assertIn('rm -f -- "$NPM_CONFIG_USERCONFIG"', workflow)
+
     def test_npm_lockfiles_use_only_the_public_default_registry(self) -> None:
         violations: list[str] = []
         for path in public_files():
