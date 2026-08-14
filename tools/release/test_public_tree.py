@@ -86,6 +86,11 @@ class PublicTreeTest(unittest.TestCase):
         self.assertEqual(workflow.count("NODE_AUTH_TOKEN:"), 1)
         self.assertIn('if published="$(npm view', workflow)
         self.assertNotIn('dist.shasum --json 2>/dev/null || true', workflow)
+        self.assertIn("actions: read", workflow)
+        self.assertIn("actions/workflows/spec.yml/runs", workflow)
+        self.assertIn('-f head_sha="$GITHUB_SHA"', workflow)
+        self.assertIn("-f status=success", workflow)
+        self.assertIn("if: github.event_name != 'workflow_dispatch'", workflow)
         self.assertIn('            "") ;;', workflow)
         self.assertIn('rm -f -- "$NPM_CONFIG_USERCONFIG"', workflow)
 

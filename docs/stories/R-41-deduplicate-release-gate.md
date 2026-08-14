@@ -31,6 +31,9 @@ release to consume that exact successful gate result while still packaging its i
 ## Progress
 - Captured after the first four-component release repeated the complete cold gate five times and an
   interop subprocess leak made each redundant job appear hung.
+- TypeScript dispatch retries now fail closed unless `spec.yml` has a successful push run for the
+  exact release-automation SHA; tag pushes still run the complete gate. Applying the same reusable
+  proof to the other component workflows remains backlog work.
 
 ## Notes
 - Prefer a small reusable workflow or explicit gate workflow result over implicit timing between

@@ -16,6 +16,7 @@ env:
   NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
 
 permissions:
+  actions: read
   contents: write
   id-token: write
   attestations: write
@@ -35,22 +36,45 @@ jobs:
             *) echo "invalid TypeScript release tag: $RELEASE_TAG" >&2; exit 1 ;;
           esac
           git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
+      - name: Reuse the exact successful protocol gate for a dispatch retry
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          passed="$(
+            gh api -X GET \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/spec.yml/runs" \
+              -f head_sha="$GITHUB_SHA" \
+              -f event=push \
+              -f status=success \
+              -f per_page=1 \
+              --jq '.total_count'
+          )"
+          test "$passed" -ge 1
       - uses: dtolnay/rust-toolchain@stable
+        if: github.event_name != 'workflow_dispatch'
       - uses: actions/setup-go@v7
+        if: github.event_name != 'workflow_dispatch'
         with:
           go-version-file: sdk/go/go.work
       - uses: actions/setup-node@v7
         with:
           node-version: 22
       - uses: arduino/setup-task@v3
-      - name: Install release tools and demo audio dependency
+        if: github.event_name != 'workflow_dispatch'
+      - name: Install release npm
+        run: npm install --global npm@11.5.1 --registry=https://registry.npmjs.org/
+      - name: Install demo audio dependency
+        if: github.event_name != 'workflow_dispatch'
         run: |
-          npm install --global npm@11.5.1 --registry=https://registry.npmjs.org/
           sudo apt-get update
           sudo apt-get install --yes portaudio19-dev
       - run: yarn install --frozen-lockfile
+        if: github.event_name != 'workflow_dispatch'
         working-directory: website
-      - run: task check
+      - name: Run complete gate for a tag push
+        if: github.event_name != 'workflow_dispatch'
+        run: task check
       - name: Check out immutable release source
         uses: actions/checkout@v7
         with:
