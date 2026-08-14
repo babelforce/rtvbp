@@ -54,6 +54,7 @@ _None._
 _None._
 
 ## Backlog
+- [R-41 — Validate a release train once and reuse the proven gate](R-41-deduplicate-release-gate.md) · Proof · stop rebuilding the complete repository gate independently for every component release
 
 ### conformance vectors, interop, and acceptance
 _"The SDKs agree with each other and with the spec" must be a mechanical fact, not a review opinion._
