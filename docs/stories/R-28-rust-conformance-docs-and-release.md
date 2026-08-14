@@ -51,6 +51,10 @@ the same authoritative monorepo.
   Rust listener. Both current-Go directions now use the separate 60-second startup bound, keep their
   tighter post-connect assertions, and reap the helper process on failure. A forced-empty Go module
   and build cache reproduces the former 11.6-second startup and now passes both directions.
+- 2026-08-14: Tag-job reruns require repository admin rights, so the Rust release workflow now has a
+  narrow recovery dispatch: it validates an existing immutable `sdk/rust/v*` tag, gates and packages
+  current `main`, resolves the requested tag from a clean external Cargo project, and publishes that
+  tag without deleting or moving it.
 - Remaining: create and verify the actual GitHub `sdk/rust/v0.1.0` tag.
 
 ## Notes

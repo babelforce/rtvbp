@@ -17,7 +17,9 @@ All notable changes to this project are documented here. The format is based on
   external module.
 - Made published and current-Go interoperability distinguish bounded cold `go run` startup from
   the existing protocol assertions, so clean CI runners test behavior rather than compiler-cache
-  warmth; Go helper processes are also reaped on every Rust-test exit path.
+  warmth; Go helper processes are also reaped on every Rust-test exit path. The Rust release
+  workflow can safely recover from a transient tag run by validating and publishing an existing
+  immutable `sdk/rust/v*` tag through a manual dispatch.
 
 ### Added
 

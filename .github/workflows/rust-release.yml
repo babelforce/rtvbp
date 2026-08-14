@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'sdk/rust/v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing sdk/rust/v* tag to publish after a transient tag-workflow failure
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -15,6 +24,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Validate release tag
+        run: |
+          case "$RELEASE_TAG" in
+            sdk/rust/v*) ;;
+            *) echo "invalid Rust release tag: $RELEASE_TAG" >&2; exit 1 ;;
+          esac
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
       - uses: dtolnay/rust-toolchain@stable
       - uses: actions/setup-go@v5
         with:
@@ -38,10 +54,11 @@ jobs:
           project="$(mktemp -d)"
           cargo new --quiet "$project/consumer"
           cd "$project/consumer"
-          cargo add rtvbp --git "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" --tag "${GITHUB_REF_NAME}"
+          cargo add rtvbp --git "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" --tag "$RELEASE_TAG"
           cargo check --locked
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
