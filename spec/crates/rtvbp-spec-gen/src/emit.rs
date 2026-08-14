@@ -11,6 +11,8 @@ use crate::resolve::{ResolvedCatalog, ResolvedEvent, ResolvedOperation};
 
 mod go;
 pub use go::{GoEmitError, emit_go, emit_go_envelope};
+mod rust;
+pub use rust::{RustEmitError, emit_rust, emit_rust_envelope};
 mod vectors;
 pub use vectors::{VectorEmitError, emit_vectors};
 mod docs;
@@ -23,6 +25,7 @@ const GENERATED_NOTICE: &str =
 pub enum Target {
     Manifest,
     Go,
+    Rust,
     Docs,
     Vectors,
 }
@@ -34,6 +37,7 @@ impl FromStr for Target {
         match value {
             "manifest" => Ok(Self::Manifest),
             "go" => Ok(Self::Go),
+            "rust" => Ok(Self::Rust),
             "docs" => Ok(Self::Docs),
             "vectors" => Ok(Self::Vectors),
             _ => Err(UnknownTarget(value.to_owned())),
@@ -42,13 +46,20 @@ impl FromStr for Target {
 }
 
 impl Target {
-    pub const ALL: [Self; 4] = [Self::Manifest, Self::Go, Self::Docs, Self::Vectors];
+    pub const ALL: [Self; 5] = [
+        Self::Manifest,
+        Self::Go,
+        Self::Rust,
+        Self::Docs,
+        Self::Vectors,
+    ];
 
     #[must_use]
     pub const fn canonical_out_dir(self) -> &'static str {
         match self {
             Self::Manifest => "spec/manifests",
             Self::Go => "sdk/go",
+            Self::Rust => "sdk/rust",
             Self::Docs => "website/docs/reference",
             Self::Vectors => "conformance",
         }
@@ -71,6 +82,17 @@ impl Target {
                         .is_some_and(|name| {
                             name.starts_with("zz_generated.") && name.ends_with(".go")
                         })
+            }
+            Self::Rust => {
+                let parts = path
+                    .iter()
+                    .filter_map(|part| part.to_str())
+                    .collect::<Vec<_>>();
+                matches!(
+                    parts.as_slice(),
+                    ["src", "catalog", _, file] | ["src", "envelope", _, file]
+                        if file.starts_with("zz_generated_") && file.ends_with(".rs")
+                )
             }
             Self::Docs => {
                 let mut components = path.components();

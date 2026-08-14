@@ -9,7 +9,8 @@ pub mod write;
 use thiserror::Error;
 
 pub use emit::{
-    GeneratedFile, Target, emit_docs, emit_go, emit_go_envelope, emit_manifest, emit_vectors,
+    GeneratedFile, Target, emit_docs, emit_go, emit_go_envelope, emit_manifest, emit_rust,
+    emit_rust_envelope, emit_vectors,
 };
 pub use resolve::{ResolveError, ResolvedCatalog, resolve};
 
@@ -25,6 +26,8 @@ pub enum GenerateError {
     Emit(#[from] emit::EmitError),
     #[error(transparent)]
     GoEmit(#[from] emit::GoEmitError),
+    #[error(transparent)]
+    RustEmit(#[from] emit::RustEmitError),
     #[error(transparent)]
     DocsEmit(#[from] emit::DocsEmitError),
     #[error(transparent)]
@@ -44,13 +47,18 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
         match target {
             Target::Manifest => files.extend(emit_manifest(&resolved)?),
             Target::Go => files.extend(emit_go(&resolved)?),
+            Target::Rust => files.extend(emit_rust(&resolved)?),
             Target::Docs => files.extend(emit_docs(&resolved, &envelopes)?),
             Target::Vectors => files.extend(emit_vectors(&resolved, &envelopes)?),
         }
     }
-    if target == Target::Go {
+    if matches!(target, Target::Go | Target::Rust) {
         for envelope in &envelopes {
-            files.extend(emit_go_envelope(envelope)?);
+            match target {
+                Target::Go => files.extend(emit_go_envelope(envelope)?),
+                Target::Rust => files.extend(emit_rust_envelope(envelope)?),
+                _ => unreachable!(),
+            }
         }
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));

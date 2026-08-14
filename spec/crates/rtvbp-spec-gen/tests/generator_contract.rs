@@ -8,10 +8,12 @@ use rtvbp_spec_gen::catalogs;
 use rtvbp_spec_gen::emit::{GeneratedFile, Target};
 use rtvbp_spec_gen::resolve::resolve;
 use rtvbp_spec_gen::write::{check_files, check_owned_files, synchronize_files, write_files};
-use rtvbp_spec_gen::{ResolveError, emit_docs, emit_go, emit_go_envelope, generate};
+use rtvbp_spec_gen::{
+    ResolveError, emit_docs, emit_go, emit_go_envelope, emit_rust, emit_rust_envelope, generate,
+};
 use rtvbp_spec_model::{
     Catalog, ConstantField, EnvelopeSpec, ErrorSpec, Event, FieldSpec, FrameKind, FrameSpec,
-    Operation, Role,
+    Nullable, Operation, Role,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -73,6 +75,19 @@ struct Wrapper {
 #[derive(Deserialize, JsonSchema, Serialize)]
 struct Shared {
     value: String,
+}
+
+#[derive(Deserialize, JsonSchema, Serialize)]
+struct RustAllShapes {
+    required: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    optional: Option<String>,
+    nullable: Nullable<String>,
+    referenced: Shared,
+    open: serde_json::Map<String, Value>,
+    number: f64,
+    array: Vec<i64>,
+    flag: bool,
 }
 
 fn operation(method: &str) -> Operation {
@@ -446,6 +461,159 @@ fn go_emitter_pins_names_presence_order_docs_and_all_golden_cases() {
 }
 
 #[test]
+fn rust_emitter_pins_target_ownership_and_complete_generated_surface() {
+    assert_eq!(Target::from_str("rust").unwrap(), Target::Rust);
+    assert_eq!(Target::Rust.canonical_out_dir(), "sdk/rust");
+    assert!(
+        Target::Rust.owns_output_path(Path::new("src/catalog/babelforcev1/zz_generated_types.rs"))
+    );
+    assert!(
+        Target::Rust.owns_output_path(Path::new("src/envelope/v1classic/zz_generated_codec.rs"))
+    );
+    assert!(!Target::Rust.owns_output_path(Path::new("src/catalog/babelforcev1/mod.rs")));
+    assert!(!Target::Rust.owns_output_path(Path::new("src/session.rs")));
+
+    let first = generate(Target::Rust).unwrap();
+    let second = generate(Target::Rust).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first.len(), 10);
+    assert_eq!(
+        first
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("src/catalog/babelforcev1/zz_generated_golden_tests.rs"),
+            Path::new("src/catalog/babelforcev1/zz_generated_roles.rs"),
+            Path::new("src/catalog/babelforcev1/zz_generated_roles_tests.rs"),
+            Path::new("src/catalog/babelforcev1/zz_generated_types.rs"),
+            Path::new("src/catalog/demov1/zz_generated_golden_tests.rs"),
+            Path::new("src/catalog/demov1/zz_generated_roles.rs"),
+            Path::new("src/catalog/demov1/zz_generated_roles_tests.rs"),
+            Path::new("src/catalog/demov1/zz_generated_types.rs"),
+            Path::new("src/envelope/v1classic/zz_generated_codec.rs"),
+            Path::new("src/envelope/v1classic/zz_generated_golden_tests.rs"),
+        ]
+    );
+    for file in &first {
+        assert!(file.bytes.starts_with(b"// Code generated"));
+        assert!(file.bytes.ends_with(b"\n"));
+        assert!(!file.bytes.ends_with(b"\n\n"));
+    }
+
+    let types = generated_text(&first, "src/catalog/babelforcev1/zz_generated_types.rs");
+    assert!(types.contains("pub struct DtmfEvent"));
+    assert!(types.contains("pub metadata: Option<serde_json::Map<String, serde_json::Value>>"));
+    assert!(types.contains("#[serde(skip_serializing_if = \"Option::is_none\")]"));
+    assert!(
+        types.contains(
+            "pub struct SessionGetResponse(pub serde_json::Map<String, serde_json::Value>)"
+        )
+    );
+    assert!(types.contains("pub const METHOD_SESSION_INITIALIZE: &str = \"session.initialize\""));
+    assert!(types.contains("impl crate::NamedEvent for SessionUpdatedEvent"));
+    assert!(types.contains("if self.reason.chars().count() < 1"));
+    assert!(types.contains("if self.t0 == 0"));
+    assert!(types.contains("if self.pressed_at > self.released_at"));
+
+    let golden = generated_text(
+        &first,
+        "src/catalog/babelforcev1/zz_generated_golden_tests.rs",
+    );
+    assert_eq!(golden.matches("/round_trip").count(), 38);
+    assert_eq!(golden.matches("/construct").count(), 38);
+    assert!(golden.contains("OutputTranscriptDoneEvent { text: Some(\"\".to_owned()) }"));
+
+    let roles = generated_text(&first, "src/catalog/babelforcev1/zz_generated_roles.rs");
+    assert!(roles.contains("pub trait ApplicationHandler"));
+    assert!(roles.contains("pub trait VoiceHandler"));
+    assert!(roles.contains("true,\n            move |context, request|"));
+    assert!(roles.contains("code: 501"));
+    assert!(roles.contains("pub struct VoicePeer<R>"));
+    assert!(roles.contains("pub struct ApplicationEvents<N>"));
+    assert!(roles.contains("pub trait VoiceEventHandler"));
+
+    let envelope = generated_text(&first, "src/envelope/v1classic/zz_generated_codec.rs");
+    assert!(envelope.contains("const ENVELOPE_NAME: &str = \"classic.v1\""));
+    assert!(envelope.find("name: \"event\"").unwrap() < envelope.find("name: \"method\"").unwrap());
+    assert!(envelope.contains("object.get(field.name).cloned()"));
+}
+
+#[test]
+fn rust_emitter_is_catalog_agnostic_across_schema_shapes_and_validation() {
+    let shapes = Operation::new::<RustAllShapes, Response>("synthetic.shapes", Role::Both)
+        .docs("Exercise every supported Rust schema shape.")
+        .example(
+            "canonical",
+            json!({
+                "required": "yes",
+                "nullable": null,
+                "referenced": {"value": "shared"},
+                "open": {"nested": [1, true, null]},
+                "number": 2.5,
+                "array": [1, 2],
+                "flag": true
+            }),
+            json!({"output": "ok"}),
+        );
+    let validated =
+        Operation::new::<ValidatedRequest, Response>("synthetic.validated", Role::Application)
+            .docs("Exercise structured validation.")
+            .example(
+                "canonical",
+                json!({"name": "call", "started_at": 1, "finished_at": 2}),
+                json!({"output": "ok"}),
+            );
+    let catalog = Catalog::new("synthetic", 7)
+        .operation(shapes)
+        .operation(validated);
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+    let files = emit_rust(&resolve(catalog).unwrap()).unwrap();
+    let types = generated_text(&files, "src/catalog/syntheticv7/zz_generated_types.rs");
+
+    for expected in [
+        "pub required: String",
+        "pub optional: Option<String>",
+        "pub nullable: Option<String>",
+        "pub referenced: Shared",
+        "pub open: serde_json::Map<String, serde_json::Value>",
+        "pub number: f64",
+        "pub array: Vec<i64>",
+        "pub flag: bool",
+        "serialize_with = \"serialize_go_float64\"",
+        "if self.name.chars().count() < 1",
+        "if self.started_at < 0",
+        "if self.started_at == 0",
+        "if self.started_at > self.finished_at",
+    ] {
+        assert!(
+            types.contains(expected),
+            "missing synthetic Rust shape {expected}"
+        );
+    }
+    let optional = types.find("pub optional: Option<String>").unwrap();
+    let nullable = types.find("pub nullable: Option<String>").unwrap();
+    assert!(
+        types[..optional].ends_with("#[serde(skip_serializing_if = \"Option::is_none\")]\n    ")
+    );
+    assert!(
+        !types[..nullable].ends_with("#[serde(skip_serializing_if = \"Option::is_none\")]\n    ")
+    );
+    let order = [
+        "pub required:",
+        "pub optional:",
+        "pub nullable:",
+        "pub referenced:",
+        "pub open:",
+        "pub number:",
+        "pub array:",
+        "pub flag:",
+    ]
+    .map(|needle| types.find(needle).unwrap());
+    assert!(order.windows(2).all(|pair| pair[0] < pair[1]));
+}
+
+#[test]
 fn docs_emitter_projects_the_catalog_roles_examples_and_envelope() {
     assert_eq!(Target::from_str("docs").unwrap(), Target::Docs);
     assert_eq!(Target::Docs.canonical_out_dir(), "website/docs/reference");
@@ -611,6 +779,7 @@ fn every_target_projects_the_loaded_demo_catalog_through_the_common_pipeline() {
     let expected = [
         (Target::Manifest, "demo.v1.catalog.json"),
         (Target::Go, "catalog/demov1/zz_generated.types.go"),
+        (Target::Rust, "src/catalog/demov1/zz_generated_types.rs"),
         (Target::Docs, "demo.v1/operations/demo.echo.mdx"),
         (Target::Vectors, "demo.v1/payloads/demo.echo.json"),
     ];
@@ -769,6 +938,91 @@ fn go_roles_are_derived_from_synthetic_roles_terminality_and_event_direction() {
 }
 
 #[test]
+fn rust_roles_are_derived_from_synthetic_roles_terminality_and_event_direction() {
+    let catalog = Catalog::new("demo", 2)
+        .operation(
+            Operation::new::<Request, Response>("demo.application", Role::Application)
+                .docs("Handled by applications.")
+                .reject(rtvbp_spec_model::OperationRejection::new(
+                    Role::Voice,
+                    409,
+                    "voice rejects application operation",
+                ))
+                .example(
+                    "canonical",
+                    json!({"input": "in"}),
+                    json!({"output": "out"}),
+                ),
+        )
+        .operation(
+            Operation::new::<Request, Response>("demo.voice", Role::Voice)
+                .docs("Handled by voice peers.")
+                .terminal()
+                .example(
+                    "canonical",
+                    json!({"input": "in"}),
+                    json!({"output": "out"}),
+                ),
+        )
+        .operation(
+            Operation::new::<Request, Response>("demo.both", Role::Both)
+                .docs("Handled by both peers.")
+                .example(
+                    "canonical",
+                    json!({"input": "in"}),
+                    json!({"output": "out"}),
+                ),
+        )
+        .event(
+            Event::new::<EventData>("event.application", Role::Application)
+                .docs("Emitted by applications.")
+                .example("canonical", json!({"state": "ready"})),
+        )
+        .event(
+            Event::new::<EventData>("event.voice", Role::Voice)
+                .docs("Emitted by voice peers.")
+                .example("canonical", json!({"state": "ready"})),
+        )
+        .event(
+            Event::new::<EventData>("event.both", Role::Both)
+                .docs("Emitted by both peers.")
+                .example("canonical", json!({"state": "ready"})),
+        );
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+    let files = emit_rust(&resolve(catalog).unwrap()).unwrap();
+    let roles = generated_text(&files, "src/catalog/demov2/zz_generated_roles.rs");
+
+    let application_handler = section(&roles, "pub trait ApplicationHandler", "}\n\n");
+    assert!(application_handler.contains("demo_application("));
+    assert!(application_handler.contains("demo_both("));
+    assert!(!application_handler.contains("demo_voice("));
+    let voice_handler = section(&roles, "pub trait VoiceHandler", "}\n\n");
+    assert!(!voice_handler.contains("demo_application("));
+    assert!(voice_handler.contains("demo_both("));
+    assert!(voice_handler.contains("demo_voice("));
+    assert!(roles.contains("METHOD_DEMO_VOICE,\n            true,"));
+    assert!(roles.contains("code: 409"));
+    assert!(roles.contains("voice rejects application operation"));
+
+    let application_events = section(
+        &roles,
+        "pub struct ApplicationEvents<N>",
+        "pub struct VoiceEvents<N>",
+    );
+    assert!(application_events.contains("event_application("));
+    assert!(application_events.contains("event_both("));
+    assert!(!application_events.contains("event_voice("));
+    let application_subscriber = section(
+        &roles,
+        "pub trait ApplicationEventHandler",
+        "pub fn application_event_handlers",
+    );
+    assert!(!application_subscriber.contains("event_application("));
+    assert!(application_subscriber.contains("event_both("));
+    assert!(application_subscriber.contains("event_voice("));
+}
+
+#[test]
 fn go_validators_are_derived_from_synthetic_structured_metadata() {
     let operation =
         Operation::new::<ValidatedRequest, Response>("demo.validated", Role::Application)
@@ -911,6 +1165,84 @@ fn go_envelope_emitter_is_driven_by_a_synthetic_second_spec() {
 }
 
 #[test]
+fn rust_envelope_emitter_is_driven_by_a_synthetic_second_spec() {
+    let envelope = EnvelopeSpec {
+        id: "compact__CONSTANTS__.v2".to_owned(),
+        constants: vec![ConstantField {
+            name: "protocol".to_owned(),
+            value: "two__FRAMES__".to_owned(),
+        }],
+        frames: vec![
+            FrameSpec {
+                kind: FrameKind::Request,
+                discriminator: FieldSpec::required("call__ERROR_SPEC__"),
+                id: Some(FieldSpec::required("token")),
+                payload: FieldSpec::optional("input"),
+                error: None,
+            },
+            FrameSpec {
+                kind: FrameKind::Event,
+                discriminator: FieldSpec::required("notice"),
+                id: Some(FieldSpec::required("token")),
+                payload: FieldSpec::optional("body"),
+                error: None,
+            },
+            FrameSpec {
+                kind: FrameKind::Response,
+                discriminator: FieldSpec::required("answer"),
+                id: None,
+                payload: FieldSpec::optional("output"),
+                error: Some(FieldSpec::required("failure")),
+            },
+        ],
+        error: ErrorSpec {
+            code: FieldSpec::required("status"),
+            message: FieldSpec::required("detail"),
+            data: FieldSpec::optional("context"),
+        },
+        error_codes: vec![],
+        fixtures: vec![],
+    };
+
+    let files = emit_rust_envelope(&envelope).unwrap();
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("src/envelope/v2compactconstants/zz_generated_codec.rs"),
+            Path::new("src/envelope/v2compactconstants/zz_generated_golden_tests.rs"),
+        ]
+    );
+    let codec = String::from_utf8(files[0].bytes.clone()).unwrap();
+    for value in [
+        "compact__CONSTANTS__.v2",
+        "protocol",
+        "two__FRAMES__",
+        "call__ERROR_SPEC__",
+        "token",
+        "input",
+        "notice",
+        "body",
+        "answer",
+        "output",
+        "failure",
+        "status",
+        "detail",
+        "context",
+    ] {
+        assert!(codec.contains(value), "missing synthetic value {value}");
+    }
+    assert!(!codec.contains("classic.v1"));
+    assert!(
+        codec.find("name: \"call__ERROR_SPEC__\"").unwrap()
+            < codec.find("name: \"notice\"").unwrap()
+    );
+    assert!(codec.contains("name: \"failure\", omit_when_none: false"));
+}
+
+#[test]
 fn go_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_files() {
     let temp = TempDir::new();
     let binary = env!("CARGO_BIN_EXE_rtvbp-spec-gen");
@@ -979,6 +1311,70 @@ fn go_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_fil
             .join("envelope/v1classic/handwritten.go")
             .exists()
     );
+}
+
+#[test]
+fn rust_cli_check_detects_stale_owned_output_and_generation_removes_only_owned_files() {
+    let temp = TempDir::new();
+    let binary = env!("CARGO_BIN_EXE_rtvbp-spec-gen");
+    let out = format!("--out={}", temp.path().display());
+    assert!(
+        Command::new(binary)
+            .args(["--emit=rust", &out])
+            .status()
+            .unwrap()
+            .success()
+    );
+    fs::write(
+        temp.path()
+            .join("src/catalog/babelforcev1/zz_generated_old.rs"),
+        b"stale\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path().join("src/catalog/babelforcev1/mod.rs"),
+        b"// handwritten\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path()
+            .join("src/envelope/v1classic/zz_generated_obsolete.rs"),
+        b"stale\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path().join("src/envelope/v1classic/mod.rs"),
+        b"// handwritten\n",
+    )
+    .unwrap();
+    let stale = Command::new(binary)
+        .args(["--emit=rust", &out, "--check"])
+        .output()
+        .unwrap();
+    assert!(!stale.status.success());
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("zz_generated_old.rs"));
+    assert!(String::from_utf8_lossy(&stale.stderr).contains("zz_generated_obsolete.rs"));
+    assert!(
+        Command::new(binary)
+            .args(["--emit=rust", &out])
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        !temp
+            .path()
+            .join("src/catalog/babelforcev1/zz_generated_old.rs")
+            .exists()
+    );
+    assert!(temp.path().join("src/catalog/babelforcev1/mod.rs").exists());
+    assert!(
+        !temp
+            .path()
+            .join("src/envelope/v1classic/zz_generated_obsolete.rs")
+            .exists()
+    );
+    assert!(temp.path().join("src/envelope/v1classic/mod.rs").exists());
 }
 
 fn assert_schema_refs_resolve(value: &Value, schemas: &serde_json::Map<String, Value>) {
