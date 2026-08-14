@@ -43,7 +43,6 @@ published the Rust debut and Go patch releases; R-16 retains the legacy Go repos
 
 ## Now (in progress)
 - [R-16 — CI drift gate, Taskfile, first release and rtvbp-go deprecation](R-16-ci-drift-gate-and-release.md) · Proof · Go v0.1.0 is published with selectable Pion WebRTC; legacy retirement remains
-- [R-30 — Component release notes, artifacts, and provenance](R-30-component-release-artifacts-and-notes.md) · Proof · make each component release self-describing, reproducible, checksummed, and attestable
 
 ## Next (ready — take the top one unless the user named a story)
 _None._
@@ -85,6 +84,7 @@ _"The SDKs agree with each other and with the spec" must be a mechanical fact, n
 - [R-27 — Rust WebRTC plus WebSocket binding](R-27-rust-webrtc-websocket-binding.md) · SDK · implement rtvbp.webrtc.v1 with PCMU duplex media and Go cross-language acceptance
 - [R-28 — Rust conformance, documentation, and first release](R-28-rust-conformance-docs-and-release.md) · Proof · prove both-role Go parity, publish the Rust integration path, and gate all generated drift
 - [R-29 — Polish the dummyphone and publish the Go patch release](R-29-polish-dummyphone-and-go-patch-release.md) · SDK · make the demo telephony adapter stateful and race-safe, then publish sdk/go/v0.1.1
+- [R-30 — Component release notes, artifacts, and provenance](R-30-component-release-artifacts-and-notes.md) · Proof · make each component release self-describing, reproducible, checksummed, and attestable
 - [R-31 — Brand and polish the public protocol documentation](R-31-brand-and-polish-public-documentation.md) · Integration · replace Docusaurus boilerplate with a clear RTVBP entry point under babelforce stewardship
 
 _See [CHANGELOG.md](../../CHANGELOG.md) for the full released history._

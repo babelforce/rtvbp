@@ -32,7 +32,8 @@ All notable changes to this project are documented here. The format is based on
   Rust `.crate` assets, and versioned protocol/conformance bundles, with checksums, immutable-tag
   validation, semantic predecessor links, and GitHub build-provenance attestations.
 - Established `protocol/v*` as the protocol snapshot release namespace and documented the release
-  contents, recovery model, and verification commands.
+  contents, recovery model, and verification commands; published and independently verified the
+  initial `protocol/v1.0.0` manifest/conformance bundle.
 - The track backlog framework: [vision](docs/vision.md), [roadmap](docs/roadmap.md), the
   [board](docs/stories/README.md), and the design records for the spec-first re-implementation.
 - Frozen `babelforce.v1` golden wire fixtures captured from `rtvbp-go v0.40.0`, with a disposable

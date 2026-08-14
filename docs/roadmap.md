@@ -14,8 +14,8 @@ typed control plus non-silent duplex WebRTC media in both client/server directio
 `sdk/go/v0.1.1` is public after the dummyphone hardening patch, and `sdk/rust/v0.1.0` is the first
 public Rust release; both resolve from clean external consumers. R-16 now retains only the final
 legacy release and repository archive. Component-scoped release notes, deterministic assets,
-checksums, and provenance are in progress as R-30. The Docusaurus site lives under
-[`website/`](../website), leaving `docs/` for contributor material and this backlog.
+checksums, and provenance shipped with the initial `protocol/v1.0.0` snapshot. The Docusaurus site
+lives under [`website/`](../website), leaving `docs/` for contributor material and this backlog.
 
 ## Delivered
 
@@ -29,6 +29,8 @@ checksums, and provenance are in progress as R-30. The Docusaurus site lives und
 - The Rust SDK: generated catalogs, roles and envelope plus a Tokio runtime, WebSocket and
   `rtvbp.webrtc.v1` transports, the voice/telephony bridge, both-role conformance, and cross-language
   Go interoperability, published as `sdk/rust/v0.1.0` and verified from a clean Cargo consumer.
+- Component-scoped Go, Rust, and protocol releases with exact notes, deterministic manifests and
+  checksums, Cargo and protocol assets where appropriate, and verifiable GitHub build provenance.
 
 ## Next
 
