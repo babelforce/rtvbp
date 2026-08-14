@@ -2,7 +2,7 @@
 id: R-36
 title: Implement the TypeScript session runtime and WebSocket binding
 pillar: SDK
-status: backlog
+status: in-progress
 priority: 37
 design: docs/designs/m2-browser-parity.md
 epic: m2-browser-parity

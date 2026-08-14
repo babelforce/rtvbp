@@ -1,4 +1,5 @@
 import hashlib
+import json
 import pathlib
 import re
 import subprocess
@@ -52,6 +53,27 @@ def private_locator_present(text: str) -> bool:
 
 
 class PublicTreeTest(unittest.TestCase):
+    def test_npm_lockfiles_use_only_the_public_default_registry(self) -> None:
+        violations: list[str] = []
+        for path in public_files():
+            if path.name not in {"package-lock.json", "npm-shrinkwrap.json"}:
+                continue
+            lockfile = json.loads(path.read_text(encoding="utf-8"))
+            for package, metadata in lockfile.get("packages", {}).items():
+                if not isinstance(metadata, dict) or "resolved" not in metadata:
+                    continue
+                resolved = metadata["resolved"]
+                if not isinstance(resolved, str) or not resolved.startswith(
+                    "https://registry.npmjs.org/"
+                ):
+                    violations.append(f"{path.relative_to(ROOT)}:{package}")
+
+        self.assertEqual(
+            violations,
+            [],
+            "npm lockfile entries must resolve through the public default registry",
+        )
+
     def test_public_tree_contains_no_private_source_coordinates(self) -> None:
         violations: list[str] = []
         for path in public_files():

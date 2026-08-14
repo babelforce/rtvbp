@@ -33,6 +33,10 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Added a spec-generated TypeScript catalog, role, peer, event, validator, and `classic.v1` envelope
+  surface with exact-byte proof for every frozen fixture. One browser/Node ESM package now emits
+  declarations, compiles without Node types for browsers, imports under Node, and rejects non-public
+  npm lockfile sources in the release gate.
 - Added a validated spec-owned transport/profile registry and generated its deterministic manifest,
   Go/Rust/TypeScript constants, public reference, and executable negotiation vectors. Existing
   profile names, server preference, headerless default, WebRTC signaling, and media constraints are

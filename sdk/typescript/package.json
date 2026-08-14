@@ -4,12 +4,26 @@
   "private": true,
   "description": "Generated RTVBP protocol surfaces and browser/Node runtimes",
   "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "engines": {
     "node": ">=22"
   },
   "scripts": {
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
     "test": "node --experimental-strip-types --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && npm run typecheck:browser",
+    "typecheck:browser": "tsc -p tsconfig.browser.json",
+    "verify:package": "node --input-type=module -e \"const sdk = await import('./dist/index.js'); if (!sdk.babelforceV1 || !sdk.classicV1) throw new Error('missing generated package exports')\" && npm pack --dry-run --ignore-scripts"
   },
   "dependencies": {
     "lossless-json": "4.3.1"

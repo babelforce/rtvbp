@@ -13,7 +13,11 @@ export interface OrderedWireObject {
   readonly entries: readonly (readonly [string, WireEncodable])[];
 }
 
-export type WireEncodable = WireJsonValue | OrderedWireObject;
+export type WireEncodable =
+  | WireJsonPrimitive
+  | readonly WireEncodable[]
+  | { readonly [key: string]: WireEncodable }
+  | OrderedWireObject;
 
 export class WireJsonError extends Error {
   override readonly name = "WireJsonError";

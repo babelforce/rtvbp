@@ -13,6 +13,10 @@ mod go;
 pub use go::{GoEmitError, emit_go, emit_go_envelope};
 mod rust;
 pub use rust::{RustEmitError, emit_rust, emit_rust_envelope};
+mod typescript;
+pub use typescript::{
+    TypeScriptEmitError, emit_typescript, emit_typescript_envelope, emit_typescript_index,
+};
 mod vectors;
 pub use vectors::{VectorEmitError, emit_vectors};
 mod docs;
@@ -135,6 +139,8 @@ impl Target {
                     .collect::<Vec<_>>();
                 matches!(parts.as_slice(), ["src", "generated", file]
                     if file.starts_with("zz_generated_") && file.ends_with(".ts"))
+                    || matches!(parts.as_slice(), ["test", file]
+                        if file.starts_with("zz_generated_") && file.ends_with(".test.ts"))
             }
         }
     }

@@ -11,12 +11,13 @@ use rtvbp_spec_gen::write::{check_files, check_owned_files, synchronize_files, w
 use rtvbp_spec_gen::{
     ResolveError, emit_docs, emit_go, emit_go_envelope, emit_go_profiles, emit_profile_docs,
     emit_profile_manifest, emit_profile_vectors, emit_rust, emit_rust_envelope, emit_rust_profiles,
-    emit_typescript_profiles, generate,
+    emit_typescript, emit_typescript_envelope, emit_typescript_profiles, generate,
 };
 use rtvbp_spec_model::{
-    Catalog, CatalogId, ConstantField, ControlCarrier, EnvelopeSpec, ErrorSpec, Event, FieldSpec,
-    FrameKind, FrameSpec, MediaCarrier, MediaFormatSpec, NegotiationSpec, NegotiationTransport,
-    Nullable, Operation, ProfileRegistry, ProfileSpec, Role, TransportSpec,
+    Catalog, CatalogId, ConstantField, ControlCarrier, ControlFrame, EnvelopeFixture, EnvelopeSpec,
+    ErrorSpec, Event, FieldSpec, FrameKind, FrameSpec, MediaCarrier, MediaFormatSpec,
+    NegotiationSpec, NegotiationTransport, Nullable, Operation, ProfileRegistry, ProfileSpec, Role,
+    TransportSpec,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -680,6 +681,210 @@ fn rust_emitter_is_catalog_agnostic_across_schema_shapes_and_validation() {
 }
 
 #[test]
+fn typescript_emitter_pins_owned_browser_neutral_surface() {
+    assert_eq!(Target::from_str("typescript").unwrap(), Target::TypeScript);
+    assert_eq!(Target::TypeScript.canonical_out_dir(), "sdk/typescript");
+    assert!(Target::TypeScript.owns_output_path(Path::new(
+        "src/generated/zz_generated_babelforcev1_types.ts"
+    )));
+    assert!(
+        Target::TypeScript.owns_output_path(Path::new("test/zz_generated_babelforcev1.test.ts"))
+    );
+    assert!(!Target::TypeScript.owns_output_path(Path::new("src/wire.ts")));
+    assert!(!Target::TypeScript.owns_output_path(Path::new("test/consumer.test.ts")));
+
+    let first = generate(Target::TypeScript).unwrap();
+    let second = generate(Target::TypeScript).unwrap();
+    assert_eq!(first, second);
+    assert_eq!(first.len(), 12);
+    assert_eq!(
+        first
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("src/generated/zz_generated_babelforcev1.ts"),
+            Path::new("src/generated/zz_generated_babelforcev1_roles.ts"),
+            Path::new("src/generated/zz_generated_babelforcev1_types.ts"),
+            Path::new("src/generated/zz_generated_classicv1_envelope.ts"),
+            Path::new("src/generated/zz_generated_demov1.ts"),
+            Path::new("src/generated/zz_generated_demov1_roles.ts"),
+            Path::new("src/generated/zz_generated_demov1_types.ts"),
+            Path::new("src/generated/zz_generated_index.ts"),
+            Path::new("src/generated/zz_generated_profiles.ts"),
+            Path::new("test/zz_generated_babelforcev1.test.ts"),
+            Path::new("test/zz_generated_classicv1_envelope.test.ts"),
+            Path::new("test/zz_generated_demov1.test.ts"),
+        ]
+    );
+    for file in &first {
+        assert!(file.bytes.starts_with(b"// Code generated"));
+        assert!(file.bytes.ends_with(b"\n"));
+        assert!(!file.bytes.ends_with(b"\n\n"));
+    }
+
+    let types = generated_text(&first, "src/generated/zz_generated_babelforcev1_types.ts");
+    for expected in [
+        "export interface DtmfEvent",
+        "readonly \"metadata\": Readonly<Record<string, WireJsonValue>> | null",
+        "readonly \"reason\"?: string",
+        "export type SessionGetResponse = Readonly<Record<string, WireJsonValue>>",
+        "export type EmptyResponse = Readonly<Record<string, never>>",
+        "export function validateDtmfEvent",
+        "export function serializeDtmfEvent",
+        "export const METHOD_SESSION_INITIALIZE",
+        "export const EVENT_SESSION_UPDATED",
+    ] {
+        assert!(
+            types.contains(expected),
+            "missing TypeScript surface {expected}"
+        );
+    }
+
+    let roles = generated_text(&first, "src/generated/zz_generated_babelforcev1_roles.ts");
+    for expected in [
+        "export interface ApplicationHandler",
+        "export interface VoiceHandler",
+        "terminal: true",
+        "new ProtocolHandlerError({ code: 501",
+        "export class VoicePeer",
+        "export class ApplicationEvents",
+        "export interface VoiceEventHandler",
+        "unknown: UnknownHooks = {}",
+    ] {
+        assert!(
+            roles.contains(expected),
+            "missing TypeScript role surface {expected}"
+        );
+    }
+
+    let golden = generated_text(&first, "test/zz_generated_babelforcev1.test.ts");
+    assert_eq!(golden.matches("/round_trip").count(), 38);
+    assert_eq!(golden.matches("/construct").count(), 38);
+    assert!(golden.contains("ProtocolValidationError"));
+    assert!(golden.contains("preserves payloads and terminal metadata"));
+    assert!(golden.contains("event emitter sends"));
+
+    let envelope = generated_text(&first, "src/generated/zz_generated_classicv1_envelope.ts");
+    assert!(envelope.contains("id: \"classic.v1\""));
+    assert!(
+        envelope.find("kind: \"event\"").unwrap() < envelope.find("kind: \"request\"").unwrap()
+    );
+    assert!(envelope.contains("name: \"any\", omitWhenNone: true"));
+
+    let index = generated_text(&first, "src/generated/zz_generated_index.ts");
+    assert!(index.contains("export * as babelforceV1"));
+    assert!(index.contains("export * as classicV1"));
+    assert!(
+        !first
+            .iter()
+            .filter(|file| file.path.starts_with("src"))
+            .any(|file| {
+                let text = std::str::from_utf8(&file.bytes).unwrap();
+                text.contains("node:") || text.contains("process.") || text.contains("require(")
+            })
+    );
+}
+
+#[test]
+fn typescript_emitter_is_catalog_agnostic_across_shapes_roles_and_validation() {
+    let shapes = Operation::new::<RustAllShapes, Response>("synthetic.shapes", Role::Both)
+        .docs("Exercise every supported TypeScript schema shape.")
+        .terminal()
+        .example(
+            "canonical",
+            json!({
+                "required": "yes",
+                "nullable": null,
+                "referenced": {"value": "shared"},
+                "open": {"nested": [1, true, null]},
+                "number": 2.5,
+                "array": [1, 2],
+                "flag": true
+            }),
+            json!({"output": "ok"}),
+        );
+    let validated =
+        Operation::new::<ValidatedRequest, Response>("synthetic.validated", Role::Application)
+            .docs("Exercise structured validation.")
+            .reject(rtvbp_spec_model::OperationRejection::new(
+                Role::Voice,
+                409,
+                "voice rejects validation",
+            ))
+            .example(
+                "canonical",
+                json!({"name": "call", "started_at": 1, "finished_at": 2}),
+                json!({"output": "ok"}),
+            );
+    let catalog = Catalog::new("synthetic", 7)
+        .operation(shapes)
+        .operation(validated)
+        .event(
+            Event::new::<EventData>("synthetic.updated", Role::Voice)
+                .docs("Report an update.")
+                .example("canonical", json!({"state": "ready"})),
+        );
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+    let files = emit_typescript(&resolve(catalog).unwrap()).unwrap();
+    let types = generated_text(&files, "src/generated/zz_generated_syntheticv7_types.ts");
+    for expected in [
+        "readonly \"required\": string",
+        "readonly \"optional\"?: string",
+        "readonly \"nullable\": string | null",
+        "readonly \"referenced\": Shared",
+        "readonly \"open\": Readonly<Record<string, WireJsonValue>>",
+        "readonly \"number\": number",
+        "readonly \"array\": readonly number[]",
+        "readonly \"flag\": boolean",
+        "\"x-rtvbp-nonzero\": true",
+        "\"x-rtvbp-field-order\"",
+    ] {
+        assert!(
+            types.contains(expected),
+            "missing synthetic TypeScript shape {expected}"
+        );
+    }
+    let roles = generated_text(&files, "src/generated/zz_generated_syntheticv7_roles.ts");
+    assert!(roles.contains("syntheticShapes(context"));
+    assert!(roles.contains("terminal: true"));
+    assert!(roles.contains("new ProtocolHandlerError({ code: 409"));
+    assert!(roles.contains("syntheticUpdated(context"));
+    assert!(roles.contains("export class VoicePeer"));
+    assert!(roles.contains("export class VoiceEvents"));
+}
+
+#[test]
+fn typescript_roles_reject_colliding_member_names() {
+    let first = Operation::new::<Request, Response>("demo.same_name", Role::Application)
+        .docs("First spelling.")
+        .example(
+            "canonical",
+            json!({"input": "in"}),
+            json!({"output": "out"}),
+        );
+    let second = Operation::new::<Request, Response>("demo.same.name", Role::Both)
+        .docs("Second spelling.")
+        .example(
+            "canonical",
+            json!({"input": "in"}),
+            json!({"output": "out"}),
+        );
+    let catalog = Catalog::new("collision", 1)
+        .operation(first)
+        .operation(second);
+    catalogs::validate(std::slice::from_ref(&catalog)).unwrap();
+
+    let error = emit_typescript(&resolve(catalog).unwrap())
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("ApplicationHandler"), "{error}");
+    assert!(error.contains("demoSameName"), "{error}");
+    assert!(error.contains("demo.same_name"), "{error}");
+    assert!(error.contains("demo.same.name"), "{error}");
+}
+
+#[test]
 fn docs_emitter_projects_the_catalog_roles_examples_and_envelope() {
     assert_eq!(Target::from_str("docs").unwrap(), Target::Docs);
     assert_eq!(Target::Docs.canonical_out_dir(), "website/docs/reference");
@@ -1306,6 +1511,98 @@ fn rust_envelope_emitter_is_driven_by_a_synthetic_second_spec() {
             < codec.find("name: \"notice\"").unwrap()
     );
     assert!(codec.contains("name: \"failure\", omit_when_none: false"));
+}
+
+#[test]
+fn typescript_envelope_emitter_is_driven_by_a_synthetic_second_spec() {
+    let envelope = EnvelopeSpec {
+        id: "compact__CONSTANTS__.v2".to_owned(),
+        constants: vec![ConstantField {
+            name: "protocol".to_owned(),
+            value: "two__FRAMES__".to_owned(),
+        }],
+        frames: vec![
+            FrameSpec {
+                kind: FrameKind::Request,
+                discriminator: FieldSpec::required("call__ERROR_SPEC__"),
+                id: Some(FieldSpec::required("token")),
+                payload: FieldSpec::optional("input"),
+                error: None,
+            },
+            FrameSpec {
+                kind: FrameKind::Event,
+                discriminator: FieldSpec::required("notice"),
+                id: Some(FieldSpec::required("token")),
+                payload: FieldSpec::optional("body"),
+                error: None,
+            },
+            FrameSpec {
+                kind: FrameKind::Response,
+                discriminator: FieldSpec::required("answer"),
+                id: None,
+                payload: FieldSpec::optional("output"),
+                error: Some(FieldSpec::required("failure")),
+            },
+        ],
+        error: ErrorSpec {
+            code: FieldSpec::required("status"),
+            message: FieldSpec::required("detail"),
+            data: FieldSpec::optional("context"),
+        },
+        error_codes: vec![],
+        fixtures: vec![EnvelopeFixture::new(
+            "request-null.json",
+            br#"{"protocol":"two__FRAMES__","token":"id-1","call__ERROR_SPEC__":"run","input":null}"#,
+            ControlFrame::Request {
+                id: "id-1".to_owned(),
+                method: "run".to_owned(),
+                params: Some(Value::Null),
+            },
+        )],
+    };
+    envelope.validate().unwrap();
+
+    let files = emit_typescript_envelope(&envelope).unwrap();
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.path.as_path())
+            .collect::<Vec<_>>(),
+        [
+            Path::new("src/generated/zz_generated_compactconstantsv2_envelope.ts"),
+            Path::new("test/zz_generated_compactconstantsv2_envelope.test.ts"),
+        ]
+    );
+    let codec = generated_text(
+        &files,
+        "src/generated/zz_generated_compactconstantsv2_envelope.ts",
+    );
+    for value in [
+        "compact__CONSTANTS__.v2",
+        "protocol",
+        "two__FRAMES__",
+        "call__ERROR_SPEC__",
+        "token",
+        "input",
+        "notice",
+        "body",
+        "answer",
+        "output",
+        "failure",
+        "status",
+        "detail",
+        "context",
+    ] {
+        assert!(codec.contains(value), "missing synthetic value {value}");
+    }
+    assert!(!codec.contains("classic.v1"));
+    assert!(codec.find("kind: \"request\"").unwrap() < codec.find("kind: \"event\"").unwrap());
+    assert!(codec.contains("name: \"failure\", omitWhenNone: false"));
+    let tests = generated_text(
+        &files,
+        "test/zz_generated_compactconstantsv2_envelope.test.ts",
+    );
+    assert!(tests.contains("\"params\":null"));
 }
 
 #[test]
