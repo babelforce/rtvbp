@@ -29,3 +29,10 @@ dependency coordinate, and prevent those details from entering future commits or
   immutable public fixture bytes and digest-pinned generic browser evidence.
 - 2026-08-14: Added a standard-library gate for private Git transport locators and opaque hashes of
   confidential identifiers. Remote history remains unchanged pending explicit authorization.
+- 2026-08-14: Audited every reachable branch and tag: 33 affected historical blob/path pairs span
+  twelve paths, while one attached protocol bundle contains one affected member. A disposable mirror
+  rehearsal deleted the obsolete capture and replaced three private-locator forms plus two opaque
+  identifiers. Every rewritten ref then passed the scanner, the current `main` content tree stayed
+  identical, and all six published Go/Rust tag distribution subtrees stayed byte-identical. The
+  protocol bundle must be rebuilt and affected releases/source archives reissued after owner-approved
+  branch/tag replacement.
