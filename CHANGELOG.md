@@ -96,3 +96,23 @@ All notable changes to this project are documented here. The format is based on
 - Added `task generate` and the ordered cross-language `task check` release gate. CI regenerates all
   manifests, Go code, reference docs and vectors, rejects any diff, then tests the Go SDK and builds
   the published site; `sdk/go/v*` tags now run the same gate before creating a GitHub release.
+- Added Rust as a first-class specification-generator target and introduced the standalone
+  `sdk/rust` crate. Generated payloads, structured validation, role handlers/adapters, typed peers,
+  event emitters and the `classic.v1` envelope now construct and byte-round-trip every frozen
+  fixture, with executable role/rejection/terminal contracts and synthetic catalog/envelope proofs.
+- Added the hand-written Rust Tokio runtime, bounded duplex/timed audio, memory and semantic
+  WebSocket transports, and the generated-surface-only `babelforce.v1` voice/telephony bridge.
+  Parity tests cover response fast paths, serial dispatch, nested requests, timeouts, deferred and
+  terminal replies, keepalive, lifecycle, media binding, authentication, headerless compatibility,
+  drain-safe close, callbacks, and audio observation.
+- Added the Rust `rtvbp.webrtc.v1` binding on stable `webrtc` 0.14: bounded non-trickle signaling,
+  one PCMU transceiver, exact L16/G.711 conversion, RTP-derived timestamps, caller-owned ICE/TURN,
+  typed control, and non-silent duplex media. Current Go and Rust interoperate over WebRTC in both
+  client/server directions without carrying media in WebSocket binary frames.
+- Added a thin Rust consumer for every generated payload, envelope, and both-role scenario vector,
+  plus live Rust interoperability in both roles against unmodified published `rtvbp-go v0.37.2`.
+  The frozen peer proof covers audio negotiation, duplex audio, DTMF, legacy application ping,
+  terminal close, and the headerless profile quirk.
+- Added Rust quickstart and selectable WebSocket/WebRTC examples, integration, auth, ICE/TURN,
+  shutdown, migration and limitations documentation, crate packaging from committed generated
+  output, and an `sdk/rust/v*` release workflow that resolves the tag from a clean external project.

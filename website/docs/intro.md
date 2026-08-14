@@ -25,6 +25,7 @@ bindings use WebRTC, QUIC, or SIP without redefining the call-control protocol.
 ## Choose your path
 
 - Using the Go SDK? Build a minimal endpoint in the [Go quickstart](./getting-started/go.md).
+- Using the Rust SDK? Start with the [Rust quickstart](./getting-started/rust.md).
 - Implementing the wire protocol yourself? Follow the
   [protocol quickstart](./getting-started/protocol.md).
 - Integrating babelforce Cloud? Add the

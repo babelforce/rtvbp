@@ -1,0 +1,47 @@
+name: Release Rust SDK
+
+on:
+  push:
+    tags:
+      - 'sdk/rust/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sdk/go/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: website/yarn.lock
+      - uses: arduino/setup-task@v2
+      - name: Install demo audio dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes portaudio19-dev
+      - run: yarn install --frozen-lockfile
+        working-directory: website
+      - run: task check
+      - run: cargo package --locked --manifest-path sdk/rust/Cargo.toml
+      - name: Resolve the tag from a clean external project
+        run: |
+          project="$(mktemp -d)"
+          cargo new --quiet "$project/consumer"
+          cd "$project/consumer"
+          cargo add rtvbp --git "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" --tag "${GITHUB_REF_NAME}"
+          cargo check --locked
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}

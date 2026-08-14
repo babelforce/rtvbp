@@ -1,6 +1,6 @@
 # Design: conformance vectors, interop, and acceptance
 
-**Status:** accepted · **Pillar:** Proof · **Stories:** R-1, R-11, R-12, R-15, R-16, R-17, R-20
+**Status:** accepted · **Pillar:** Proof · **Stories:** R-1, R-11, R-12, R-15, R-16, R-17, R-19, R-20
 
 ## Why
 

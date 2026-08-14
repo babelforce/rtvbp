@@ -13,7 +13,7 @@ connection setup:
 | `rtvbp.v1` | WebSocket text | WebSocket binary L16 |
 | `rtvbp.webrtc.v1` | WebSocket text | WebRTC RTP PCMU |
 
-Both bindings expose the same RTVBP operations, events, classic envelope, and Go `AudioStream` API.
+Both bindings expose the same RTVBP operations, events, classic envelope, and SDK audio API.
 An endpoint may offer both; a WebRTC-capable client explicitly offers `rtvbp.webrtc.v1`, while an
 ordinary or headerless client continues to use `rtvbp.v1`.
 
@@ -50,7 +50,7 @@ Initial SDP negotiation uses one reserved `transport.webrtc.offer` request and i
 response. These messages use the selected envelope, but the transport consumes them before the
 session starts: they are not catalog operations and never reach an application handler.
 
-`webrtcws.v1` uses non-trickle ICE. Pion waits for candidate gathering to complete and embeds the
+`webrtcws.v1` uses non-trickle ICE. Each SDK waits for candidate gathering to complete and embeds the
 candidates in SDP, so the initial exchange is bounded to one request and one response. SDP is
 limited to 512 KiB and the complete signaling frame to 1 MiB. Do not log SDP in production because
 it contains network addressing information.
@@ -58,7 +58,7 @@ it contains network addressing information.
 ## Audio formats
 
 The WebRTC wire codec is **PCMU/8000/1** (RTP payload type 0), which WebRTC endpoints and browsers
-support without a custom codec. The Go SDK boundary remains the frozen v1 format:
+support without a custom codec. The Go and Rust SDK boundary remains the frozen v1 format:
 
 - signed 16-bit little-endian L16 PCM;
 - 8,000 samples per second;
@@ -117,10 +117,30 @@ cd ../rtvbp-demo-client
 go run . -audio-transport webrtc -sample-rate 8000
 ```
 
+## Rust configuration
+
+The Rust server advertises the WebRTC token alongside the classic fallback, then decorates only
+connections that selected it:
+
+```rust
+let server = ws::Server::bind(webrtcws::add_to_server(server_config)).await?;
+let base = server.accept().await?;
+let transport = if base.wire_subprotocol() == webrtcws::SUBPROTOCOL {
+    webrtcws::accept(base, envelope.clone(), webrtc_config).await?
+} else {
+    base
+};
+```
+
+Clients choose either `ws::ClientFactory` or `webrtcws::ClientFactory`. Both implement the same
+`TransportFactory` consumed by `Session`, so catalog handlers and audio-buffer code do not change.
+See the [Rust SDK quickstart](../getting-started/rust.md) and its compile-tested dual-profile demo.
+
 ## ICE and deployment
 
-Pion's `webrtc.Configuration` controls ICE. Empty configuration is enough for same-host and many
-direct-network tests. Production deployments normally provide STUN and often TURN:
+The caller's Go Pion or Rust `webrtc::RTCConfiguration` controls ICE. Empty configuration is enough
+for same-host and many direct-network tests. Production deployments normally provide STUN and
+often TURN:
 
 ```go
 webrtc.Configuration{ICEServers: []webrtc.ICEServer{{
@@ -141,10 +161,10 @@ WebSocket connection alone does not prove the media path is reachable.
 
 - one bidirectional audio channel named `audio`;
 - PCMU only on WebRTC; no Opus yet;
-- L16/8000/16-bit/mono/20 ms only at the Go SDK boundary;
+- L16/8000/16-bit/mono/20 ms only at the SDK boundary;
 - initial non-trickle ICE only; no renegotiation or ICE restart in `webrtcws.v1`;
 - no packet-loss concealment in the transport.
 
 Unsupported formats and duplicate media binding fail explicitly. WebRTC failure closes the media
-channel and the session follows its normal failure path; orderly shutdown closes Pion and then
-flushes WebSocket control.
+channel and the session follows its normal failure path; orderly shutdown closes the WebRTC peer
+and then flushes WebSocket control.

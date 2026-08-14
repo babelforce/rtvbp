@@ -7,7 +7,7 @@ priority: 17
 design: docs/designs/conformance.md
 epic: conformance
 areas: [conformance, sdk-go]
-note: Go v0.1.0-rc.3 adds selectable Pion WebRTC; stable tag and legacy retirement remain
+note: Go v0.1.0 is published with selectable Pion WebRTC; legacy retirement remains
 ---
 
 # CI drift gate, Taskfile, first release and rtvbp-go deprecation
@@ -22,11 +22,11 @@ build — and retire the old repository cleanly now that its consumers have some
       `go test ./...` → docs build. A deliberately stale generated file fails the build (verified
       once, then reverted).
 - [x] Generated output is committed, so `go get` works without running the generator.
-- [ ] `sdk/go` is tagged `sdk/go/v0.1.0`.
+- [x] `sdk/go` is tagged `sdk/go/v0.1.0`.
 - [ ] `rtvbp-go` gets a final `v0.41.0` release whose README points at the monorepo and states that
       published versions remain available from the module proxy indefinitely; the repository is then
       archived.
-- [ ] The roadmap's Status and Delivered sections are updated to reflect the shipped milestone.
+- [x] The roadmap's Status and Delivered sections are updated to reflect the shipped milestone.
 
 ## Progress
 - 2026-08-04: Started after the separately maintained `rtvbp-openai` service passed local and Fly
@@ -52,6 +52,9 @@ build — and retire the old repository cleanly now that its consumers have some
   pass, Pages serves the WebRTC binding guide, and a clean external module resolves RC.3 plus
   `transport/webrtcws` through the Go module proxy. The RC.2 tag remains immutable and has no GitHub
   release; RC.3 supersedes it.
+- 2026-08-04: Published stable `sdk/go/v0.1.0` from `main`; the GitHub release is public and the tag
+  points at the current monorepo release commit. Only the prepared legacy `v0.41.0` deprecation
+  release and repository archive remain before this story closes.
 
 ## Notes
 - Interop (R-12) may need network access to the Go proxy in CI; if that is unavailable, vendor

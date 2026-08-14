@@ -6,15 +6,15 @@ document is the hand-written narrative around it.
 
 ## Status
 
-_As of 2026-08-04:_ the repository is the **home of the protocol** — spec, generator, SDKs, and
-published documentation. The frozen `babelforce.v1` authority is source-pinned and the typed Rust
-catalog reproduces it byte-for-byte; the generator emits Go payloads, role glue, the classic.v1
-envelope, public reference, flows, and language-neutral conformance vectors. The Go SDK release
-candidate has passed live OpenAI acceptance, while R-16 retains the stable tag and legacy-repository
-retirement work. The optional Pion `webrtcws.v1` binding now adds timed PCMU WebRTC audio beside the
-existing WebSocket-binary audio binding, with one selectable demo pair and no catalog or session
-change. The Docusaurus site lives under [`website/`](../website), leaving `docs/` for contributor
-material and this backlog.
+_As of 2026-08-14:_ the repository is the **home of the protocol** — spec, generator, parity Go and
+Rust SDKs, and published documentation. The frozen `babelforce.v1` authority is source-pinned; both
+SDKs reproduce it byte-for-byte and consume the same generated vectors and scenarios. Go and Rust
+interoperate in both roles with published `rtvbp-go v0.37.2`, and current Go/Rust peers exchange
+typed control plus non-silent duplex WebRTC media in both client/server directions. Stable
+`sdk/go/v0.1.0` has passed live OpenAI acceptance; R-16 now retains only the final legacy release
+and repository archive, while R-28 retains the first Rust tag and external resolution. The
+Docusaurus site lives under [`website/`](../website), leaving `docs/` for contributor material and
+this backlog.
 
 ## Delivered
 
@@ -23,6 +23,10 @@ material and this backlog.
   grow around.
 - The additive Go WebRTC-audio binding: Pion PCMU media with classic control on WebSocket, selectable
   independently from the preserved plain WebSocket-audio binding.
+- Stable `sdk/go/v0.1.0`, after live service acceptance and public module-proxy verification.
+- The Rust SDK: generated catalogs, roles and envelope plus a Tokio runtime, WebSocket and
+  `rtvbp.webrtc.v1` transports, the voice/telephony bridge, both-role conformance, and cross-language
+  Go interoperability.
 
 ## Next
 
@@ -31,9 +35,10 @@ Milestone 1 is **spec + generator + a Go SDK at wire parity**, in the order on t
 spec reproduce them, then generate everything else and prove it against those fixtures and against a
 live `rtvbp-go v0.37` peer.
 
-After M1, the [WebRTC epic](designs/webrtc.md) implements the pressing **WebRTC audio with WebSocket
-control** need in Go with Pion. The **Rust SDK** re-housed from `private-source.invalid` follows, then
-**QUIC and SIP** bindings.
+The [WebRTC epic](designs/webrtc.md) and [Rust SDK epic](designs/rust-sdk.md) have established the
+second audio binding and the second full language implementation. Immediate release work is the
+Rust `v0.1.0` tag plus retirement of the legacy Go repository; R-20 remains a bounded optional
+system-acceptance follow-up. **QUIC, SIP, and TypeScript** are the next implementation families.
 
 ## Epics
 
@@ -84,12 +89,14 @@ setup. Reserved `transport.webrtc.*` offer/answer signaling uses the selected en
 catalog dispatch starts. PCMU makes the RTP side browser-compatible while the frozen v1 session API
 continues to expose L16 PCM bytes.
 
-### Later — Rust SDK, QUIC and SIP
+### The Rust SDK — [`rust-sdk`](designs/rust-sdk.md)
 
-The transport abstraction in [designs/go-sdk.md](designs/go-sdk.md) was designed against them.
+The second complete SDK proves that the spec, generated role/envelope surfaces, runtime contract,
+and WebRTC profile are language-neutral. Rust can serve or consume either current profile in either
+role and shares the mechanical conformance and cross-language release gate with Go.
 
-- **Rust SDK** — re-house `private-source.invalid/crates/rtvbp` as `sdk/rust`, replacing its hand-written
-  `protov1.rs` with generated output from the same catalog and adding the request timeouts it lacks.
-  The TypeScript port follows the same path.
+### Later — TypeScript, QUIC and SIP
+
+- **TypeScript** follows the same generated-surface path as Go and Rust.
 - **QUIC and SIP** — QUIC gives a bidi control stream plus dynamic media streams; SIP maps a dialog
   to a session, RTP to media channels, and carries control as in-dialog `INFO`.
