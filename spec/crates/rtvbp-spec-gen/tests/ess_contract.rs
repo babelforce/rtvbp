@@ -220,7 +220,7 @@ fn the_projection_maps_presence_bounds_and_nullability_as_the_rules_banner_says(
         summary: \"Its label.\"
       - name: parent
         type: Optional<rtvbp.test_v1.Thing>
-        presence: null_when_absent
+        presence: omitted_when_absent
       - name: score
         type: Optional<Json>
       - name: tags
@@ -241,6 +241,23 @@ fn the_projection_maps_presence_bounds_and_nullability_as_the_rules_banner_says(
     assert!(text.contains(
         "      - {name: ThingDo, wire: thing.do, attributes: {handled_by: voice, terminal: false, request: Thing, response: Thing}}"
     ));
+}
+
+#[test]
+fn the_required_nullable_members_of_the_catalog_are_optional_so_a_missing_member_decodes() {
+    let domain = ess_file("domains/babelforce-v1.yaml");
+    assert!(!domain.contains("null_when_absent"), "{domain}");
+    assert!(domain.contains(
+        "      - name: metadata\n        type: Optional<Map<String, Json>>\n        presence: omitted_when_absent\n"
+    ));
+    assert_eq!(
+        domain
+            .matches(
+                "      - name: audio_codec\n        type: Optional<rtvbp.babelforce_v1.AudioCodec>\n        presence: omitted_when_absent\n"
+            )
+            .count(),
+        2
+    );
 }
 
 #[test]

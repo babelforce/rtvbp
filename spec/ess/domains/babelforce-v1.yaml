@@ -7,7 +7,7 @@
 # string on the wire, see spec/crates/rtvbp-spec-gen/src/emit/ess.rs); a
 # property outside `required` is Optional and omitted when absent (`Optional<Json>` takes no
 # presence, since JSON null is one of its values); a required nullable property
-# (`x-rtvbp-presence: nullable`) is Optional and sent as null;
+# (`x-rtvbp-presence: nullable`) is Optional too, so a missing member is accepted;
 # `minLength`, `minimum`, `x-rtvbp-nonzero` and `x-rtvbp-field-order` are invariants.
 # Not carried: `format` (int64, double), `x-go-type` and the per-operation `examples`.
 domain: rtvbp.babelforce_v1
@@ -399,7 +399,7 @@ types:
         summary: "Audio codecs offered by the voice peer."
       - name: metadata
         type: Optional<Map<String, Json>>
-        presence: null_when_absent
+        presence: omitted_when_absent
         summary: "Free-form session metadata; the field is present and may be `null`."
 
   - name: rtvbp.babelforce_v1.SessionInitializeResponse
@@ -409,7 +409,7 @@ types:
     fields:
       - name: audio_codec
         type: Optional<rtvbp.babelforce_v1.AudioCodec>
-        presence: null_when_absent
+        presence: omitted_when_absent
         summary: "Selected codec; the field is present and may be `null`."
 
   - name: rtvbp.babelforce_v1.SessionSetRequest
@@ -439,5 +439,5 @@ types:
     fields:
       - name: audio_codec
         type: Optional<rtvbp.babelforce_v1.AudioCodec>
-        presence: null_when_absent
+        presence: omitted_when_absent
         summary: "Current codec; the field is present and may be `null`."
