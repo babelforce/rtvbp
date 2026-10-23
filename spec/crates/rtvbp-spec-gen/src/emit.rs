@@ -21,6 +21,11 @@ mod vectors;
 pub use vectors::{VectorEmitError, emit_vectors};
 mod docs;
 pub use docs::{DocsEmitError, emit_docs};
+mod ess;
+pub use ess::{
+    ESS_CATALOGS, ESS_REQUIREMENT, EssEmitError, emit_ess, emit_ess_system, ess_domain,
+    ess_domain_path, render_domain as render_ess_domain, variant as ess_variant,
+};
 mod profiles;
 pub use profiles::{
     ProfileEmitError, emit_go_profiles, emit_profile_docs, emit_profile_manifest,
@@ -38,6 +43,7 @@ pub enum Target {
     Docs,
     Vectors,
     TypeScript,
+    Ess,
 }
 
 impl FromStr for Target {
@@ -51,19 +57,21 @@ impl FromStr for Target {
             "docs" => Ok(Self::Docs),
             "vectors" => Ok(Self::Vectors),
             "typescript" => Ok(Self::TypeScript),
+            "ess" => Ok(Self::Ess),
             _ => Err(UnknownTarget(value.to_owned())),
         }
     }
 }
 
 impl Target {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Manifest,
         Self::Go,
         Self::Rust,
         Self::Docs,
         Self::Vectors,
         Self::TypeScript,
+        Self::Ess,
     ];
 
     #[must_use]
@@ -75,6 +83,7 @@ impl Target {
             Self::Docs => "website/docs/reference",
             Self::Vectors => "conformance",
             Self::TypeScript => "sdk/typescript",
+            Self::Ess => "spec/ess",
         }
     }
 
@@ -142,12 +151,24 @@ impl Target {
                     || matches!(parts.as_slice(), ["test", file]
                         if file.starts_with("zz_generated_") && file.ends_with(".test.ts"))
             }
+            Self::Ess => {
+                let parts = path
+                    .iter()
+                    .filter_map(|part| part.to_str())
+                    .collect::<Vec<_>>();
+                matches!(
+                    parts.as_slice(),
+                    ["system.yaml" | "components.yaml" | "ess-inputs.yaml"]
+                ) || matches!(parts.as_slice(), ["domains", file] if file.ends_with(".yaml"))
+            }
         }
     }
 }
 
 #[derive(Debug, Error)]
-#[error("unknown emit target {0:?}; expected manifest, go, rust, typescript, docs, or vectors")]
+#[error(
+    "unknown emit target {0:?}; expected manifest, go, rust, typescript, docs, vectors, or ess"
+)]
 pub struct UnknownTarget(String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]

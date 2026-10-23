@@ -1,0 +1,9 @@
+format: ess-inputs/2
+requires: ess 0.68.0
+
+specification:
+  - system.yaml
+  - components.yaml
+  - domains/babelforce-v1.yaml
+
+scenarios: []

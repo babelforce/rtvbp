@@ -40,6 +40,8 @@ pub enum GenerateError {
     ProfileEmit(#[from] emit::ProfileEmitError),
     #[error(transparent)]
     TypeScriptEmit(#[from] emit::TypeScriptEmitError),
+    #[error(transparent)]
+    EssEmit(#[from] emit::EssEmitError),
 }
 
 /// Run the side-effect-free load → validate → resolve → emit pipeline.
@@ -65,7 +67,19 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
             Target::Docs => files.extend(emit_docs(&resolved, &envelopes)?),
             Target::Vectors => files.extend(emit_vectors(&resolved, &envelopes)?),
             Target::TypeScript => files.extend(emit_typescript(&resolved)?),
+            Target::Ess => {
+                if emit::ESS_CATALOGS.contains(&resolved.id.to_string().as_str()) {
+                    files.extend(emit::emit_ess(&resolved)?);
+                }
+            }
         }
+    }
+    if target == Target::Ess {
+        let ess_ids = emit::ESS_CATALOGS
+            .iter()
+            .map(|id| (*id).to_owned())
+            .collect::<Vec<_>>();
+        files.extend(emit::emit_ess_system(&ess_ids));
     }
     if matches!(target, Target::Go | Target::Rust | Target::TypeScript) {
         for envelope in &envelopes {
@@ -87,6 +101,7 @@ pub fn generate(target: Target) -> Result<Vec<GeneratedFile>, GenerateError> {
         }
         Target::Docs => files.extend(emit_profile_docs(&profiles)?),
         Target::Vectors => files.extend(emit_profile_vectors(&profiles)?),
+        Target::Ess => {}
     }
     files.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(files)
