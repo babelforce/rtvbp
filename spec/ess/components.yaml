@@ -1,0 +1,5 @@
+components:
+  - component: protocol
+    owns:
+      domains: [rtvbp.babelforce_v1]
+    reached_by: in_process

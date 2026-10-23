@@ -1,6 +1,8 @@
 pub(super) fn encode_pcmu(pcm: &[u8]) -> Vec<u8> {
-    pcm.chunks_exact(2)
-        .map(|sample| linear_to_mu_law(i16::from_le_bytes([sample[0], sample[1]])))
+    pcm.as_chunks::<2>()
+        .0
+        .iter()
+        .map(|sample| linear_to_mu_law(i16::from_le_bytes(*sample)))
         .collect()
 }
 
@@ -60,8 +62,10 @@ mod tests {
         assert_eq!(encoded, [0, 28, 78, 255, 206, 156, 128]);
         let decoded = decode_pcmu(&encoded);
         let round_trip: Vec<_> = decoded
-            .chunks_exact(2)
-            .map(|sample| i16::from_le_bytes([sample[0], sample[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|sample| i16::from_le_bytes(*sample))
             .collect();
         assert_eq!(round_trip, [-32_124, -9_852, -988, 0, 988, 9_852, 32_124]);
     }

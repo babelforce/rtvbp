@@ -10,6 +10,7 @@ tasks:
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=typescript
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=docs
       - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=vectors
+      - cargo run --locked --manifest-path spec/Cargo.toml -p rtvbp-spec-gen -- --emit=ess
 
   check:
     desc: Run the complete local release gate in CI order
