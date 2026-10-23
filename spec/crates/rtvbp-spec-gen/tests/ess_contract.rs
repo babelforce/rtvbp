@@ -347,6 +347,10 @@ fn a_wire_name_without_a_variant_rule_is_refused() {
         "ping.",
         "2fa.start",
         "",
+        "null",
+        "true",
+        "on",
+        "n",
     ] {
         let message = ess_variant(wire).unwrap_err().to_string();
         assert!(message.contains("no variant rule"), "{wire:?}: {message}");
@@ -413,4 +417,38 @@ fn two_wire_names_mapping_to_one_variant_are_refused() {
         render_ess_domain(&manifest, "rtvbp.test_v1").is_ok(),
         "a method and an event may share a wire name: they are separate enums"
     );
+}
+
+#[test]
+fn a_field_name_yaml_would_not_read_as_a_string_is_refused() {
+    for name in ["null", "True", "off", "a-b", "a b", "1a", "a: b"] {
+        let message = refusal(json!({"type": "object", "properties": {name: {"type": "string"}}}));
+        assert!(
+            message.contains(&format!("/schemas/Thing/properties/{name}: field name")),
+            "{name:?}: {message}"
+        );
+    }
+}
+
+#[test]
+fn a_line_break_in_comment_text_is_refused() {
+    let mut manifest = minimal_manifest(json!({"type": "object"}));
+    manifest["operations"][0]["rejections"] =
+        json!([{"role": "voice", "code": "E1\ninjected: true", "message": "No."}]);
+    let message = render_ess_domain(&manifest, "rtvbp.test_v1")
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("line break"), "{message}");
+
+    let mut manifest = minimal_manifest(json!({"type": "object"}));
+    manifest["events"] = json!([{
+        "name": "thing.seen",
+        "emittedBy": "voice",
+        "description": "Seen.\r\ninjected: true",
+        "data": {"$ref": "#/schemas/Thing"},
+    }]);
+    let message = render_ess_domain(&manifest, "rtvbp.test_v1")
+        .unwrap_err()
+        .to_string();
+    assert!(message.contains("line break"), "{message}");
 }

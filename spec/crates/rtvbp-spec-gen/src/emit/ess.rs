@@ -40,6 +40,47 @@ fn refuse(message: impl Into<String>) -> EssEmitError {
     EssEmitError::Refused(message.into())
 }
 
+/// Plain scalars a YAML 1.1 or 1.2 reader resolves to null or a boolean. An identifier the
+/// emitter writes unquoted must not be one of them, in any letter case.
+const YAML_RESERVED: [&str; 9] = ["null", "true", "false", "yes", "no", "on", "off", "y", "n"];
+
+fn yaml_reserved(word: &str) -> bool {
+    YAML_RESERVED.contains(&word.to_ascii_lowercase().as_str())
+}
+
+/// A field name, written as an unquoted YAML scalar: it must match `[A-Za-z_][A-Za-z0-9_]*` and
+/// must not read as null or a boolean.
+fn checked_field_name<'a>(name: &'a str, path: &str) -> Result<&'a str, EssEmitError> {
+    let mut chars = name.chars();
+    let identifier = chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if !identifier {
+        return Err(refuse(format!(
+            "{path}: field name {name:?} is not an identifier ([A-Za-z_][A-Za-z0-9_]*)"
+        )));
+    }
+    if yaml_reserved(name) {
+        return Err(refuse(format!(
+            "{path}: field name {name:?} reads as a YAML null or boolean"
+        )));
+    }
+    Ok(name)
+}
+
+/// Text written after `#` on one comment line: a line break would end the comment and the rest
+/// would be read as YAML.
+fn comment_text(value: &Value, what: &str) -> Result<String, EssEmitError> {
+    let text = display(value);
+    if text.contains(['\n', '\r']) {
+        return Err(refuse(format!(
+            "{what}: {text:?} contains a line break and cannot go into a comment"
+        )));
+    }
+    Ok(text)
+}
+
 /// The ESS domain name of a catalog: `babelforce.v1` is `rtvbp.babelforce_v1`.
 #[must_use]
 pub fn ess_domain(catalog_id: &str) -> String {
@@ -351,7 +392,10 @@ fn struct_lines(
                 presence = Some("omitted_when_absent");
             }
         }
-        lines.push(format!("      - name: {field_name}"));
+        lines.push(format!(
+            "      - name: {}",
+            checked_field_name(field_name, &fpath)?
+        ));
         lines.push(format!("        type: {ess_type}"));
         if let Some(presence) = presence {
             lines.push(format!("        presence: {presence}"));
@@ -439,7 +483,9 @@ fn type_lines(domain: &str, name: &str, schema: &Value) -> Result<Vec<String>, E
 /// `Application.move`), so `application.move` becomes `ApplicationMove`; an undotted name such as
 /// `ping` stays as it is. Only names whose dot-separated segments each match `[a-z][a-z0-9]*` have
 /// a rule: anything else (`audio.buffer-clear`, `Session.set`, `a..b`) is refused, because the
-/// mapping would yield a non-identifier or fold two wire names into one variant.
+/// mapping would yield a non-identifier or fold two wire names into one variant. An undotted name
+/// that YAML reads as null or a boolean (`null`, `true`, `on`) is refused too: it is written
+/// unquoted.
 fn variant_name(wire: &str) -> Result<String, EssEmitError> {
     let segment_ok = |part: &str| {
         let mut chars = part.chars();
@@ -452,6 +498,11 @@ fn variant_name(wire: &str) -> Result<String, EssEmitError> {
         )));
     }
     if !wire.contains('.') {
+        if yaml_reserved(wire) {
+            return Err(refuse(format!(
+                "wire name {wire:?}: no variant rule (it reads as a YAML null or boolean)"
+            )));
+        }
         return Ok(wire.to_owned());
     }
     Ok(wire
@@ -566,14 +617,14 @@ pub fn render_domain(manifest: &Value, domain: &str) -> Result<String, EssEmitEr
         checked_role(op, "handledBy", &what)?;
         out.push(format!(
             "  #   {method}: {}",
-            display(field(op, "description", &what)?)
+            comment_text(field(op, "description", &what)?, &what)?
         ));
         if let Some(rejections) = op.get("rejections").and_then(Value::as_array) {
             for rej in rejections {
                 out.push(format!(
                     "  #     rejected by the {} role with {} {}",
-                    display(field(rej, "role", &what)?),
-                    display(field(rej, "code", &what)?),
+                    comment_text(field(rej, "role", &what)?, &what)?,
+                    comment_text(field(rej, "code", &what)?, &what)?,
                     q(field(rej, "message", &what)?)
                 ));
             }
@@ -623,7 +674,7 @@ pub fn render_domain(manifest: &Value, domain: &str) -> Result<String, EssEmitEr
         checked_role(ev, "emittedBy", &what)?;
         out.push(format!(
             "  #   {name}: {}",
-            display(field(ev, "description", &what)?)
+            comment_text(field(ev, "description", &what)?, &what)?
         ));
     }
     out.extend([
