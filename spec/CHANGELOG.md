@@ -3,6 +3,13 @@
 This changelog versions immutable distributions of the protocol specification. A snapshot version
 does not change the frozen `babelforce.v1` wire catalog.
 
+## [Unreleased]
+
+### Changed
+
+- `spec/ess/ess-inputs.yaml` requires `ess 0.97.1` (was `ess 0.68.0`); the generated domain and the
+  `babelforce.v1` and `demo.v1` wire catalogs are unchanged.
+
 ## [1.1.0] - 2026-10-23
 
 ### Added

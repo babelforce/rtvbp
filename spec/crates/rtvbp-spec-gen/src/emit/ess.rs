@@ -14,7 +14,7 @@ use super::{GeneratedFile, Manifest};
 use crate::resolve::ResolvedCatalog;
 
 /// The ESS release the emitted specification is validated with.
-pub const ESS_REQUIREMENT: &str = "ess 0.68.0";
+pub const ESS_REQUIREMENT: &str = "ess 0.97.1";
 
 /// The catalogs projected into the published ESS specification.
 pub const ESS_CATALOGS: [&str; 1] = ["babelforce.v1"];

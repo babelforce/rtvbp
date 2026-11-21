@@ -1,5 +1,5 @@
 format: ess-inputs/2
-requires: ess 0.68.0
+requires: ess 0.97.1
 
 specification:
   - system.yaml
