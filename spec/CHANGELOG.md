@@ -3,7 +3,7 @@
 This changelog versions immutable distributions of the protocol specification. A snapshot version
 does not change the frozen `babelforce.v1` wire catalog.
 
-## [Unreleased]
+## [1.1.1] - 2026-11-22
 
 ### Changed
 
