@@ -9,6 +9,15 @@ All notable changes to this project are documented here. The format is based on
 
 ### Fixed
 
+- The Go, Rust and TypeScript SDKs no longer drop inbound audio that reached the transport just
+  before the session shut down (a `session.terminate`, a peer close or a local close). Shutdown
+  closed the audio read side before the media pump had moved the frames still queued in the
+  transport, so a frame received right before a terminate never reached `Read`. Writes stop at the
+  start of shutdown as before; reads now return every frame the transport already held and then
+  end with EOF or `closed`. A pump that does not finish within the close timeout is cut off.
+- The Rust WebSocket transport no longer reports `Sending after closing is not allowed` as a
+  failed close when the peer's Close frame arrives while the local Close is being written. That
+  is an orderly close, and `Session::close` now ends cleanly.
 - The TypeScript Node WebSocket client no longer drops frames the server sends right after the
   upgrade. The adapter handed each frame to its subscribers, but the transport subscribes a few
   ticks after the socket opens, so a first audio frame sent at once was lost and a session whose

@@ -165,9 +165,25 @@ impl AudioStream {
 
     /// Close both byte directions and the timed observer idempotently.
     pub fn close(&self) {
-        self.inbound.close();
+        self.close_outbound();
+        self.finish_inbound();
+    }
+
+    /// Refuse further application writes and let the outbound pump end.
+    pub(crate) fn close_outbound(&self) {
         self.outbound.close();
+    }
+
+    /// End the read side. Buffered bytes and timed frames stay readable until they drain, so a
+    /// frame admitted before this call is still delivered.
+    pub(crate) fn finish_inbound(&self) {
+        self.inbound.close();
         self.timed.close();
+    }
+
+    /// Make an inbound write that finds the buffer full fail instead of waiting for a reader.
+    pub(crate) fn stop_waiting_for_readers(&self) {
+        self.inbound.refuse_to_wait();
     }
 }
 
@@ -181,6 +197,7 @@ struct ByteBuffer {
 struct ByteState {
     bytes: VecDeque<u8>,
     closed: bool,
+    no_wait: bool,
 }
 
 impl ByteBuffer {
@@ -190,6 +207,7 @@ impl ByteBuffer {
             state: Mutex::new(ByteState {
                 bytes: VecDeque::with_capacity(capacity),
                 closed: false,
+                no_wait: false,
             }),
             readable: Notify::new(),
             writable: Notify::new(),
@@ -217,6 +235,13 @@ impl ByteBuffer {
                     drop(state);
                     self.readable.notify_waiters();
                     continue;
+                }
+                if state.no_wait {
+                    return if written == 0 {
+                        Err(crate::Error::Closed)
+                    } else {
+                        Ok(written)
+                    };
                 }
             }
             notified.await;
@@ -290,6 +315,11 @@ impl ByteBuffer {
     fn close(&self) {
         self.state.lock().unwrap().closed = true;
         self.readable.notify_waiters();
+        self.writable.notify_waiters();
+    }
+
+    fn refuse_to_wait(&self) {
+        self.state.lock().unwrap().no_wait = true;
         self.writable.notify_waiters();
     }
 }
