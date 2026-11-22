@@ -12,7 +12,7 @@ generated and must not be edited by hand.
 Install the Go SDK:
 
 ```bash
-go get github.com/babelforce/rtvbp/sdk/go@v0.1.1
+go get github.com/babelforce/rtvbp/sdk/go@v0.2.0
 ```
 
 ## WebSocket server

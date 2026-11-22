@@ -18,7 +18,7 @@ The monorepo tags this package independently as `sdk/rust/v0.x.y`:
 
 ```toml
 [dependencies]
-rtvbp = { git = "https://github.com/babelforce/rtvbp", tag = "sdk/rust/v0.1.0" }
+rtvbp = { git = "https://github.com/babelforce/rtvbp", tag = "sdk/rust/v0.2.0" }
 ```
 
 Rust 1.88 or newer is required. The SDK uses Tokio and `async` generated role traits.
