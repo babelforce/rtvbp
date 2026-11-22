@@ -1,0 +1,20 @@
+name: Set up ess
+description: Install the pinned ess release and put it on PATH
+runs:
+  using: composite
+  steps:
+    - name: Install the pinned ess release
+      shell: bash
+      env:
+        ESS_VERSION: 0.97.1
+        ESS_SHA256: fdfffe4d82f288378fee35df5ffb46adc9cb2ae22486e9dbf612eec26cc00c84
+      run: |
+        archive="ess-${ESS_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+        curl --fail --location --silent --show-error --output "${RUNNER_TEMP}/${archive}" \
+          "https://github.com/beyond10x/ess/releases/download/${ESS_VERSION}/${archive}"
+        echo "${ESS_SHA256}  ${RUNNER_TEMP}/${archive}" | sha256sum --check
+        tar -xzf "${RUNNER_TEMP}/${archive}" -C "${RUNNER_TEMP}"
+        echo "${RUNNER_TEMP}/ess-${ESS_VERSION}-x86_64-unknown-linux-gnu" >> "${GITHUB_PATH}"
+    - name: Show the ess version
+      shell: bash
+      run: ess --version

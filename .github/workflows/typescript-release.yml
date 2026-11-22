@@ -64,6 +64,8 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/setup-ess
+        if: github.event_name != 'workflow_dispatch'
       - name: Install release npm
         run: npm install --global npm@11.5.1 --registry=https://registry.npmjs.org/
       - name: Install demo audio dependency
