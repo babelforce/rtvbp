@@ -59,22 +59,27 @@ class PublicTreeTest(unittest.TestCase):
         )
         self.assertIn("--test-concurrency=1", package["scripts"]["test"])
 
-        browser = (ROOT / "sdk/typescript/test/browser_headless.test.ts").read_text(
-            encoding="utf-8"
-        )
-        self.assertNotIn('"--offline"', browser)
-        self.assertIn('detached: process.platform !== "win32"', browser)
-        self.assertIn('process.kill(-pid, "SIGTERM")', browser)
+        for relative in (
+            "sdk/typescript/test/browser_headless.test.ts",
+            "sdk/typescript/test/interop.test.ts",
+        ):
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(path=relative):
+                self.assertNotIn('"--offline"', source)
+                self.assertIn(
+                    'import { type PeerCommand, startPeer, stopAllPeers } from "./support/peer_process.ts";',
+                    source,
+                )
+                self.assertIn("buildPeers()", source)
+                self.assertNotIn("class PeerProcess", source)
+                self.assertNotIn('"run", "."', source)
+                self.assertNotIn('"run", "--quiet"', source)
 
-        interop = (ROOT / "sdk/typescript/test/interop.test.ts").read_text(
+        build = (ROOT / "sdk/typescript/test/support/peer_build.ts").read_text(
             encoding="utf-8"
         )
-        self.assertNotIn('"--offline"', interop)
-        self.assertIn(
-            'import { type PeerCommand, startPeer, stopAllPeers } from "./support/peer_process.ts";',
-            interop,
-        )
-        self.assertNotIn("class PeerProcess", interop)
+        self.assertNotIn('"--offline"', build)
+        self.assertIn('"build", "--quiet", "--locked"', build)
 
         helper = (ROOT / "sdk/typescript/test/support/peer_process.ts").read_text(
             encoding="utf-8"

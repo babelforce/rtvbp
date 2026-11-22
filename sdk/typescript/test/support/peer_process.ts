@@ -26,7 +26,7 @@ export class PeerProcess {
   readonly #stderr: string[] = [];
   readonly #exit: Promise<void>;
 
-  constructor(command: PeerCommand, mode: "server" | "client", argument?: string) {
+  constructor(command: PeerCommand, mode: string, argument?: string) {
     this.#child = spawn(
       command.command,
       [...command.arguments, mode, ...(argument === undefined ? [] : [argument])],
@@ -71,6 +71,10 @@ export class PeerProcess {
     await this.#exit;
   }
 
+  diagnostic(): string {
+    return this.#stderr.join("");
+  }
+
   /**
    * Kills the peer and everything it started. `go run` and `cargo run` leave a compiled child that
    * outlives its parent, so the signal goes to the process group, and it is SIGKILL: a peer that
@@ -98,7 +102,7 @@ export class PeerProcess {
 export function startPeer(
   context: TestContext,
   command: PeerCommand,
-  mode: "server" | "client",
+  mode: string,
   argument?: string,
 ): PeerProcess {
   const peer = new PeerProcess(command, mode, argument);

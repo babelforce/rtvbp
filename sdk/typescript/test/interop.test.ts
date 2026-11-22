@@ -1,9 +1,4 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import test, { after, before } from "node:test";
 
 import {
@@ -14,62 +9,26 @@ import {
   type MediaFormat,
 } from "../src/index.ts";
 import { NodeWebSocketServer, nodeWebSocketTransport } from "../src/node.ts";
+import { type BuiltPeers, buildPeers } from "./support/peer_build.ts";
 import { type PeerCommand, startPeer, stopAllPeers } from "./support/peer_process.ts";
 
-const goPeerDirectory = fileURLToPath(new URL("./interop/go", import.meta.url));
-
-// The Go peer is compiled once, before any test, and the tests start the binary. `go run` inside a
-// test spent the test's budget compiling, and left its compiled child running when the test timed
-// out.
-let goPeerBinary = "";
-let buildDirectory = "";
+// Both peers are compiled once, before any test, and the tests start the binaries. `go run` and
+// `cargo run` inside a test spent the test's budget compiling, and left their compiled child
+// running when the test timed out.
+let built: BuiltPeers | undefined;
 
 before(async () => {
-  buildDirectory = await mkdtemp(join(tmpdir(), "rtvbp-interop-"));
-  goPeerBinary = join(buildDirectory, "rtvbp-interop-go");
-  const build = spawn("go", ["build", "-o", goPeerBinary, "."], {
-    cwd: goPeerDirectory,
-    stdio: ["ignore", "ignore", "pipe"],
-  });
-  const stderr: string[] = [];
-  build.stderr.on("data", (data: Buffer) => stderr.push(data.toString("utf8")));
-  await new Promise<void>((resolve, reject) => {
-    build.once("error", reject);
-    build.once("exit", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`go build of the interop peer exited with ${code}: ${stderr.join("")}`));
-    });
-  });
-}, { timeout: 110_000 });
+  built = await buildPeers();
+}, { timeout: 280_000 });
 
 after(async () => {
   stopAllPeers();
-  if (buildDirectory !== "") await rm(buildDirectory, { recursive: true, force: true });
+  await built?.dispose();
 });
 
 const peers: readonly { readonly name: string; command(): PeerCommand }[] = [
-  {
-    name: "Go",
-    command: () => ({
-      name: "Go",
-      command: goPeerBinary,
-      arguments: [],
-      cwd: goPeerDirectory,
-    }),
-  },
-  {
-    name: "Rust",
-    command: () => ({
-      name: "Rust",
-      command: "cargo",
-      arguments: ["run", "--quiet", "--locked", "--manifest-path", "Cargo.toml", "--"],
-      cwd: fileURLToPath(new URL("./interop/rust", import.meta.url)),
-      environment: {
-        ...process.env,
-        CARGO_TARGET_DIR: fileURLToPath(new URL("../../rust/target", import.meta.url)),
-      },
-    }),
-  },
+  { name: "Go", command: () => built!.go },
+  { name: "Rust", command: () => built!.rust },
 ];
 
 const audioFormat: MediaFormat = {
@@ -145,6 +104,9 @@ for (const peer of peers) {
 
     assertSample(await session.audio.read(320), 1_200);
     await session.audio.write(pcmFrame(-2_400));
+    // The server answers after it has read our frame. Terminating earlier races the server's media
+    // pump: the terminate request closes its audio stream while our frame is still in its queue.
+    assertSample(await session.audio.read(320), 3_600);
     await new babelforceV1.ApplicationPeer(session).sessionTerminate({ reason: "interop complete" });
     await done;
     await peerProcess.wait();

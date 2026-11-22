@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
 import { execFile } from "node:child_process";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, normalize, resolve, sep } from "node:path";
-import { createInterface } from "node:readline";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import test, { after, before } from "node:test";
@@ -13,6 +11,8 @@ import test, { after, before } from "node:test";
 import { chromium, type Browser } from "playwright-core";
 import WebSocket, { WebSocketServer } from "ws";
 
+import { type BuiltPeers, buildPeers } from "./support/peer_build.ts";
+import { type PeerCommand, startPeer, stopAllPeers } from "./support/peer_process.ts";
 import {
   PROFILE_RTVBP_V1,
   PROFILE_RTVBP_WEBRTC_V1,
@@ -21,95 +21,13 @@ import {
 const execute = promisify(execFile);
 const sdkDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-interface PeerCommand {
-  readonly name: string;
-  readonly command: string;
-  readonly arguments: readonly string[];
-  readonly cwd: string;
-  readonly environment?: NodeJS.ProcessEnv;
-}
+let built: BuiltPeers | undefined;
 
-const peers: readonly PeerCommand[] = [
-  {
-    name: "Go",
-    command: "go",
-    arguments: ["run", "."],
-    cwd: fileURLToPath(new URL("./interop/go", import.meta.url)),
-  },
-  {
-    name: "Rust",
-    command: "cargo",
-    arguments: ["run", "--quiet", "--locked", "--manifest-path", "Cargo.toml", "--"],
-    cwd: fileURLToPath(new URL("./interop/rust", import.meta.url)),
-    environment: {
-      ...process.env,
-      CARGO_TARGET_DIR: fileURLToPath(new URL("../../rust/target", import.meta.url)),
-    },
-  },
-];
-
-class PeerProcess {
-  readonly #child: ChildProcess;
-  readonly #stderr: string[] = [];
-  readonly #exit: Promise<void>;
-
-  constructor(command: PeerCommand, binding: "websocket" | "webrtc") {
-    this.#child = spawn(command.command, [...command.arguments, "browser-server", binding], {
-      cwd: command.cwd,
-      env: command.environment ?? process.env,
-      detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    this.#child.stderr?.on("data", (data: Buffer) => this.#stderr.push(data.toString("utf8")));
-    this.#exit = new Promise<void>((resolveExit, reject) => {
-      this.#child.once("error", reject);
-      this.#child.once("exit", (code, signal) => {
-        if (code === 0) resolveExit();
-        else reject(new Error(
-          `${command.name} browser peer exited with ${code ?? signal ?? "unknown"}: ${this.#stderr.join("")}`,
-        ));
-      });
-    });
-    void this.#exit.catch(() => {});
-  }
-
-  async firstLine(): Promise<string> {
-    const stdout = this.#child.stdout;
-    if (stdout === null) throw new Error("browser interop peer stdout is unavailable");
-    const lines = createInterface({ input: stdout });
-    return await new Promise<string>((resolveLine, reject) => {
-      const onLine = (line: string): void => {
-        lines.off("close", onClose);
-        lines.close();
-        resolveLine(line);
-      };
-      const onClose = (): void => reject(new Error(`browser interop peer printed no URL: ${this.#stderr.join("")}`));
-      lines.once("line", onLine);
-      lines.once("close", onClose);
-    });
-  }
-
-  async wait(): Promise<void> {
-    await this.#exit;
-  }
-
-  diagnostic(): string {
-    return this.#stderr.join("");
-  }
-
-  stop(): void {
-    if (this.#child.exitCode !== null || this.#child.signalCode !== null) return;
-    const pid = this.#child.pid;
-    if (process.platform !== "win32" && pid !== undefined) {
-      try {
-        process.kill(-pid, "SIGTERM");
-        return;
-      } catch {
-        // The group may have exited between the state check and the signal.
-      }
-    }
-    this.#child.kill("SIGTERM");
-  }
+function peerList(): readonly { readonly name: string; readonly command: PeerCommand }[] {
+  return [
+    { name: "Go", command: built!.go },
+    { name: "Rust", command: built!.rust },
+  ];
 }
 
 function contentType(path: string): string {
@@ -288,6 +206,7 @@ async function browserExecutable(): Promise<string> {
 }
 
 before(async () => {
+  built = await buildPeers();
   await execute("npm", ["run", "build"], { cwd: sdkDirectory });
   temporaryDirectory = await mkdtemp(join(tmpdir(), "rtvbp-browser-proof-"));
   const microphone = join(temporaryDirectory, "microphone.wav");
@@ -308,9 +227,11 @@ before(async () => {
       ]),
     ],
   });
-});
+}, { timeout: 280_000 });
 
 after(async () => {
+  stopAllPeers();
+  await built?.dispose();
   await browser?.close();
   if (temporaryDirectory.length > 0) await rm(temporaryDirectory, { recursive: true, force: true });
 });
@@ -482,11 +403,16 @@ async function runBrowserCase(
   }
 }
 
-for (const peer of peers) {
+for (const peerName of ["Go", "Rust"] as const) {
   for (const binding of ["websocket", "webrtc"] as const) {
     const profile = binding === "websocket" ? PROFILE_RTVBP_V1 : PROFILE_RTVBP_WEBRTC_V1;
-    test(`real browser ${binding} audio interoperates with ${peer.name}`, { timeout: 90_000 }, async () => {
-      const process = new PeerProcess(peer, binding);
+    test(`real browser ${binding} audio interoperates with ${peerName}`, { timeout: 60_000 }, async (context) => {
+      const process = startPeer(
+        context,
+        peerList().find((peer) => peer.name === peerName)!.command,
+        "browser-server",
+        binding,
+      );
       let proxy: BrowserOriginProxy | undefined;
       try {
         const upstream = await process.firstLine();
@@ -632,8 +558,8 @@ test(
     timeout: 90_000,
     skip: process.env.RTVBP_REAL_DEVICE_SMOKE !== "1" ? "set RTVBP_REAL_DEVICE_SMOKE=1 explicitly" : false,
   },
-  async () => {
-    const process = new PeerProcess(peers[0]!, "webrtc");
+  async (context) => {
+    const process = startPeer(context, peerList()[0]!.command, "browser-server", "webrtc");
     let proxy: BrowserOriginProxy | undefined;
     try {
       const upstream = await process.firstLine();

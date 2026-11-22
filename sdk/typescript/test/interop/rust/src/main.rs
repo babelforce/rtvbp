@@ -134,6 +134,9 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     });
     wait_active(&session).await?;
     exchange_audio(&session, 1_200, -2_400).await?;
+    // The client terminates as soon as it has read this frame, so it cannot close the audio stream
+    // before the client frame was read here.
+    session.audio().write(&pcm_frame(3_600)).await?;
     running.await??;
     server.shutdown().await?;
     Ok(())
