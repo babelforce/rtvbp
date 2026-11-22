@@ -373,21 +373,20 @@ fn struct_lines(
         let fpath = format!("{path}/properties/{field_name}");
         let (mut ess_type, nullable) = value_type(domain, prop, &fpath)?;
         let is_required = required.contains(&field_name.as_str());
+        if is_required
+            && nullable
+            && prop.get("x-rtvbp-presence").and_then(Value::as_str) != Some("nullable")
+        {
+            return Err(refuse(format!(
+                "{fpath}: required and nullable without x-rtvbp-presence"
+            )));
+        }
         let mut presence = None;
-        if is_required {
-            if nullable {
-                if prop.get("x-rtvbp-presence").and_then(Value::as_str) != Some("nullable") {
-                    return Err(refuse(format!(
-                        "{fpath}: required and nullable without x-rtvbp-presence"
-                    )));
-                }
-                ess_type = format!("Optional<{ess_type}>");
-                presence = Some("null_when_absent");
-            }
-        } else {
+        // A required nullable member is Optional like any other: the SDK accepts it missing, so ESS
+        // must too. An absent optional is omitted. `Optional<Json>` takes no presence: JSON null is
+        // one of its values, so ESS refuses `omitted_when_absent` there.
+        if !is_required || nullable {
             ess_type = format!("Optional<{ess_type}>");
-            // An absent optional is omitted. `Optional<Json>` takes no presence: JSON null is one
-            // of its values, so ESS refuses `omitted_when_absent` there.
             if !ess_type.starts_with("Optional<Json") {
                 presence = Some("omitted_when_absent");
             }
@@ -581,7 +580,7 @@ pub fn render_domain(manifest: &Value, domain: &str) -> Result<String, EssEmitEr
         "# property outside `required` is Optional and omitted when absent (`Optional<Json>` takes no"
             .to_owned(),
         "# presence, since JSON null is one of its values); a required nullable property".to_owned(),
-        "# (`x-rtvbp-presence: nullable`) is Optional and sent as null;".to_owned(),
+        "# (`x-rtvbp-presence: nullable`) is Optional too, so a missing member is accepted;".to_owned(),
         "# `minLength`, `minimum`, `x-rtvbp-nonzero` and `x-rtvbp-field-order` are invariants."
             .to_owned(),
         "# Not carried: `format` (int64, double), `x-go-type` and the per-operation `examples`."
