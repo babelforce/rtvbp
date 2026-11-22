@@ -191,6 +191,11 @@ func serve() error {
 	if err := exchangeAudio(shc, 1200, -2400); err != nil {
 		return err
 	}
+	// The client terminates as soon as it has read this frame. Sending it only after our own read
+	// proves the client frame arrived before the terminate request can close the audio stream.
+	if _, err := shc.AudioStream().Write(pcmFrame(3600)); err != nil {
+		return fmt.Errorf("write acknowledgement: %w", err)
+	}
 	var final [1]byte
 	if _, err := shc.AudioStream().Read(final[:]); err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("terminal read: %w", err)
