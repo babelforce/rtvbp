@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createInterface } from "node:readline";
-import test from "node:test";
+import test, { after, before } from "node:test";
 
 import {
   Handler,
@@ -12,31 +14,61 @@ import {
   type MediaFormat,
 } from "../src/index.ts";
 import { NodeWebSocketServer, nodeWebSocketTransport } from "../src/node.ts";
+import { type PeerCommand, startPeer, stopAllPeers } from "./support/peer_process.ts";
 
-interface PeerCommand {
-  readonly name: string;
-  readonly command: string;
-  readonly arguments: readonly string[];
-  readonly cwd: string;
-  readonly environment?: NodeJS.ProcessEnv;
-}
+const goPeerDirectory = fileURLToPath(new URL("./interop/go", import.meta.url));
 
-const peers: readonly PeerCommand[] = [
+// The Go peer is compiled once, before any test, and the tests start the binary. `go run` inside a
+// test spent the test's budget compiling, and left its compiled child running when the test timed
+// out.
+let goPeerBinary = "";
+let buildDirectory = "";
+
+before(async () => {
+  buildDirectory = await mkdtemp(join(tmpdir(), "rtvbp-interop-"));
+  goPeerBinary = join(buildDirectory, "rtvbp-interop-go");
+  const build = spawn("go", ["build", "-o", goPeerBinary, "."], {
+    cwd: goPeerDirectory,
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  const stderr: string[] = [];
+  build.stderr.on("data", (data: Buffer) => stderr.push(data.toString("utf8")));
+  await new Promise<void>((resolve, reject) => {
+    build.once("error", reject);
+    build.once("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`go build of the interop peer exited with ${code}: ${stderr.join("")}`));
+    });
+  });
+}, { timeout: 110_000 });
+
+after(async () => {
+  stopAllPeers();
+  if (buildDirectory !== "") await rm(buildDirectory, { recursive: true, force: true });
+});
+
+const peers: readonly { readonly name: string; command(): PeerCommand }[] = [
   {
     name: "Go",
-    command: "go",
-    arguments: ["run", "."],
-    cwd: fileURLToPath(new URL("./interop/go", import.meta.url)),
+    command: () => ({
+      name: "Go",
+      command: goPeerBinary,
+      arguments: [],
+      cwd: goPeerDirectory,
+    }),
   },
   {
     name: "Rust",
-    command: "cargo",
-    arguments: ["run", "--quiet", "--locked", "--manifest-path", "Cargo.toml", "--"],
-    cwd: fileURLToPath(new URL("./interop/rust", import.meta.url)),
-    environment: {
-      ...process.env,
-      CARGO_TARGET_DIR: fileURLToPath(new URL("../../rust/target", import.meta.url)),
-    },
+    command: () => ({
+      name: "Rust",
+      command: "cargo",
+      arguments: ["run", "--quiet", "--locked", "--manifest-path", "Cargo.toml", "--"],
+      cwd: fileURLToPath(new URL("./interop/rust", import.meta.url)),
+      environment: {
+        ...process.env,
+        CARGO_TARGET_DIR: fileURLToPath(new URL("../../rust/target", import.meta.url)),
+      },
+    }),
   },
 ];
 
@@ -47,70 +79,6 @@ const audioFormat: MediaFormat = {
   channels: 1,
   packetTimeMs: 20,
 };
-
-class PeerProcess {
-  readonly #child: ChildProcess;
-  readonly #stderr: string[] = [];
-  readonly #exit: Promise<void>;
-
-  constructor(command: PeerCommand, mode: "server" | "client", argument?: string) {
-    this.#child = spawn(
-      command.command,
-      [...command.arguments, mode, ...(argument === undefined ? [] : [argument])],
-      {
-        cwd: command.cwd,
-        env: command.environment ?? process.env,
-        detached: process.platform !== "win32",
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
-    this.#child.stderr?.on("data", (data: Buffer) => this.#stderr.push(data.toString("utf8")));
-    this.#exit = new Promise<void>((resolve, reject) => {
-      this.#child.once("error", reject);
-      this.#child.once("exit", (code, signal) => {
-        if (code === 0) resolve();
-        else reject(new Error(
-          `interop peer exited with ${code ?? signal ?? "unknown"}: ${this.#stderr.join("")}`,
-        ));
-      });
-    });
-    void this.#exit.catch(() => {});
-  }
-
-  async firstLine(): Promise<string> {
-    const stdout = this.#child.stdout;
-    if (stdout === null) throw new Error("interop peer stdout is unavailable");
-    const lines = createInterface({ input: stdout });
-    return await new Promise<string>((resolve, reject) => {
-      const onLine = (line: string): void => {
-        lines.off("close", onClose);
-        lines.close();
-        resolve(line);
-      };
-      const onClose = (): void => reject(new Error(`interop peer printed no URL: ${this.#stderr.join("")}`));
-      lines.once("line", onLine);
-      lines.once("close", onClose);
-    });
-  }
-
-  async wait(): Promise<void> {
-    await this.#exit;
-  }
-
-  stop(): void {
-    if (this.#child.exitCode !== null || this.#child.signalCode !== null) return;
-    const pid = this.#child.pid;
-    if (process.platform !== "win32" && pid !== undefined) {
-      try {
-        process.kill(-pid, "SIGTERM");
-        return;
-      } catch {
-        // The group may have exited between the state check and the signal.
-      }
-    }
-    this.#child.kill("SIGTERM");
-  }
-}
 
 function pcmFrame(sample: number): Uint8Array {
   const frame = new Uint8Array(320);
@@ -160,33 +128,29 @@ function applicationHandler(): Handler {
 }
 
 for (const peer of peers) {
-  test(`TypeScript client interoperates with ${peer.name} server`, { timeout: 120_000 }, async () => {
-    const process = new PeerProcess(peer, "server");
-    try {
-      const url = await process.firstLine();
-      assert.match(url, /^ws:\/\/127\.0\.0\.1:/);
-      const session = new Session({
-        envelope: classicV1.classicV1Envelope,
-        transportFactory: nodeWebSocketTransport({ url, protocols: [], audioFormat }),
-        handler: voiceHandler(),
-      });
-      const done = session.run();
-      await session.ready;
-      const request: babelforceV1.PingRequest = { t0: Date.now() };
-      const response = await new babelforceV1.ApplicationPeer(session).ping(request);
-      assert.equal(response.t0, request.t0);
+  test(`TypeScript client interoperates with ${peer.name} server`, { timeout: 60_000 }, async (context) => {
+    const peerProcess = startPeer(context, peer.command(), "server");
+    const url = await peerProcess.firstLine();
+    assert.match(url, /^ws:\/\/127\.0\.0\.1:/);
+    const session = new Session({
+      envelope: classicV1.classicV1Envelope,
+      transportFactory: nodeWebSocketTransport({ url, protocols: [], audioFormat }),
+      handler: voiceHandler(),
+    });
+    const done = session.run();
+    await session.ready;
+    const request: babelforceV1.PingRequest = { t0: Date.now() };
+    const response = await new babelforceV1.ApplicationPeer(session).ping(request);
+    assert.equal(response.t0, request.t0);
 
-      assertSample(await session.audio.read(320), 1_200);
-      await session.audio.write(pcmFrame(-2_400));
-      await new babelforceV1.ApplicationPeer(session).sessionTerminate({ reason: "interop complete" });
-      await done;
-      await process.wait();
-    } finally {
-      process.stop();
-    }
+    assertSample(await session.audio.read(320), 1_200);
+    await session.audio.write(pcmFrame(-2_400));
+    await new babelforceV1.ApplicationPeer(session).sessionTerminate({ reason: "interop complete" });
+    await done;
+    await peerProcess.wait();
   });
 
-  test(`${peer.name} client interoperates with TypeScript server`, { timeout: 120_000 }, async () => {
+  test(`${peer.name} client interoperates with TypeScript server`, { timeout: 60_000 }, async (context) => {
     let sessionResolve: (session: Session) => void = () => {};
     const accepted = new Promise<Session>((resolve) => { sessionResolve = resolve; });
     const server = new NodeWebSocketServer({
@@ -195,17 +159,13 @@ for (const peer of peers) {
       onSession: sessionResolve,
     });
     await server.listen();
-    const process = new PeerProcess(peer, "client", server.url);
-    try {
-      const session = await accepted;
-      await session.ready;
-      assertSample(await session.audio.read(320), 1_200);
-      await session.audio.write(pcmFrame(-2_400));
-      await process.wait();
-      while (session.state === "active") await new Promise((resolve) => setTimeout(resolve, 0));
-    } finally {
-      process.stop();
-      await server.close();
-    }
+    context.after(async () => await server.close());
+    const peerProcess = startPeer(context, peer.command(), "client", server.url);
+    const session = await accepted;
+    await session.ready;
+    assertSample(await session.audio.read(320), 1_200);
+    await session.audio.write(pcmFrame(-2_400));
+    await peerProcess.wait();
+    while (session.state === "active") await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
