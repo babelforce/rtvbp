@@ -34,6 +34,8 @@ class NodeSocketAdapter implements WebSocketPlatformSocket {
   readonly #messages = new Set<(message: WebSocketMessage) => void>();
   readonly #closed = new Set<(error?: unknown) => void>();
   readonly #pongs = new Set<(data: string) => void>();
+  /** Frames that arrive before the transport subscribes (the server may speak right after the upgrade). */
+  #early: WebSocketMessage[] | undefined = [];
   #closePromise: Promise<void> | undefined;
 
   constructor(socket: WebSocket) {
@@ -43,6 +45,10 @@ class NodeSocketAdapter implements WebSocketPlatformSocket {
       const message: WebSocketMessage = isBinary
         ? { kind: "binary", data: bytes }
         : { kind: "text", data: new TextDecoder().decode(bytes) };
+      if (this.#early !== undefined) {
+        this.#early.push(message);
+        return;
+      }
       for (const listener of this.#messages) listener(message);
     });
     socket.on("pong", (data) => {
@@ -78,6 +84,9 @@ class NodeSocketAdapter implements WebSocketPlatformSocket {
 
   onMessage(listener: (message: WebSocketMessage) => void): () => void {
     this.#messages.add(listener);
+    const early = this.#early;
+    this.#early = undefined;
+    for (const message of early ?? []) listener(message);
     return () => this.#messages.delete(listener);
   }
 

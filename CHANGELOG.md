@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- The TypeScript Node WebSocket client no longer drops frames the server sends right after the
+  upgrade. The adapter handed each frame to its subscribers, but the transport subscribes a few
+  ticks after the socket opens, so a first audio frame sent at once was lost and a session whose
+  peer waits for audio (the Go server in the interop test) hung. The adapter now holds frames
+  until the transport subscribes.
+
 ### Changed
 
 - The ESS emitter writes the three required nullable members of `babelforce.v1`
