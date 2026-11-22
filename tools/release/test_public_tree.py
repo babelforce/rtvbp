@@ -59,15 +59,30 @@ class PublicTreeTest(unittest.TestCase):
         )
         self.assertIn("--test-concurrency=1", package["scripts"]["test"])
 
-        for relative in (
-            "sdk/typescript/test/browser_headless.test.ts",
-            "sdk/typescript/test/interop.test.ts",
-        ):
-            source = (ROOT / relative).read_text(encoding="utf-8")
-            with self.subTest(path=relative):
-                self.assertNotIn('"--offline"', source)
-                self.assertIn('detached: process.platform !== "win32"', source)
-                self.assertIn('process.kill(-pid, "SIGTERM")', source)
+        browser = (ROOT / "sdk/typescript/test/browser_headless.test.ts").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn('"--offline"', browser)
+        self.assertIn('detached: process.platform !== "win32"', browser)
+        self.assertIn('process.kill(-pid, "SIGTERM")', browser)
+
+        interop = (ROOT / "sdk/typescript/test/interop.test.ts").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn('"--offline"', interop)
+        self.assertIn(
+            'import { type PeerCommand, startPeer, stopAllPeers } from "./support/peer_process.ts";',
+            interop,
+        )
+        self.assertNotIn("class PeerProcess", interop)
+
+        helper = (ROOT / "sdk/typescript/test/support/peer_process.ts").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn('"--offline"', helper)
+        self.assertIn('detached: process.platform !== "win32"', helper)
+        self.assertIn('process.kill(-pid, "SIGKILL")', helper)
+        self.assertIn("context.after(() => peer.stop())", helper)
 
     def test_typescript_release_scopes_npm_authentication_to_publish(self) -> None:
         workflow = (ROOT / ".github/workflows/typescript-release.yml").read_text(
