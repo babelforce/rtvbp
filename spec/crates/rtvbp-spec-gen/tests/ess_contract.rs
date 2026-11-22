@@ -108,7 +108,7 @@ fn ess_system_files_pin_the_release_and_carry_no_comments() {
     let inputs = ess_file("ess-inputs.yaml");
     assert!(inputs.starts_with("format: ess-inputs/2\n"));
     assert!(inputs.contains(&format!("requires: {ESS_REQUIREMENT}\n")));
-    assert_eq!(ESS_REQUIREMENT, "ess 0.97.1");
+    assert_eq!(ESS_REQUIREMENT, "ess 0.97.3");
     assert!(inputs.contains("  - domains/babelforce-v1.yaml\n"));
     let system = ess_file("system.yaml");
     assert!(system.contains("system: rtvbp\n"));
