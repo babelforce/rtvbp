@@ -9,6 +9,14 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- The ESS emitter writes the three required nullable members of `babelforce.v1`
+  (`SessionInitializeRequest.metadata`, `SessionInitializeResponse.audio_codec`,
+  `SessionUpdatedEvent.audio_codec`) as `Optional<T>` with `presence: omitted_or_null`, and
+  `spec/ess/system.yaml` now declares `format: ess/37` (was `ess/29`). The published JSON Schema
+  accepts a missing member and `null`, so the golden `null` vectors and a missing member both
+  decode. This completes the `omitted_when_absent` change, which made a missing member decode but
+  refused `null`. A test validates both spellings against the generated JSON Schema with the pinned
+  `ess` release, and the protocol gate installs that release.
 - The generated ESS specification under `spec/ess/` now requires `ess 0.97.1` (was `ess 0.68.0`);
   `rtvbp-spec-gen --emit=ess` writes the new release, and the generated domain is unchanged.
 - Reworked the public documentation itself into a responsive integration workspace: an audience-led
