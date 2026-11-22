@@ -9,6 +9,8 @@ does not change the frozen `babelforce.v1` wire catalog.
 
 - `spec/ess/ess-inputs.yaml` requires `ess 0.97.3` (was `ess 0.97.1`); the generated domain and the
   `babelforce.v1` and `demo.v1` wire catalogs are unchanged.
+- `spec/ess/ess-inputs.yaml` requires `ess 0.97.4` (was `ess 0.97.3`); the generated domain and the
+  `babelforce.v1` and `demo.v1` wire catalogs are unchanged.
 
 ## [1.1.2] - 2026-11-22
 

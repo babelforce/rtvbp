@@ -50,7 +50,7 @@ class SetupEssTests(unittest.TestCase):
     def test_action_exists_and_pins_one_release(self):
         text = ACTION.read_text()
         self.assertIn("using: composite", text)
-        self.assertRegex(text, r"0\.97\.3")
+        self.assertRegex(text, r"0\.97\.4")
         self.assertEqual(len(SHA256.findall(text)), 1)
 
     def test_pin_lives_only_in_the_action(self):
