@@ -44,6 +44,8 @@ jobs:
           cache: yarn
           cache-dependency-path: website/yarn.lock
       - uses: arduino/setup-task@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install demo audio dependency
         run: |
           sudo apt-get update
