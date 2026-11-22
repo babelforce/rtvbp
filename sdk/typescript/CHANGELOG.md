@@ -3,6 +3,23 @@
 All notable TypeScript SDK changes are recorded here. Versions correspond to `sdk/typescript/v*`
 tags and public `@babelforce/rtvbp` versions.
 
+## [0.1.1] - 2026-11-22
+
+### Fixed
+
+- Inbound audio that reached the transport just before the session shut down (a `session.terminate`,
+  a peer close or a local close) is no longer dropped. Shutdown closed the audio read side before
+  the media pump had moved the frames still queued in the transport, so a frame received right
+  before a terminate never reached the reader. Reads now return every queued frame and then end;
+  writes stop at the start of shutdown as before. A pump that does not finish within the close
+  timeout is cut off.
+- The Node WebSocket client no longer drops frames the server sends right after the upgrade. The
+  adapter handed each frame to its subscribers, but the transport subscribes a few ticks after the
+  socket opens, so a first audio frame sent at once was lost and a session whose peer waits for audio
+  hung. The adapter now holds frames until the transport subscribes.
+- The interoperability tests against the Go and Rust peers build each peer once, stop it on every
+  exit path and run one at a time; the package `test` script runs test files serially.
+
 ## [0.1.0] - 2026-08-14
 
 ### Added

@@ -16,9 +16,9 @@ and `task check` to execute the same drift gate as CI.
 - [Contributor vision and principles](docs/vision.md)
 
 ```bash
-go get github.com/babelforce/rtvbp/sdk/go@v0.1.1
+go get github.com/babelforce/rtvbp/sdk/go@v0.2.0
 ```
 
 ```toml
-rtvbp = { git = "https://github.com/babelforce/rtvbp", tag = "sdk/rust/v0.1.0" }
+rtvbp = { git = "https://github.com/babelforce/rtvbp", tag = "sdk/rust/v0.2.0" }
 ```
