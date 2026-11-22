@@ -6,8 +6,8 @@ runs:
     - name: Install the pinned ess release
       shell: bash
       env:
-        ESS_VERSION: 0.97.1
-        ESS_SHA256: fdfffe4d82f288378fee35df5ffb46adc9cb2ae22486e9dbf612eec26cc00c84
+        ESS_VERSION: 0.97.3
+        ESS_SHA256: d709e59830699f6588d14621847b702aa100142c045de8761e90c5aeeab98c88
       run: |
         archive="ess-${ESS_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
         curl --fail --location --silent --show-error --output "${RUNNER_TEMP}/${archive}" \

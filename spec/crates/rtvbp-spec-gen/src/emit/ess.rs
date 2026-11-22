@@ -14,9 +14,9 @@ use super::{GeneratedFile, Manifest};
 use crate::resolve::ResolvedCatalog;
 
 /// The ESS release the emitted specification is validated with.
-pub const ESS_REQUIREMENT: &str = "ess 0.97.1";
+pub const ESS_REQUIREMENT: &str = "ess 0.97.3";
 
-/// The newest specification format `ess 0.97.1` reads (`ess specify formats`). `omitted_or_null`
+/// The newest specification format `ess 0.97.3` reads (`ess specify formats`). `omitted_or_null`
 /// needs `ess/31`; below it ESS refuses the value with `ESS-TYPE-009`.
 pub const ESS_FORMAT: &str = "ess/37";
 
