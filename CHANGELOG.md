@@ -9,6 +9,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- The generated ESS specification under `spec/ess/` now requires `ess 0.97.1` (was `ess 0.68.0`);
+  `rtvbp-spec-gen --emit=ess` writes the new release, and the generated domain is unchanged.
 - Reworked the public documentation itself into a responsive integration workspace: an audience-led
   gateway, intentional Start/Build/Understand/Reference navigation, current TypeScript/npm release
   status, and a shared light/dark reading system for guides, categories, code, tables, diagrams,
