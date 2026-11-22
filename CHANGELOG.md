@@ -40,6 +40,10 @@ All notable changes to this project are documented here. The format is based on
   its published SHA-256, `spec/ess/ess-inputs.yaml` requires `ess 0.97.3`, and
   `rtvbp-spec-gen --emit=ess` writes that requirement. The generated catalogs, schemas and domain
   are unchanged.
+- The pinned `ess` release is now 0.97.4 (was 0.97.3): `.github/actions/setup-ess` installs it with
+  its published SHA-256, `spec/ess/ess-inputs.yaml` requires `ess 0.97.4`, and
+  `rtvbp-spec-gen --emit=ess` writes that requirement. The generated catalogs, schemas and domain
+  are unchanged.
 - Reworked the public documentation itself into a responsive integration workspace: an audience-led
   gateway, intentional Start/Build/Understand/Reference navigation, current TypeScript/npm release
   status, and a shared light/dark reading system for guides, categories, code, tables, diagrams,
