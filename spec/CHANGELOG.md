@@ -3,6 +3,16 @@
 This changelog versions immutable distributions of the protocol specification. A snapshot version
 does not change the frozen `babelforce.v1` wire catalog.
 
+## [Unreleased]
+
+### Changed
+
+- `spec/ess/domains/babelforce-v1.yaml` writes `SessionInitializeRequest.metadata`,
+  `SessionInitializeResponse.audio_codec` and `SessionUpdatedEvent.audio_codec` as
+  `presence: omitted_or_null` (was `omitted_when_absent`, which refused `null`), and `spec/ess/system.yaml` declares
+  `format: ess/37` (was `ess/29`). A missing member and `null` both validate. The `babelforce.v1`
+  and `demo.v1` wire catalogs are unchanged.
+
 ## [1.1.1] - 2026-11-22
 
 ### Changed

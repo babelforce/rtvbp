@@ -220,7 +220,7 @@ fn the_projection_maps_presence_bounds_and_nullability_as_the_rules_banner_says(
         summary: \"Its label.\"
       - name: parent
         type: Optional<rtvbp.test_v1.Thing>
-        presence: omitted_when_absent
+        presence: omitted_or_null
       - name: score
         type: Optional<Json>
       - name: tags
@@ -247,16 +247,166 @@ fn the_projection_maps_presence_bounds_and_nullability_as_the_rules_banner_says(
 fn the_required_nullable_members_of_the_catalog_are_optional_so_a_missing_member_decodes() {
     let domain = ess_file("domains/babelforce-v1.yaml");
     assert!(!domain.contains("null_when_absent"), "{domain}");
+    assert_eq!(domain.matches("presence: omitted_or_null\n").count(), 3);
     assert!(domain.contains(
-        "      - name: metadata\n        type: Optional<Map<String, Json>>\n        presence: omitted_when_absent\n"
+        "      - name: metadata\n        type: Optional<Map<String, Json>>\n        presence: omitted_or_null\n"
     ));
     assert_eq!(
         domain
             .matches(
-                "      - name: audio_codec\n        type: Optional<rtvbp.babelforce_v1.AudioCodec>\n        presence: omitted_when_absent\n"
+                "      - name: audio_codec\n        type: Optional<rtvbp.babelforce_v1.AudioCodec>\n        presence: omitted_or_null\n"
             )
             .count(),
         2
+    );
+}
+
+#[test]
+fn the_system_declares_the_format_that_admits_omitted_or_null() {
+    let system = ess_file("system.yaml");
+    assert!(system.starts_with("format: ess/37\n"), "{system}");
+}
+
+const SCHEMA_ID_BASE: &str = "https://schemas.rtvbp.test/";
+
+fn golden(relative: &str) -> Value {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../conformance/babelforce.v1/golden")
+        .join(relative);
+    serde_json::from_slice(&std::fs::read(&path).unwrap_or_else(|e| panic!("{path:?}: {e}")))
+        .unwrap()
+}
+
+fn run_ess(args: &[&str]) -> std::process::Output {
+    std::process::Command::new("ess")
+        .args(args)
+        .output()
+        .unwrap_or_else(|e| {
+            panic!(
+                "`ess` is not on PATH ({e}); install the release pinned as `{ESS_REQUIREMENT}`, \
+                 as .github/workflows/spec.yml does"
+            )
+        })
+}
+
+fn instance(type_name: &str, mut payload: Value, member: &str, change: Option<Value>) -> Value {
+    let object = payload.as_object_mut().unwrap();
+    match change {
+        Some(value) => object.insert(member.to_owned(), value),
+        None => object.remove(member),
+    };
+    object.insert(
+        "schema".to_owned(),
+        json!(format!(
+            "{SCHEMA_ID_BASE}types/rtvbp.babelforce_v1.{type_name}.schema.json"
+        )),
+    );
+    payload
+}
+
+#[test]
+fn the_published_json_schema_accepts_a_missing_member_and_null_for_the_required_nullable_members() {
+    let root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("ess-presence-schema");
+    let _ = std::fs::remove_dir_all(&root);
+    let spec = root.join("spec");
+    for file in generate(Target::Ess).unwrap() {
+        let path = spec.join(&file.path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, file.bytes).unwrap();
+    }
+    let out = root.join("out");
+    let generated = run_ess(&[
+        "generate",
+        "generate",
+        "--path",
+        spec.to_str().unwrap(),
+        "--kind",
+        "schema",
+        "--schema-id-base",
+        SCHEMA_ID_BASE,
+        "--out",
+        out.to_str().unwrap(),
+    ]);
+    assert!(
+        generated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&generated.stderr)
+    );
+    let schemas = out.join("schema/types");
+
+    let cases = [
+        (
+            "SessionInitializeRequest",
+            golden("payloads/session.initialize.request.json"),
+            "metadata",
+        ),
+        (
+            "SessionInitializeResponse",
+            golden("payloads/session.initialize.response.json"),
+            "audio_codec",
+        ),
+        (
+            "SessionUpdatedEvent",
+            golden("events/session.updated.json"),
+            "audio_codec",
+        ),
+    ];
+    let valid = root.join("valid");
+    let invalid = root.join("invalid");
+    std::fs::create_dir_all(&valid).unwrap();
+    std::fs::create_dir_all(&invalid).unwrap();
+    for (type_name, payload, member) in cases {
+        let write = |dir: &Path, label: &str, value: Value| {
+            let name = format!("{type_name}.{label}.json");
+            std::fs::write(dir.join(name), serde_json::to_vec(&value).unwrap()).unwrap();
+        };
+        let kept = payload[member].clone();
+        write(
+            &valid,
+            "golden",
+            instance(type_name, payload.clone(), member, Some(kept)),
+        );
+        write(
+            &valid,
+            "null",
+            instance(type_name, payload.clone(), member, Some(Value::Null)),
+        );
+        write(
+            &valid,
+            "missing",
+            instance(type_name, payload.clone(), member, None),
+        );
+        write(
+            &invalid,
+            "wrong-type",
+            instance(type_name, payload, member, Some(json!(5))),
+        );
+    }
+
+    let accepted = run_ess(&[
+        "generate",
+        "schema",
+        "validate",
+        "--schemas",
+        schemas.to_str().unwrap(),
+        valid.to_str().unwrap(),
+    ]);
+    let report = String::from_utf8_lossy(&accepted.stdout).into_owned()
+        + &String::from_utf8_lossy(&accepted.stderr);
+    assert!(accepted.status.success(), "{report}");
+    assert!(report.contains("9 instance(s)"), "{report}");
+
+    let refused = run_ess(&[
+        "generate",
+        "schema",
+        "validate",
+        "--schemas",
+        schemas.to_str().unwrap(),
+        invalid.to_str().unwrap(),
+    ]);
+    assert!(
+        !refused.status.success(),
+        "a wrong-typed member must still be refused, or the check proves nothing"
     );
 }
 
