@@ -97,7 +97,7 @@ class SocketMedia implements MediaChannel {
   }
 
   async readFrame(signal?: AbortSignal): Promise<MediaFrame> {
-    if (this.#closed) throw new SessionError("closed", "media channel is closed");
+    // After close the binary queue still hands out the frames it holds, then reports closed.
     const data = await this.#transport.receiveBinary(signal);
     if (data.byteLength !== mediaFrameBytes(this.format)) {
       throw new SessionError("media_frame", "received media frame has the wrong byte length");
@@ -111,6 +111,7 @@ class SocketMedia implements MediaChannel {
 
   async close(): Promise<void> {
     this.#closed = true;
+    this.#transport.closeBinary();
   }
 }
 
@@ -168,6 +169,11 @@ export class WebSocketTransport implements Transport {
 
   async receiveBinary(signal?: AbortSignal): Promise<Uint8Array> {
     return (await this.#binary.shift(signal)).slice();
+  }
+
+  /** Ends binary reads once the frames already queued have been delivered. */
+  closeBinary(): void {
+    this.#binary.close();
   }
 
   clearBinary(frameBytes: number): number {

@@ -667,10 +667,15 @@ async fn write_pump<S>(
     S: Sink<Message, Error = WebSocketError> + Unpin,
 {
     while let Some(command) = outgoing.recv().await {
-        let result = writer
-            .send(command.message)
-            .await
-            .map_err(|error| error.to_string());
+        let result = writer.send(command.message).await.or_else(|error| {
+            // The peer's Close frame won the race: the closing handshake is already under way,
+            // so our own Close has nothing left to say and the close is orderly.
+            if command.close && is_send_after_closing(&error) {
+                Ok(())
+            } else {
+                Err(error.to_string())
+            }
+        });
         if let Some(written) = command.written {
             let _ = written.send(result.clone());
         }
@@ -1020,6 +1025,15 @@ fn normalize_socket_error(error: WebSocketError) -> Terminal {
     }
 }
 
+fn is_send_after_closing(error: &WebSocketError) -> bool {
+    matches!(
+        error,
+        WebSocketError::Protocol(
+            tokio_tungstenite::tungstenite::error::ProtocolError::SendAfterClosing
+        )
+    )
+}
+
 fn normalize_error_message(message: String) -> Terminal {
     if message.contains("Connection closed") || message.contains("closed") {
         Terminal::Orderly
@@ -1034,4 +1048,44 @@ fn transport_error(error: impl std::fmt::Display) -> crate::Error {
 
 fn configuration_error(error: impl std::fmt::Display) -> crate::Error {
     crate::Error::Configuration(error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use futures_util::sink;
+    use tokio_tungstenite::tungstenite::error::ProtocolError;
+    use tokio_tungstenite::tungstenite::protocol::Role;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn close_that_loses_the_race_to_the_peers_close_is_orderly() {
+        let (near, _far) = tokio::io::duplex(1024);
+        let stream = WebSocketStream::from_raw_socket(near, Role::Server, None).await;
+        let transport = WsTransport::start(stream, "", TransportConfig::default()).unwrap();
+
+        let (outgoing, commands) = mpsc::unbounded_channel();
+        let (written_tx, written_rx) = oneshot::channel();
+        outgoing
+            .send(Outbound {
+                message: Message::Close(None),
+                close: true,
+                written: Some(written_tx),
+            })
+            .unwrap();
+        let refusing = sink::unfold((), |(), _message: Message| async {
+            Err::<(), _>(WebSocketError::Protocol(ProtocolError::SendAfterClosing))
+        });
+        tokio::spawn(write_pump(
+            Arc::clone(&transport),
+            commands,
+            Box::pin(refusing),
+        ));
+
+        assert_eq!(written_rx.await.unwrap(), Ok(()));
+        assert!(matches!(
+            *mutex_lock(&transport.terminal),
+            Some(Terminal::Orderly)
+        ));
+    }
 }

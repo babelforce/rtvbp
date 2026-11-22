@@ -234,6 +234,8 @@ func (s *Session) supervise(parent context.Context) {
 	select {
 	case <-workersDone:
 	case <-time.After(s.teardownTimeout()):
+		// A pump blocked on a full ring has no reader left to wait for.
+		_ = s.audio.Close()
 		terminal = mergeStopRequests(terminal, stopRequest{cause: errors.New("rtvbp: session workers did not stop"), failed: true})
 	}
 	s.complete(terminal)
@@ -257,7 +259,15 @@ func (s *Session) beginShutdown(terminal stopRequest) stopRequest {
 		pendingError = ErrSessionClosed
 	}
 	s.failPending(pendingError)
-	_ = s.audio.Close()
+	s.audio.closeOutbound()
+	// With media bound, the inbound pump closes the read side after it drained the transport.
+	// Without it nothing would ever close the ring, and a handler blocked in Read would hang.
+	s.mediaMu.Lock()
+	pumped := s.media != nil
+	s.mediaMu.Unlock()
+	if !pumped {
+		s.audio.closeInbound()
+	}
 	return terminal
 }
 

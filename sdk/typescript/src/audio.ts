@@ -12,12 +12,16 @@ export interface ObservedMediaFrame {
 
 export type AudioObserver = (frame: ObservedMediaFrame) => void;
 
+/** How long close waits for a channel to hand over the frames it still holds. */
+const DRAIN_GRACE_MS = 1_000;
+
 /** Session-owned byte stream over one negotiated, fixed-size media channel. */
 export class AudioStream {
   readonly #capacityBytes: number;
   readonly #observer: AudioObserver | undefined;
   readonly #onError: ((error: SessionError) => void) | undefined;
   readonly #abort = new AbortController();
+  readonly #pushAbort = new AbortController();
   #channel: MediaChannel | undefined;
   #format: MediaFormat | undefined;
   #inbound: AsyncQueue<MediaFrame> | undefined;
@@ -118,7 +122,8 @@ export class AudioStream {
     await previous;
     try {
       throwIfAborted(signal);
-      const inbound = this.#requireInbound();
+      // A closed stream still hands out what it buffered; the queue reports closed once empty.
+      const inbound = this.#closed && this.#inbound !== undefined ? this.#inbound : this.#requireInbound();
       if (this.#current === undefined || this.#currentOffset === this.#current.byteLength) {
         this.#current = (await inbound.shift(signal)).data;
         this.#currentOffset = 0;
@@ -141,12 +146,26 @@ export class AudioStream {
     return cleared;
   }
 
+  /**
+   * Refuses further writes at once, but delivers every frame the channel already holds: closing
+   * the channel ends its reads only after its queue drained, and the reader moves those frames
+   * into the inbound queue before it stops. Reads keep working until that queue is empty.
+   */
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
+    this.#pushAbort.abort();
+    await this.#channel?.close();
+    if (this.#reader !== undefined) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        this.#reader.catch(() => {}),
+        new Promise<void>((resolve) => { timer = setTimeout(resolve, DRAIN_GRACE_MS); }),
+      ]);
+      clearTimeout(timer);
+    }
     this.#abort.abort(new SessionError("closed", "audio stream is closed"));
     this.#inbound?.close();
-    await this.#channel?.close();
     await this.#reader?.catch(() => {});
     this.#partial = new Uint8Array(0);
   }
@@ -168,13 +187,18 @@ export class AudioStream {
           ...(copy.ptsMs === undefined ? {} : { ptsMs: copy.ptsMs }),
           observedAt: Date.now(),
         });
-        await inbound.push(copy, this.#abort.signal);
+        // While closing, nobody is owed more than what fits: a full queue ends the drain.
+        if (this.#closed) {
+          if (!inbound.tryPush(copy)) return;
+        } else {
+          await inbound.push(copy, this.#pushAbort.signal);
+        }
       }
     } catch (error) {
-      if (!this.#abort.signal.aborted) {
-        inbound.close();
-        throw asSessionError(error, "media_read");
-      }
+      if (this.#abort.signal.aborted) return;
+      if (this.#closed && error instanceof SessionError && (error.code === "closed" || error.code === "aborted")) return;
+      inbound.close();
+      throw asSessionError(error, "media_read");
     }
   }
 

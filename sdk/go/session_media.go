@@ -135,8 +135,13 @@ func (s *Session) finishAudioBind(channel MediaChannel, requested *MediaFormat) 
 	return nil
 }
 
+// pumpAudioInbound moves frames from the transport queue into the inbound ring. It is the only
+// closer of the ring while media is bound: the transport hands over every frame it already holds
+// before it reports EOF, so closing the ring when the pump ends, not when shutdown begins, keeps
+// a frame that arrived just before a terminate request readable.
 func (s *Session) pumpAudioInbound(channel MediaChannel) {
 	defer s.mediaWG.Done()
+	defer s.audio.closeInbound()
 	for {
 		frame, err := channel.ReadFrame()
 		if err != nil {

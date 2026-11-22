@@ -450,17 +450,27 @@ impl Session {
         self.set_state(SessionState::Closing);
         self.inner.closing.store(true, Ordering::Release);
         self.fail_pending();
-        self.inner.audio.close();
+        // Writes stop now. The read side stays open until the inbound pump has moved every frame
+        // the transport already holds, so a frame that arrived just before a terminate request
+        // is still readable.
+        self.inner.audio.close_outbound();
+        self.inner.audio.stop_waiting_for_readers();
 
         let media = match &*mutex_lock(&self.inner.media) {
             MediaBinding::Bound(media) => Some(Arc::clone(media)),
             MediaBinding::Unbound | MediaBinding::Binding => None,
         };
-        if let Some(media) = media
-            && let Err(error) = media.close().await
-        {
-            self.request_failure(format!("media close: {error}"));
+        let mut media_tasks = std::mem::take(&mut *mutex_lock(&self.inner.media_tasks));
+        if let Some(media) = media {
+            if let Err(error) = media.close().await {
+                self.request_failure(format!("media close: {error}"));
+            }
+            // The first task is the inbound pump; closing the channel ends it after the drain.
+            if let Some(inbound) = media_tasks.first_mut() {
+                let _ = tokio::time::timeout(self.inner.config.close_timeout, inbound).await;
+            }
         }
+        self.inner.audio.finish_inbound();
         let close = tokio::time::timeout(self.inner.config.close_timeout, transport.close()).await;
         match close {
             Ok(Ok(())) => {}
@@ -476,7 +486,7 @@ impl Session {
             begin.abort();
         }
         keepalive.abort();
-        for task in mutex_lock(&self.inner.media_tasks).drain(..) {
+        for task in media_tasks {
             task.abort();
         }
         self.finish_terminal()

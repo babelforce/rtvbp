@@ -19,7 +19,9 @@ type audioStream struct {
 	formatMu  sync.RWMutex
 	format    MediaFormat
 	formatSet bool
-	closeOnce sync.Once
+
+	inboundCloseOnce  sync.Once
+	outboundCloseOnce sync.Once
 }
 
 func newAudioStream(bufferSize int) *audioStream {
@@ -87,11 +89,20 @@ func (s *audioStream) readOutbound(p []byte) (int, error) {
 }
 
 func (s *audioStream) Close() error {
-	s.closeOnce.Do(func() {
-		s.inbound.CloseWithError(io.EOF)
-		s.outbound.CloseWithError(io.EOF)
-	})
+	s.closeOutbound()
+	s.closeInbound()
 	return nil
+}
+
+// closeOutbound refuses further handler writes and stops the outbound media pump.
+func (s *audioStream) closeOutbound() {
+	s.outboundCloseOnce.Do(func() { s.outbound.CloseWithError(io.EOF) })
+}
+
+// closeInbound ends the read side. A ring drains its buffered bytes before it reports EOF, so
+// every frame written before this call is still delivered to the reader.
+func (s *audioStream) closeInbound() {
+	s.inboundCloseOnce.Do(func() { s.inbound.CloseWithError(io.EOF) })
 }
 
 func discardAvailable(buffer *ringbuffer.RingBuffer) (int, error) {
